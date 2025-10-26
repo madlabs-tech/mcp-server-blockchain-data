@@ -40,6 +40,15 @@ pub struct GetGasPriceParams {
     pub chain: String,
 }
 
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct GetTransactionByHashParams {
+    // hash
+    pub hash: String,
+    // chain
+    pub chain: String,
+}
+
+
 #[derive(Clone)]
 pub struct EvmMcpServer {
     tool_router: ToolRouter<Self>,
@@ -94,6 +103,21 @@ impl EvmMcpServer {
             )),
         }
     }
+
+    #[tool(description = "Get transaction details by hash")]
+    async fn eth_get_transaction_by_hash(
+        &self,
+        Parameters(params): Parameters<GetTransactionByHashParams>,
+    ) -> Result<CallToolResult, McpError> {
+        match self.get_transaction_by_hash(params.hash, params.chain).await {
+            Ok(result) => Ok(CallToolResult::success(vec![Content::text(result)])),
+            Err(e) => Err(McpError::internal_error(
+                format!("Failed to get transaction: {}", e),
+                None,
+            )),
+        }
+    }
+
 }
 
 // Implementation methods
@@ -175,6 +199,31 @@ impl EvmMcpServer {
             "gasPriceWei": gas_price.to_string(),
             "gasPriceGwei": format!("{:.2}", gas_price as f64 / 1e9),
             "timestamp": chrono::Utc::now().to_rfc3339(),
+        });
+
+        Ok(serde_json::to_string_pretty(&result)?)
+    }
+
+    async fn get_transaction_by_hash(&self, hash: String, chain_str: String) -> Result<String> {
+        use alloy::primitives::B256;
+        use alloy::providers::Provider;
+
+        // Parse chain
+        let chain = Chain::from_str(&chain_str)?;
+        let chain_config = get_chain(chain)?;
+
+        // Parse transaction hash
+        let tx_hash = B256::from_str(&hash)?;
+
+        // Get provider
+        let provider = get_public_client(chain).await?;
+
+        // Get transaction details
+        let tx = provider.get_transaction_by_hash(tx_hash).await?;
+        
+        let result = json!({
+            "chain": chain_config.name,
+            "transaction": tx,
         });
 
         Ok(serde_json::to_string_pretty(&result)?)
