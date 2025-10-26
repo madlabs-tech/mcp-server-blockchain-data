@@ -265,17 +265,13 @@ The server includes comprehensive error handling for:
 ```
 mcp-evm-server/
 ├── src/
-│   ├── index.rs                # Main stdio server entry point
-│   ├── server/                 # Server-related files
-│   │   ├── http-server.rs      # HTTP server with SSE
-│   │   └── server.rs           # General server setup
 │   ├── core/
 │   │   ├── chains.rs           # Chain definitions and utilities
 │   │   ├── resources.rs        # MCP resources implementation
 │   │   ├── tools.rs            # MCP tools implementation
 │   │   ├── prompts.rs          # MCP prompts implementation
 │   │   └── services/           # Core blockchain services
-│   │       ├── index.rs        # Operation exports
+│   │       ├── mod.rs        # Operation exports
 │   │       ├── balance.rs      # Balance services
 │   │       ├── transfer.rs     # Token transfer services
 │   │       ├── utils.rs        # Utility functions
