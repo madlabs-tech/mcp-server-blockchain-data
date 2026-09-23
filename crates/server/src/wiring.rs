@@ -51,11 +51,21 @@ pub fn build(loaded: Loaded) -> Result<Built> {
     let router = Router::new(
         RoutingTable {
             config: loaded.clone(),
-            registry,
+            registry: registry.clone(),
         },
         Arc::new(InMemoryCounterStore::default()),
         RouterOptions::default(),
     );
+    // Second stage: `rpc` pseudo-vendor + on-chain oracles are built on the routed RPC, so they
+    // need the router; add them and swap in the complete table.
+    let mut registry = registry;
+    for reg in ems_protocols::rpc_registrations(&loaded, &router) {
+        registry.add(reg);
+    }
+    router.swap(RoutingTable {
+        config: loaded.clone(),
+        registry,
+    });
     let mut catalog = Catalog::new();
     ems_app::ops::register_all(&mut catalog);
     let app = Arc::new(App::new(
@@ -111,5 +121,35 @@ impl EvmRpc for ChainIdGuard {
             .await?;
         check.clone()?;
         self.inner.request(method, params).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ems_config::{ConfigDir, ConfigLoader, EnvSource};
+    use ems_domain::ChainId;
+    use ems_ports::Capability;
+
+    #[test]
+    fn second_stage_registers_rpc_pseudo_vendor() {
+        let loader =
+            ConfigLoader::new(ConfigDir::new("/nonexistent"), EnvSource::default()).unwrap();
+        let built = build(loader.load_texts("", "").unwrap()).unwrap();
+        let table = built.app.router().table();
+        let base = ChainId::evm(8453);
+        for cap in [
+            Capability::TokenBalances,
+            Capability::TransferHistory,
+            Capability::FeeEstimate,
+        ] {
+            assert!(
+                table
+                    .registry
+                    .registered_for(cap, Some(&base))
+                    .contains(&"rpc".to_string()),
+                "{cap} missing rpc pseudo-vendor on Base"
+            );
+        }
     }
 }

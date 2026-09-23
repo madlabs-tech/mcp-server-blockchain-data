@@ -667,3 +667,18 @@ async fn routed_evm_rpc_fails_over() {
     assert_eq!(bad.calls.load(Ordering::SeqCst), 2);
     assert_eq!(good.calls.load(Ordering::SeqCst), 1);
 }
+
+#[tokio::test]
+async fn all_unsupported_stays_unsupported() {
+    let a = ScriptedPrice::new(
+        "defillama",
+        Err(ProviderError::Unsupported("no such method".into())),
+    );
+    let b = ScriptedPrice::new(
+        "geckoterminal",
+        Err(ProviderError::Unsupported("no such method".into())),
+    );
+    let r = router_with(ORDER3, &[], vec![price_reg(&a), price_reg(&b)], fast_opts());
+    let err = price_of(&r, req()).await.unwrap_err();
+    assert_eq!(err.error.code, ErrorCode::UnsupportedCapability);
+}

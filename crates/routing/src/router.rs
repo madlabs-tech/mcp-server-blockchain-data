@@ -670,6 +670,15 @@ fn route_error(req: &RouteReq, last: Option<ProviderError>, attempts: Vec<Attemp
         Some(e @ (ProviderError::RateLimited { .. } | ProviderError::QuotaExhausted { .. })) => {
             e.into()
         }
+        // Every vendor that was tried said "unsupported": keep that meaning (don't call it an outage).
+        Some(ProviderError::Unsupported(m))
+            if attempts
+                .iter()
+                .filter(|a| a.outcome == AttemptOutcome::Failed)
+                .all(|a| a.error_code == Some(ErrorCode::UnsupportedCapability)) =>
+        {
+            DomainError::new(ErrorCode::UnsupportedCapability, m)
+        }
         Some(e) => {
             let vendors: Vec<String> = attempts
                 .iter()
