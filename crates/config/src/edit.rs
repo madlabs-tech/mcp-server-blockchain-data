@@ -201,7 +201,7 @@ fn set_mode(_: &Path, _: Option<u32>) -> Result<(), String> {
 mod tests {
     use super::*;
     use crate::loader::EnvSource;
-    use ems_ports::Capability;
+    use bdm_ports::Capability;
     use serde_json::json;
 
     fn p(s: &[&str]) -> Vec<String> {
@@ -218,7 +218,7 @@ mod tests {
         .unwrap();
         let loader = ConfigLoader::new(
             ConfigDir::new(dir.path()),
-            EnvSource::from_pairs([("EMS__VENDORS__ALCHEMY__CAP__MONTHLY", "100")]),
+            EnvSource::from_pairs([("BDM__VENDORS__ALCHEMY__CAP__MONTHLY", "100")]),
         )
         .unwrap();
         let cur = loader.load().unwrap();
@@ -239,7 +239,7 @@ mod tests {
             ],
         )
         .unwrap();
-        let rh: ems_domain::ChainId = "eip155:4663".parse().unwrap();
+        let rh: bdm_domain::ChainId = "eip155:4663".parse().unwrap();
         assert_eq!(
             next.order(Capability::EvmRpc, Some(&rh), None).vendors,
             ["quicknode", "public"]
@@ -273,7 +273,7 @@ mod tests {
         .unwrap_err();
         assert!(err[0]
             .message
-            .contains("EMS__VENDORS__ALCHEMY__CAP__MONTHLY"));
+            .contains("BDM__VENDORS__ALCHEMY__CAP__MONTHLY"));
 
         // 3. invalid edit is not written
         let before = std::fs::read_to_string(dir.path().join("config.toml")).unwrap();

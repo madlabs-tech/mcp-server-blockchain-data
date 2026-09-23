@@ -15,11 +15,11 @@ use crate::{
 };
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
-use ems_config::{ChainEntry, Loaded, VendorStatus};
-use ems_domain::{
+use bdm_config::{ChainEntry, Loaded, VendorStatus};
+use bdm_domain::{
     AccountAddress, Amount, AssetId, AssetRef, BlockRef, ChainFamily, Transfer, TransferKind,
 };
-use ems_ports::{
+use bdm_ports::{
     Direction, Page, PortHandle, PortResult, ProviderError, Registration, TokenBalance,
     TokenBalances, TransferHistory, TransferQuery, VendorMeta,
 };
@@ -81,7 +81,7 @@ impl Alchemy {
         Self {
             rpc: JsonRpcClient::new(
                 HttpClient::new(VENDOR, DEFAULT_TIMEOUT),
-                ems_config::Redacted::new(url),
+                bdm_config::Redacted::new(url),
             ),
             chain,
         }
@@ -371,9 +371,9 @@ impl Alchemy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_config::{ConfigDir, ConfigLoader, EnvSource, Registry};
-    use ems_ports::Capability;
-    use ems_testkit::{vendor_fixture, FakeJsonRpc};
+    use bdm_config::{ConfigDir, ConfigLoader, EnvSource, Registry};
+    use bdm_ports::Capability;
+    use bdm_testkit::{vendor_fixture, FakeJsonRpc};
 
     fn chain(alias: &str) -> ChainEntry {
         Registry::builtin()

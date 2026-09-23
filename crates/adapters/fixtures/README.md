@@ -1,6 +1,6 @@
 # Adapter fixtures
 
-Loaded by `ems_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), "<vendor>", "<case>")` in each
+Loaded by `bdm_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), "<vendor>", "<case>")` in each
 vendor module's tests (served through wiremock; tests never touch the network).
 
 ## Provenance

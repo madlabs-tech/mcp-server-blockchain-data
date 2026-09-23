@@ -20,13 +20,13 @@ use crate::{
     jsonrpc::JsonRpcClient,
 };
 use async_trait::async_trait;
-use ems_config::{ChainEntry, Loaded, Redacted, VendorStatus};
-use ems_domain::{AccountAddress, Amount, AssetId, AssetRef, FeeEstimate, FeeSpeed, SolanaPubkey};
-use ems_ports::{
+use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
+use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef, FeeEstimate, FeeSpeed, SolanaPubkey};
+use bdm_ports::{
     BroadcastReceipt, Broadcaster, FeeOracle, PortHandle, PortResult, ProviderError, Registration,
     TokenBalance, TokenBalances, TokenInfo, TokenMetadata, VendorMeta,
 };
-use ems_protocols::solana::{fees, spl, tx, SOLANA_MAINNET};
+use bdm_protocols::solana::{fees, spl, tx, SOLANA_MAINNET};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -316,8 +316,8 @@ impl Broadcaster for HeliusSender {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_config::Registry;
-    use ems_testkit::FakeJsonRpc;
+    use bdm_config::Registry;
+    use bdm_testkit::FakeJsonRpc;
     use std::time::Duration;
 
     const OWNER: &str = "Go5EVXxV3ob4CJVaq6YiGGUKqPmEfDo32kSmbWsYevsF";
@@ -466,7 +466,7 @@ mod tests {
 
     #[test]
     fn registers_only_when_active() {
-        use ems_config::{ConfigDir, ConfigLoader, EnvSource};
+        use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
         let load = |env: &[(&str, &str)]| {
             ConfigLoader::new(
                 ConfigDir::new("/nonexistent"),

@@ -6,9 +6,9 @@
 use super::{
     block_number, block_tag, decode_transfer_log, hex_u256, hex_u64, to_transfers, token_decimals,
 };
-use ems_config::ChainEntry;
-use ems_domain::{AccountAddress, Amount, BalanceDelta, BlockRef, Finality, Tx, TxStatus};
-use ems_ports::{EvmRpc, PortResult, ProviderError};
+use bdm_config::ChainEntry;
+use bdm_domain::{AccountAddress, Amount, BalanceDelta, BlockRef, Finality, Tx, TxStatus};
+use bdm_ports::{EvmRpc, PortResult, ProviderError};
 use serde_json::{json, Value};
 
 /// `Ok(None)` when no node knows the hash. A mined tx whose receipt the node doesn't have yet
@@ -92,7 +92,7 @@ fn fee_paid(receipt: &Value, tx: &Value) -> PortResult<alloy_primitives::U256> {
     Ok(fee)
 }
 
-fn recipient_deltas(transfers: &[ems_domain::Transfer]) -> PortResult<Vec<BalanceDelta>> {
+fn recipient_deltas(transfers: &[bdm_domain::Transfer]) -> PortResult<Vec<BalanceDelta>> {
     let mut out: Vec<BalanceDelta> = Vec::new();
     for t in transfers {
         match out

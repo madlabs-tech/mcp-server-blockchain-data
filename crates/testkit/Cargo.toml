@@ -1,5 +1,5 @@
 [package]
-name = "ems-testkit"
+name = "bdm-testkit"
 description = "Test fakes: JSON-RPC servers, vendor fixtures, port conformance suites, mocks."
 version.workspace = true
 edition.workspace = true
@@ -7,8 +7,8 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-ems-domain = { workspace = true }
-ems-ports = { workspace = true }
+bdm-domain = { workspace = true }
+bdm-ports = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }
 chrono = { workspace = true }

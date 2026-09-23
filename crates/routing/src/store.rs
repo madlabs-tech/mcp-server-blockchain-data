@@ -1,4 +1,4 @@
-//! Usage counters behind a trait: in-memory here, sqlite in `ems-store` (T1.D1).
+//! Usage counters behind a trait: in-memory here, sqlite in `bdm-store` (T1.D1).
 
 use chrono::{DateTime, Datelike, Utc};
 use serde::Serialize;

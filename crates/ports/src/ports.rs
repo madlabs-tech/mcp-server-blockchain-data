@@ -7,11 +7,11 @@
 
 use crate::PortResult;
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDate, Utc};
-use ems_domain::{
+use bdm_domain::{
     AccountAddress, AccountId, Amount, AssetId, BalanceDelta, ChainId, FeeEstimate, Price,
     RiskFlag, SwapQuote, Transfer, UnsignedTx,
 };
+use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -20,7 +20,7 @@ use serde_json::Value;
 // ------------------------------------------------------------------ chain transport
 
 /// Raw EVM JSON-RPC transport for one chain. Typed helpers (balances, logs, receipts, Multicall3)
-/// are generic functions over this trait in `ems-protocols`, so every RPC vendor gets them.
+/// are generic functions over this trait in `bdm-protocols`, so every RPC vendor gets them.
 #[async_trait]
 pub trait EvmRpc: Send + Sync {
     /// EIP-155 chain id this transport is bound to (asserted against `eth_chainId` at startup).
@@ -234,7 +234,7 @@ pub trait SanctionsScreener: Send + Sync {
 pub struct FxRate {
     pub base: String,
     pub quote: String,
-    #[serde(with = "ems_domain::serde_str")]
+    #[serde(with = "bdm_domain::serde_str")]
     #[schemars(with = "String")]
     pub rate: Decimal,
     /// Business date the rate belongs to (ECB publishes on business days only).

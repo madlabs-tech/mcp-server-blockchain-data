@@ -6,8 +6,8 @@
 //! marketplace add-ons without a confirmed free tier, so nothing else is registered here.
 //! No `QuotaReporter`: the Admin API usage endpoint is documented for paid plans only.
 
-use ems_config::Loaded;
-use ems_ports::Registration;
+use bdm_config::Loaded;
+use bdm_ports::Registration;
 
 /// Nothing to add beyond the base RPC registration (see module docs).
 pub fn register(_loaded: &Loaded, _out: &mut Vec<Registration>) {}

@@ -1,13 +1,13 @@
 //! Capability ports: small traits (Interface Segregation) that vendor adapters implement.
 //!
 //! A vendor implements only what it supports and registers each port through a
-//! [`Registration`] returned by its factory. Routing (`ems-routing`) picks among registered
+//! [`Registration`] returned by its factory. Routing (`bdm-routing`) picks among registered
 //! vendors per `(capability, chain)` using the user's configured order.
 //!
 //! ## Capability → P0 tool map
 //! | Capability (config key) | Port | Used by (Release 1 tools) |
 //! |---|---|---|
-//! | `evm_rpc` | [`EvmRpc`] | everything EVM (base transport; typed helpers live in `ems-protocols`) |
+//! | `evm_rpc` | [`EvmRpc`] | everything EVM (base transport; typed helpers live in `bdm-protocols`) |
 //! | `solana_rpc` | [`SolanaRpc`] | everything Solana |
 //! | `token_balances` | [`TokenBalances`] | `wallet_get_balances`, `neobank_card_funding_status` |
 //! | `transfer_history` | [`TransferHistory`] | `wallet_get_transfers`, `payments_list_deposits`, `neobank_get_ledger` |
@@ -24,7 +24,7 @@
 //!
 //! Tools not listed (`chain_*`, `address_validate`, `payments_verify_transfer`,
 //! `stablecoin_check_restrictions`, `rwa_*`, …) compose the chain RPC ports with
-//! contract readers from `ems-protocols`.
+//! contract readers from `bdm-protocols`.
 //!
 //! The pseudo-vendor id [`RPC_VENDOR`] (`"rpc"`) denotes generic implementations built on the
 //! *routed* chain RPC (e.g. Multicall3 balances, `eth_getLogs` transfer scans), so they can sit

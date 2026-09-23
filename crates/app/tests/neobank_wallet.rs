@@ -2,20 +2,20 @@
 
 use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
-use chrono::{DateTime, NaiveDate, Utc};
-use ems_app::{App, Caller, Catalog, Profile, ProfileSelection};
-use ems_config::{ConfigDir, ConfigLoader, EnvSource};
-use ems_domain::{
+use bdm_app::{App, Caller, Catalog, Profile, ProfileSelection};
+use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+use bdm_domain::{
     AccountAddress, Amount, AssetId, BlockRef, ChainId, ErrorCode, FeeEstimate, FeeSpeed, FeeTier,
     Price, Transfer, TransferKind, UnsignedTx,
 };
-use ems_ports::{
+use bdm_ports::{
     BroadcastReceipt, Broadcaster, EvmRpc, FeeOracle, FxRate, Page, PortHandle, PortResult,
     PriceHistory, ProviderError, Registration, SimulationResult, Simulator, SolanaRpc,
     TokenBalance, TransferHistory, TransferQuery, VendorMeta,
 };
-use ems_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
-use ems_testkit::mocks::{MockFxRates, MockPriceFeed, MockTokenBalances};
+use bdm_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
+use bdm_testkit::mocks::{MockFxRates, MockPriceFeed, MockTokenBalances};
+use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde_json::{json, Value};
 use std::{
@@ -147,11 +147,11 @@ fn app(env: &[(&str, &str)], regs: Vec<Registration>) -> App {
         RouterOptions::default(),
     );
     let mut catalog = Catalog::new();
-    ems_app::ops::register_all(&mut catalog);
+    bdm_app::ops::register_all(&mut catalog);
     App::new(catalog, router, 100)
 }
 
-async fn call(app: &App, tool: &str, input: Value) -> Result<Value, ems_domain::DomainError> {
+async fn call(app: &App, tool: &str, input: Value) -> Result<Value, bdm_domain::DomainError> {
     app.call(tool, input, Caller::local()).await
 }
 

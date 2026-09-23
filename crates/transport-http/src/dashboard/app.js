@@ -1,5 +1,5 @@
-// Dashboard for evm-mcp-server. Vanilla JS, no external resources (works offline).
-// All data comes from /admin/api/* with the admin token + X-EMS-Admin header.
+// Dashboard for blockchain-data-mcp. Vanilla JS, no external resources (works offline).
+// All data comes from /admin/api/* with the admin token + X-BDM-Admin header.
 // DOM is built with textContent only (no innerHTML with data).
 "use strict";
 
@@ -104,7 +104,7 @@ async function copyText(text) {
 class Unauthorized extends Error {}
 
 function headers(json) {
-  const hd = { Authorization: `Bearer ${store.get("ems_admin_token") || ""}`, "X-EMS-Admin": "1" };
+  const hd = { Authorization: `Bearer ${store.get("bdm_admin_token") || ""}`, "X-BDM-Admin": "1" };
   if (json) hd["Content-Type"] = "application/json";
   return hd;
 }
@@ -169,7 +169,7 @@ let streamAbort = null;
 const cache = { config: null };
 
 function showLogin(msg) {
-  store.del("ems_admin_token");
+  store.del("bdm_admin_token");
   $("#login").hidden = false;
   $("#view").replaceChildren();
   $("#logout").hidden = true;
@@ -183,7 +183,7 @@ function anyKeySet(cfg) { return cfg.vendors.some((v) => v.keys.some((k) => k.se
 function currentPage() {
   const raw = (location.hash || "").slice(1).split("/")[0];
   if (PAGES[raw]) return raw;
-  if (cache.config && !anyKeySet(cache.config) && !store.getLocal("ems_setup_done")) {
+  if (cache.config && !anyKeySet(cache.config) && !store.getLocal("bdm_setup_done")) {
     history.replaceState(null, "", "#setup/1"); // pin it so saving the first key doesn't leave the wizard
     return "setup";
   }
@@ -192,7 +192,7 @@ function currentPage() {
 
 async function render() {
   if (streamAbort) { streamAbort.abort(); streamAbort = null; }
-  if (!store.get("ems_admin_token")) return showLogin();
+  if (!store.get("bdm_admin_token")) return showLogin();
   $("#login").hidden = true;
   $("#logout").hidden = false;
   $("#reload").hidden = false;
@@ -486,8 +486,8 @@ async function connectPanel() {
   const hosted = c.mode === "hosted";
   const base = c.public_url || c.http_url;
   const tool = c.sample_tool || "<tool>";
-  const stdio = { mcpServers: { "evm-mcp-server": { command: c.binary_path, args: ["--config-dir", c.config_dir] } } };
-  const httpCfg = { mcpServers: { "evm-mcp-server": hosted ? { url: c.mcp_url, headers: { Authorization: "Bearer <client key>" } } : { url: c.mcp_url } } };
+  const stdio = { mcpServers: { "blockchain-data-mcp": { command: c.binary_path, args: ["--config-dir", c.config_dir] } } };
+  const httpCfg = { mcpServers: { "blockchain-data-mcp": hosted ? { url: c.mcp_url, headers: { Authorization: "Bearer <client key>" } } : { url: c.mcp_url } } };
   const q = (x) => `'${String(x).replace(/'/g, "'\\''")}'`;
   const curl = [`curl -X POST ${q(`${base}/v1/tools/${tool}`)}`, "  -H 'content-type: application/json'", hosted ? "  -H 'Authorization: Bearer <client key>'" : null, "  -d '{}'"].filter(Boolean).join(" \\\n");
   return h("div", {},
@@ -501,8 +501,8 @@ async function connectPanel() {
     h("h2", { style: "margin-top:24px" }, "Claude Desktop (stdio)"),
     snippet("claude_desktop_config.json", JSON.stringify(stdio, null, 2), "json"),
     h("h2", {}, "Claude Code"),
-    snippet("claude mcp add (stdio)", `claude mcp add evm-mcp-server -- ${q(c.binary_path)} --config-dir ${q(c.config_dir)}`, "sh"),
-    snippet("claude mcp add (HTTP)", `claude mcp add --transport http evm-mcp-server ${q(c.mcp_url)}${hosted ? " --header 'Authorization: Bearer <client key>'" : ""}`, "sh"),
+    snippet("claude mcp add (stdio)", `claude mcp add blockchain-data-mcp -- ${q(c.binary_path)} --config-dir ${q(c.config_dir)}`, "sh"),
+    snippet("claude mcp add (HTTP)", `claude mcp add --transport http blockchain-data-mcp ${q(c.mcp_url)}${hosted ? " --header 'Authorization: Bearer <client key>'" : ""}`, "sh"),
     h("h2", {}, "Cursor / any HTTP MCP client"),
     snippet(".cursor/mcp.json", JSON.stringify(httpCfg, null, 2), "json"),
     h("h2", {}, "REST"),
@@ -519,8 +519,8 @@ const STEPS = [
   { n: 4, id: "connect", label: "Connect" },
 ];
 
-function stepsDone() { try { return JSON.parse(store.getLocal("ems_setup_steps") || "{}"); } catch { return {}; } }
-function markStep(n) { const d = stepsDone(); d[n] = true; store.setLocal("ems_setup_steps", JSON.stringify(d)); }
+function stepsDone() { try { return JSON.parse(store.getLocal("bdm_setup_steps") || "{}"); } catch { return {}; } }
+function markStep(n) { const d = stepsDone(); d[n] = true; store.setLocal("bdm_setup_steps", JSON.stringify(d)); }
 
 async function setup() {
   const cfg = cache.config;
@@ -552,8 +552,8 @@ async function setup() {
   }
   const next = step < 4
     ? h("a", { href: `#setup/${step + 1}`, class: "btn primary", onclick: () => markStep(step) }, "Continue")
-    : h("a", { href: "#overview", class: "btn primary", onclick: () => { markStep(4); store.setLocal("ems_setup_done", "1"); } }, "Finish setup");
-  const prev = step > 1 ? h("a", { href: `#setup/${step - 1}`, class: "btn ghost" }, "Back") : h("a", { href: "#overview", class: "btn ghost", onclick: () => store.setLocal("ems_setup_done", "1") }, "Skip setup");
+    : h("a", { href: "#overview", class: "btn primary", onclick: () => { markStep(4); store.setLocal("bdm_setup_done", "1"); } }, "Finish setup");
+  const prev = step > 1 ? h("a", { href: `#setup/${step - 1}`, class: "btn ghost" }, "Back") : h("a", { href: "#overview", class: "btn ghost", onclick: () => store.setLocal("bdm_setup_done", "1") }, "Skip setup");
   return h("div", {},
     h("section", { class: "panel" },
       h("h1", {}, "Setup"), rail,
@@ -946,16 +946,16 @@ function applyTheme(t) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  applyTheme(store.getLocal("ems_theme"));
+  applyTheme(store.getLocal("bdm_theme"));
   $("#reload").replaceChildren(icon("refresh"));
   $("#theme").addEventListener("click", () => {
     const next = isDark() ? "light" : "dark";
-    store.setLocal("ems_theme", next);
+    store.setLocal("bdm_theme", next);
     applyTheme(next);
   });
   $("#login-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    store.set("ems_admin_token", $("#token").value.trim());
+    store.set("bdm_admin_token", $("#token").value.trim());
     $("#token").value = "";
     render();
   });

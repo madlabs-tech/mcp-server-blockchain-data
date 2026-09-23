@@ -1,8 +1,8 @@
 //! Generic JSON-RPC 2.0 client over [`HttpClient`] with vendor error → routing taxonomy mapping.
 
 use crate::http::HttpClient;
-use ems_config::Redacted;
-use ems_ports::{metering, PortResult, ProviderError};
+use bdm_config::Redacted;
+use bdm_ports::{metering, PortResult, ProviderError};
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicU64, Ordering};
 

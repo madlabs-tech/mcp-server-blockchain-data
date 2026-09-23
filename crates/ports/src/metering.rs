@@ -9,7 +9,7 @@
 //! `FuturesUnordered` inside the scope, or re-enter [`scope`] in the spawned task.
 
 use crate::quota::WindowKind;
-use ems_domain::ChainId;
+use bdm_domain::ChainId;
 use std::{future::Future, sync::Arc, time::Duration};
 
 /// Rate-limit state parsed from response headers (`X-RateLimit-*`, IETF `RateLimit-*`, `Retry-After`).

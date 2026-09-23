@@ -10,14 +10,14 @@ use super::wallet::{
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use alloy_primitives::U256;
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDate, Utc};
-use ems_config::ChainEntry;
-use ems_domain::{
+use bdm_config::ChainEntry;
+use bdm_domain::{
     AccountAddress, Amount, AssetId, AssetRef, ChainId, DomainError, Fiat, Price, SolanaPubkey,
     Transfer,
 };
-use ems_ports::{Capability, EvmRpc, FxRate, FxRates, PriceHistory};
-use ems_protocols::{evm::erc20, solana::spl};
+use bdm_ports::{Capability, EvmRpc, FxRate, FxRates, PriceHistory};
+use bdm_protocols::{evm::erc20, solana::spl};
+use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -62,7 +62,7 @@ pub struct FxOut {
     pub base: String,
     pub quote: String,
     /// Exact decimal string.
-    #[serde(with = "ems_domain::serde_str")]
+    #[serde(with = "bdm_domain::serde_str")]
     #[schemars(with = "String")]
     pub rate: Decimal,
     /// Business date the rate belongs to (reference rates are published on business days only).
@@ -760,12 +760,12 @@ mod tests {
             chain: ChainId::evm(1),
             tx_hash: "0x01".into(),
             log_index: None,
-            kind: ems_domain::TransferKind::Native,
+            kind: bdm_domain::TransferKind::Native,
             asset: asset.clone(),
             from: Some(other),
             to: owner,
             amount: Amount::from_u128(1_500_000_000_000_000_000, 18),
-            block: Some(ems_domain::BlockRef {
+            block: Some(bdm_domain::BlockRef {
                 number: 7,
                 hash: None,
                 timestamp: Some(at),

@@ -2,8 +2,8 @@
 //!
 //! Program ids: <https://solana.com/docs/tokens> (Token, Token-2022, Associated Token Account).
 
-use ems_domain::{DomainError, SolanaPubkey};
-use ems_ports::{PortResult, ProviderError, SolanaRpc};
+use bdm_domain::{DomainError, SolanaPubkey};
+use bdm_ports::{PortResult, ProviderError, SolanaRpc};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 

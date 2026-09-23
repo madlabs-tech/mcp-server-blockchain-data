@@ -10,9 +10,9 @@ use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_domain::{AccountAddress, AssetRef, SwapQuote};
-use ems_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_domain::{AccountAddress, AssetRef, SwapQuote};
+use bdm_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
 use reqwest::Method;
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -39,7 +39,7 @@ pub struct UniswapApi {
 }
 
 /// Uniswap uses the zero address for the native coin.
-fn token(asset: &ems_domain::AssetId) -> PortResult<String> {
+fn token(asset: &bdm_domain::AssetId) -> PortResult<String> {
     match &asset.asset {
         AssetRef::Native { .. } => Ok(util::ZERO_ADDRESS.to_owned()),
         _ => util::evm_token_or_native(asset),
@@ -147,8 +147,8 @@ impl SwapQuoter for UniswapApi {
 mod tests {
     use super::*;
     use crate::http::DEFAULT_TIMEOUT;
-    use ems_domain::{Amount, ChainId};
-    use ems_testkit::wiremock::{
+    use bdm_domain::{Amount, ChainId};
+    use bdm_testkit::wiremock::{
         matchers::{header, method, path},
         Mock, MockServer, ResponseTemplate,
     };
@@ -160,7 +160,7 @@ mod tests {
             .and(path("/quote"))
             .and(header("x-api-key", "uni-key"))
             .respond_with(
-                ResponseTemplate::new(200).set_body_json(ems_testkit::vendor_fixture(
+                ResponseTemplate::new(200).set_body_json(bdm_testkit::vendor_fixture(
                     env!("CARGO_MANIFEST_DIR"),
                     ID,
                     "quote",

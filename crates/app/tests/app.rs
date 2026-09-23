@@ -1,16 +1,16 @@
 //! App executor tests (T0.9): envelope, cache, profiles, guard, metering, legacy aliases.
 
 use async_trait::async_trait;
-use ems_app::{
+use bdm_app::{
     App, CallGuard, Caller, Catalog, Ctx, Domain, OpOutput, Operation, Profile, ProfileSelection,
 };
-use ems_config::{ConfigDir, ConfigLoader, EnvSource};
-use ems_domain::{ChainId, DomainError, ErrorCode};
-use ems_ports::{metering, PortHandle, Registration, VendorMeta};
-use ems_routing::{
+use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+use bdm_domain::{ChainId, DomainError, ErrorCode};
+use bdm_ports::{metering, PortHandle, Registration, VendorMeta};
+use bdm_routing::{
     InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable, WindowKey,
 };
-use ems_testkit::mocks::MockEvmRpc;
+use bdm_testkit::mocks::MockEvmRpc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -87,7 +87,7 @@ fn app(cfg: &str, regs: Vec<Registration>) -> (App, Arc<AtomicUsize>) {
     );
     let count = Arc::new(AtomicUsize::new(0));
     let mut catalog = Catalog::new();
-    ems_app::ops::register_all(&mut catalog);
+    bdm_app::ops::register_all(&mut catalog);
     catalog.register(Echo(count.clone()));
     catalog.register(TradingOnly);
     (App::new(catalog, router, 1000), count)
@@ -277,7 +277,7 @@ async fn legacy_balance_on_new_stack() {
 
 struct Recorder(std::sync::Mutex<Vec<(String, bool)>>);
 
-impl ems_app::CallObserver for Recorder {
+impl bdm_app::CallObserver for Recorder {
     fn on_call(&self, _c: &Caller, op: &str, r: &Result<Value, DomainError>, _l: Duration) {
         self.0.lock().unwrap().push((op.to_owned(), r.is_ok()));
     }

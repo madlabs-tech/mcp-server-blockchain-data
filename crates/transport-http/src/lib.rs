@@ -4,7 +4,7 @@
 //!
 //! REST and MCP return byte-identical JSON for the same input (both call [`App::call`]).
 //!
-//! Call log: if the server layers an `axum::Extension<ems_store::Store>` onto the public router,
+//! Call log: if the server layers an `axum::Extension<bdm_store::Store>` onto the public router,
 //! every REST call is appended to the store's call log (dashboard live stream).
 
 mod admin;
@@ -19,9 +19,9 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use ems_app::{App, Caller, ClientAuth};
-use ems_domain::{DomainError, ErrorCode};
-use ems_transport_mcp::McpServer;
+use bdm_app::{App, Caller, ClientAuth};
+use bdm_domain::{DomainError, ErrorCode};
+use bdm_transport_mcp::McpServer;
 use serde_json::{json, Map, Value};
 use std::sync::Arc;
 use tower_http::{limit::RequestBodyLimitLayer, trace::TraceLayer};
@@ -212,10 +212,10 @@ async fn openapi(State(s): State<HttpState>, req: Request) -> Json<Value> {
 
 async fn metrics(State(s): State<HttpState>) -> Response {
     let mut out = s.app.metrics().render_prometheus();
-    out += "# TYPE ems_vendor_ok_total counter\n# TYPE ems_vendor_failed_total counter\n# TYPE ems_vendor_month_used gauge\n";
+    out += "# TYPE bdm_vendor_ok_total counter\n# TYPE bdm_vendor_failed_total counter\n# TYPE bdm_vendor_month_used gauge\n";
     for h in s.app.router().health() {
         out += &format!(
-            "ems_vendor_ok_total{{vendor=\"{v}\"}} {}\nems_vendor_failed_total{{vendor=\"{v}\"}} {}\nems_vendor_month_used{{vendor=\"{v}\"}} {}\n",
+            "bdm_vendor_ok_total{{vendor=\"{v}\"}} {}\nbdm_vendor_failed_total{{vendor=\"{v}\"}} {}\nbdm_vendor_month_used{{vendor=\"{v}\"}} {}\n",
             h.ok,
             h.failed,
             h.usage.month_used,

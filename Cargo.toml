@@ -10,17 +10,17 @@ license = "MIT"
 
 [workspace.dependencies]
 # internal
-ems-domain = { path = "crates/domain" }
-ems-ports = { path = "crates/ports" }
-ems-config = { path = "crates/config" }
-ems-routing = { path = "crates/routing" }
-ems-protocols = { path = "crates/protocols" }
-ems-app = { path = "crates/app" }
-ems-adapters = { path = "crates/adapters" }
-ems-transport-mcp = { path = "crates/transport-mcp" }
-ems-transport-http = { path = "crates/transport-http" }
-ems-store = { path = "crates/store" }
-ems-testkit = { path = "crates/testkit" }
+bdm-domain = { path = "crates/domain" }
+bdm-ports = { path = "crates/ports" }
+bdm-config = { path = "crates/config" }
+bdm-routing = { path = "crates/routing" }
+bdm-protocols = { path = "crates/protocols" }
+bdm-app = { path = "crates/app" }
+bdm-adapters = { path = "crates/adapters" }
+bdm-transport-mcp = { path = "crates/transport-mcp" }
+bdm-transport-http = { path = "crates/transport-http" }
+bdm-store = { path = "crates/store" }
+bdm-testkit = { path = "crates/testkit" }
 
 # chain
 alloy = { version = "1.0.41", features = ["full"] }

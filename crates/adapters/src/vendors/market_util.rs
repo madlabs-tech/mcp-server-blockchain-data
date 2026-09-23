@@ -3,10 +3,10 @@
 
 use crate::http::{HttpClient, DEFAULT_TIMEOUT};
 use alloy_primitives::{Address, U256};
+use bdm_config::Loaded;
+use bdm_domain::{AssetId, AssetRef, ChainId, UnsignedTx};
+use bdm_ports::{PortResult, ProviderError, VendorMeta};
 use chrono::{DateTime, Utc};
-use ems_config::Loaded;
-use ems_domain::{AssetId, AssetRef, ChainId, UnsignedTx};
-use ems_ports::{PortResult, ProviderError, VendorMeta};
 use rust_decimal::Decimal;
 use serde_json::Value;
 use std::str::FromStr;
@@ -180,20 +180,20 @@ pub const QUOTE_TTL_SECS: i64 = 30;
 /// `buy_decimals = None` (vendor doesn't report them) is stored as 0: the trade operations
 /// always re-stamp decimals from on-chain token metadata, so raw amounts are what matters here.
 pub fn swap_quote(
-    req: &ems_ports::SwapRequest,
+    req: &bdm_ports::SwapRequest,
     source: &str,
     buy: U256,
     buy_decimals: Option<u8>,
     min_buy: Option<U256>,
-) -> ems_domain::SwapQuote {
+) -> bdm_domain::SwapQuote {
     let d = buy_decimals.unwrap_or(0);
-    ems_domain::SwapQuote {
+    bdm_domain::SwapQuote {
         chain: req.chain.clone(),
         sell_asset: req.sell_asset.clone(),
         sell_amount: req.sell_amount,
         buy_asset: req.buy_asset.clone(),
-        buy_amount: ems_domain::Amount::new(buy, d),
-        min_buy_amount: ems_domain::Amount::new(
+        buy_amount: bdm_domain::Amount::new(buy, d),
+        min_buy_amount: bdm_domain::Amount::new(
             min_buy.unwrap_or_else(|| min_out(buy, req.slippage_bps)),
             d,
         ),
@@ -206,9 +206,9 @@ pub fn swap_quote(
 }
 
 /// `taker` as a checksummed EVM address, required to build a transaction.
-pub fn evm_taker(req: &ems_ports::SwapRequest) -> PortResult<String> {
+pub fn evm_taker(req: &bdm_ports::SwapRequest) -> PortResult<String> {
     match req.taker {
-        Some(ems_domain::AccountAddress::Evm(a)) => Ok(a.to_checksum(None)),
+        Some(bdm_domain::AccountAddress::Evm(a)) => Ok(a.to_checksum(None)),
         Some(_) => Err(ProviderError::Invalid("taker is not an EVM address".into())),
         None => Err(ProviderError::Invalid(
             "taker is required to build a swap".into(),
@@ -217,7 +217,7 @@ pub fn evm_taker(req: &ems_ports::SwapRequest) -> PortResult<String> {
 }
 
 /// ERC-20 approval for the sell token (none for native sells).
-pub fn sell_approval(req: &ems_ports::SwapRequest, spender: &str) -> PortResult<Vec<UnsignedTx>> {
+pub fn sell_approval(req: &bdm_ports::SwapRequest, spender: &str) -> PortResult<Vec<UnsignedTx>> {
     match &req.sell_asset.asset {
         AssetRef::Erc20(t) => Ok(vec![approve_tx(
             evm_chain_id(&req.chain)?,

@@ -29,4 +29,4 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.90
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-hack
-      - run: cargo hack check -p ems-adapters --each-feature --no-dev-deps
+      - run: cargo hack check -p bdm-adapters --each-feature --no-dev-deps

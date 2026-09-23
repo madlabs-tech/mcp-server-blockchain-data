@@ -1,5 +1,5 @@
 [package]
-name = "ems-domain"
+name = "bdm-domain"
 description = "Pure domain types: CAIP identifiers, amounts, transfers, finality, provenance. No I/O."
 version.workspace = true
 edition.workspace = true

@@ -1,5 +1,5 @@
 [package]
-name = "ems-server"
+name = "bdm-server"
 description = "Composition root and binary for the blockchain data aggregator (MCP + REST)"
 version.workspace = true
 edition.workspace = true
@@ -7,20 +7,20 @@ rust-version.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "evm-mcp-server"   # kept for compatibility with existing MCP client configs
+name = "blockchain-data-mcp"   # kept for compatibility with existing MCP client configs
 path = "src/main.rs"
 
 [dependencies]
-ems-adapters = { workspace = true }
-ems-app = { workspace = true }
-ems-config = { workspace = true }
-ems-domain = { workspace = true }
-ems-ports = { workspace = true }
-ems-protocols = { workspace = true }
-ems-routing = { workspace = true }
-ems-store = { workspace = true }
-ems-transport-http = { workspace = true }
-ems-transport-mcp = { workspace = true }
+bdm-adapters = { workspace = true }
+bdm-app = { workspace = true }
+bdm-config = { workspace = true }
+bdm-domain = { workspace = true }
+bdm-ports = { workspace = true }
+bdm-protocols = { workspace = true }
+bdm-routing = { workspace = true }
+bdm-store = { workspace = true }
+bdm-transport-http = { workspace = true }
+bdm-transport-mcp = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 axum = { workspace = true }

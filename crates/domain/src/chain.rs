@@ -14,7 +14,7 @@ pub enum ChainFamily {
 
 /// CAIP-2 chain id, e.g. `eip155:8453` (Base) or `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`.
 ///
-/// Friendly aliases (`base`, `solana`) are resolved by the chain registry in `ems-config`,
+/// Friendly aliases (`base`, `solana`) are resolved by the chain registry in `bdm-config`,
 /// not here, so the alias table lives in one place (`registry/chains.toml`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ChainId {

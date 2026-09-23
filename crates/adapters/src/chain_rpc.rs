@@ -4,8 +4,8 @@
 
 use crate::{http::HttpClient, jsonrpc::JsonRpcClient};
 use async_trait::async_trait;
-use ems_config::Redacted;
-use ems_ports::{BroadcastReceipt, Broadcaster, EvmRpc, PortResult, ProviderError, SolanaRpc};
+use bdm_config::Redacted;
+use bdm_ports::{BroadcastReceipt, Broadcaster, EvmRpc, PortResult, ProviderError, SolanaRpc};
 use serde_json::{json, Value};
 
 /// EVM JSON-RPC transport for one (vendor, chain, URL).
@@ -124,7 +124,7 @@ impl Broadcaster for SolanaRpcClient {
 mod tests {
     use super::*;
     use crate::http::HttpClient;
-    use ems_testkit::{port_conformance, FakeJsonRpc};
+    use bdm_testkit::{port_conformance, FakeJsonRpc};
     use std::{sync::Arc, time::Duration};
 
     const TIMEOUT: Duration = Duration::from_millis(500);
@@ -184,14 +184,14 @@ mod tests {
         server.on("eth_blockNumber", json!("0x1"));
         server.on("eth_chainId", json!("0x1"));
         let rpc = JsonRpcClient::new(http(), Redacted::new(server.url()));
-        let sink = Arc::new(ems_testkit::CountingSink::default());
-        let ctx = ems_ports::metering::CallContext {
+        let sink = Arc::new(bdm_testkit::CountingSink::default());
+        let ctx = bdm_ports::metering::CallContext {
             tool: None,
             client: None,
             chain: None,
             sink: sink.clone(),
         };
-        let out = ems_ports::metering::scope(
+        let out = bdm_ports::metering::scope(
             ctx,
             rpc.batch(&[
                 ("eth_chainId", json!([])),

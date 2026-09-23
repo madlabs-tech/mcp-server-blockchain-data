@@ -2,13 +2,13 @@
 //! error mapping.
 
 use async_trait::async_trait;
-use ems_app::{
+use bdm_app::{
     App, Caller, Catalog, ClientAuth, Ctx, Domain, OpOutput, Operation, Profile, ProfileSelection,
 };
-use ems_config::{ConfigDir, ConfigLoader, EnvSource};
-use ems_domain::{DomainError, ErrorCode};
-use ems_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
-use ems_transport_http::{public_router, HttpState};
+use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+use bdm_domain::{DomainError, ErrorCode};
+use bdm_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
+use bdm_transport_http::{public_router, HttpState};
 use rmcp::{
     model::CallToolRequestParam,
     transport::{
@@ -82,7 +82,7 @@ async fn serve(auth: Option<Arc<dyn ClientAuth>>) -> String {
         RouterOptions::default(),
     );
     let mut catalog = Catalog::new();
-    ems_app::ops::register_all(&mut catalog);
+    bdm_app::ops::register_all(&mut catalog);
     catalog.register(Echo);
     let state = HttpState {
         app: Arc::new(App::new(catalog, router, 100)),
@@ -274,5 +274,5 @@ async fn openapi_and_tool_list() {
         .text()
         .await
         .unwrap();
-    assert!(metrics.contains("ems_vendor_ok_total"));
+    assert!(metrics.contains("bdm_vendor_ok_total"));
 }

@@ -6,12 +6,12 @@ use crate::{
     store::{CounterStore, Dims, WindowKey},
 };
 use arc_swap::ArcSwap;
-use chrono::{DateTime, Utc};
-use ems_config::{EffectiveBudget, OnExhausted};
-use ems_ports::{
+use bdm_config::{EffectiveBudget, OnExhausted};
+use bdm_ports::{
     metering::{CallContext, RateLimitSnapshot, UsageSink},
     ProviderError,
 };
+use chrono::{DateTime, Utc};
 use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 use serde::Serialize;
 use std::{
@@ -323,7 +323,7 @@ impl RuntimeState {
     }
 }
 
-/// Meters requests reported by adapters (via `ems_ports::metering`) into the counter store,
+/// Meters requests reported by adapters (via `bdm_ports::metering`) into the counter store,
 /// converting to credits with the vendor cost table of the *current* config.
 pub(crate) struct QuotaSink {
     pub(crate) table: Arc<ArcSwap<RoutingTable>>,

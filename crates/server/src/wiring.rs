@@ -2,11 +2,11 @@
 
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
-use ems_app::{App, Catalog};
-use ems_config::{ConfigDir, ConfigLoader, EnvSource, Loaded, Mode};
-use ems_ports::{EvmRpc, PortHandle, PortResult, ProviderError, Registration};
-use ems_routing::{ProviderRegistry, Router, RouterOptions, RoutingTable};
-use ems_store::{ClientGuard, Store};
+use bdm_app::{App, Catalog};
+use bdm_config::{ConfigDir, ConfigLoader, EnvSource, Loaded, Mode};
+use bdm_ports::{EvmRpc, PortHandle, PortResult, ProviderError, Registration};
+use bdm_routing::{ProviderRegistry, Router, RouterOptions, RoutingTable};
+use bdm_store::{ClientGuard, Store};
 use serde_json::{json, Value};
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::OnceCell;
@@ -29,15 +29,15 @@ pub fn load_config(dir: PathBuf) -> Result<(ConfigLoader, Loaded)> {
     Ok((loader, loaded))
 }
 
-pub fn render(issues: &[ems_config::Issue]) -> String {
+pub fn render(issues: &[bdm_config::Issue]) -> String {
     let lines: Vec<String> = issues.iter().map(|i| format!("  - {i}")).collect();
     format!("invalid configuration:\n{}", lines.join("\n"))
 }
 
-/// Open `<data_dir>/ems.db`. Self-hosted falls back to an in-memory store when the directory
+/// Open `<data_dir>/bdm.db`. Self-hosted falls back to an in-memory store when the directory
 /// isn't writable (e.g. Claude Desktop starting us with cwd `/`); hosted mode must persist.
 pub fn open_store(loaded: &Loaded) -> Result<Store> {
-    let path = loaded.settings.server.data_dir.join("ems.db");
+    let path = loaded.settings.server.data_dir.join("bdm.db");
     match Store::open(&path) {
         Ok(s) => Ok(s),
         Err(e) if loaded.settings.server.mode == Mode::SelfHosted => {
@@ -48,11 +48,11 @@ pub fn open_store(loaded: &Loaded) -> Result<Store> {
     }
 }
 
-/// Chain RPC + every compiled-in vendor module (feature-gated in `ems-adapters`).
+/// Chain RPC + every compiled-in vendor module (feature-gated in `bdm-adapters`).
 pub fn registrations(loaded: &Loaded) -> Vec<Registration> {
-    ems_adapters::factory::base_registrations(loaded)
+    bdm_adapters::factory::base_registrations(loaded)
         .into_iter()
-        .chain(ems_adapters::vendors::registrations(loaded))
+        .chain(bdm_adapters::vendors::registrations(loaded))
         .map(guard_chain_ids)
         .collect()
 }
@@ -62,7 +62,7 @@ pub fn registrations(loaded: &Loaded) -> Vec<Registration> {
 /// Used at startup and by admin reloads / SIGHUP.
 pub fn full_registry(loaded: &Loaded, router: &Arc<Router>) -> ProviderRegistry {
     let mut registry = ProviderRegistry::new(registrations(loaded));
-    for reg in ems_protocols::rpc_registrations(loaded, router) {
+    for reg in bdm_protocols::rpc_registrations(loaded, router) {
         registry.add(reg);
     }
     registry
@@ -74,7 +74,7 @@ pub fn build(loaded: Loaded, store: Store) -> Result<Built> {
         // Fail closed: never serve shared vendor quotas without client keys.
         bail!(
             "hosted mode requires at least one client key; create one with \
-             `evm-mcp-server clients create <name>` (or in the dashboard) and restart"
+             `blockchain-data-mcp clients create <name>` (or in the dashboard) and restart"
         );
     }
     let loaded = Arc::new(loaded);
@@ -91,7 +91,7 @@ pub fn build(loaded: Loaded, store: Store) -> Result<Built> {
         registry: full_registry(&loaded, &router),
     });
     let mut catalog = Catalog::new();
-    ems_app::ops::register_all(&mut catalog);
+    bdm_app::ops::register_all(&mut catalog);
     let mut app = App::new(
         catalog,
         router.clone(),
@@ -160,9 +160,9 @@ impl EvmRpc for ChainIdGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_config::{ConfigDir, ConfigLoader, EnvSource};
-    use ems_domain::ChainId;
-    use ems_ports::Capability;
+    use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+    use bdm_domain::ChainId;
+    use bdm_ports::Capability;
 
     #[test]
     fn second_stage_registers_rpc_pseudo_vendor() {

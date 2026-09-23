@@ -10,16 +10,16 @@ use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use alloy_primitives::{keccak256, Address, U256};
 use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
-use ems_config::ChainEntry;
-use ems_domain::{
+use bdm_config::ChainEntry;
+use bdm_domain::{
     AccountAddress, Amount, AssetId, AssetRef, BlockRef, ChainFamily, ChainId, DomainError,
     ErrorCode, FeeEstimate, FeeSpeed, Finality, Price, SolanaPubkey, Tx, TxStatus, UnsignedTx,
 };
-use ems_ports::{
+use bdm_ports::{
     BroadcastReceipt, Broadcaster, Capability, EvmRpc, FeeOracle, PriceFeed, ProviderError,
     SimulationResult, Simulator, SolanaRpc,
 };
-use ems_protocols::{evm, solana, solana::spl};
+use bdm_protocols::{evm, solana, solana::spl};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -251,7 +251,7 @@ pub(crate) async fn native_price(
     ctx: &Ctx,
     chain: &ChainEntry,
     currency: &str,
-) -> Option<ems_routing::Routed<Price>> {
+) -> Option<bdm_routing::Routed<Price>> {
     let asset = native_asset(chain);
     let req = ctx.route(Capability::Price).chain(chain.id.clone());
     let (asset, currency) = (&asset, currency);
@@ -264,7 +264,7 @@ pub(crate) async fn native_price(
 pub(crate) async fn fee_estimate(
     ctx: &Ctx,
     chain: &ChainEntry,
-) -> Result<ems_routing::Routed<FeeEstimate>, DomainError> {
+) -> Result<bdm_routing::Routed<FeeEstimate>, DomainError> {
     let req = ctx.route(Capability::FeeEstimate).chain(chain.id.clone());
     ctx.router()
         .failover::<dyn FeeOracle, _, _, _>(req, |p| async move { p.fee_estimate().await })
@@ -370,7 +370,7 @@ async fn simulate(
     chain: &ChainEntry,
     from: &AccountAddress,
     tx: &UnsignedTx,
-) -> Result<ems_routing::Routed<SimulationResult>, DomainError> {
+) -> Result<bdm_routing::Routed<SimulationResult>, DomainError> {
     let req = ctx.route(Capability::Simulate).chain(chain.id.clone());
     ctx.router()
         .failover::<dyn Simulator, _, _, _>(req, |p| async move { p.simulate(from, tx).await })

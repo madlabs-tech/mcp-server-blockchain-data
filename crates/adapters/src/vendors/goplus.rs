@@ -2,7 +2,7 @@
 //!
 //! The access token is optional per GoPlus docs. With `GOPLUS_APP_KEY` + `GOPLUS_APP_SECRET`,
 //! `POST /api/v1/token` with `sign = sha1(app_key + time + app_secret)` returns a token (cached
-//! until shortly before expiry), sent as `Authorization: Bearer <token>`; without keys, requests
+//! until shortly before expiry), sent as `Authorization: <token>` (no `Bearer` prefix); without keys, requests
 //! go out unauthenticated at the public limit.
 //! Port: `TokenRisk` for EVM (`/token_security/{chain_id}`) and Solana (`/solana/token_security`).
 
@@ -10,9 +10,9 @@ use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_domain::{AssetId, AssetRef, RiskFlag, Severity};
-use ems_ports::{PortHandle, PortResult, ProviderError, Registration, RiskAssessment, TokenRisk};
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_domain::{AssetId, AssetRef, RiskFlag, Severity};
+use bdm_ports::{PortHandle, PortResult, ProviderError, Registration, RiskAssessment, TokenRisk};
 use rust_decimal::Decimal;
 use serde_json::{json, Value};
 use sha1::{Digest, Sha1};
@@ -177,7 +177,8 @@ impl GoPlus {
             .as_str()
             .ok_or_else(|| ProviderError::Unsupported("goplus rejected app key/secret".into()))?
             .to_owned();
-        let bearer = format!("Bearer {token}");
+        // GoPlus expects the raw token, not `Bearer <token>` (verified live: Bearer → code 4012).
+        let bearer = token;
         let ttl = r["expires_in"].as_u64().unwrap_or(3600).saturating_sub(60);
         *self.token.lock().expect("token cache") =
             Some((bearer.clone(), Instant::now() + Duration::from_secs(ttl)));
@@ -243,7 +244,7 @@ impl TokenRisk for GoPlus {
 mod tests {
     use super::*;
     use crate::http::DEFAULT_TIMEOUT;
-    use ems_testkit::wiremock::{
+    use bdm_testkit::wiremock::{
         matchers::{header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
     };
@@ -257,7 +258,7 @@ mod tests {
     #[tokio::test]
     async fn evm_token_security_flags() {
         let server = MockServer::start().await;
-        let fx = |c| ems_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), ID, c);
+        let fx = |c| bdm_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), ID, c);
         Mock::given(method("POST"))
             .and(path("/api/v1/token"))
             .respond_with(ResponseTemplate::new(200).set_body_json(fx("access_token")))
@@ -270,7 +271,7 @@ mod tests {
                 "contract_addresses",
                 "0x55d398326f99059fF775485246999027B3197955",
             ))
-            .and(header("authorization", "Bearer tok-abc"))
+            .and(header("authorization", "tok-abc"))
             .respond_with(ResponseTemplate::new(200).set_body_json(fx("token_security_evm")))
             .mount(&server)
             .await;

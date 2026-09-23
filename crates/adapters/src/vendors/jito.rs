@@ -13,11 +13,11 @@ use crate::{
     jsonrpc::JsonRpcClient,
 };
 use async_trait::async_trait;
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_ports::{
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_ports::{
     BroadcastReceipt, Broadcaster, PortHandle, PortResult, ProviderError, Registration, VendorMeta,
 };
-use ems_protocols::solana::{fees::JITO_MIN_TIP_LAMPORTS, tx, SOLANA_MAINNET};
+use bdm_protocols::solana::{fees::JITO_MIN_TIP_LAMPORTS, tx, SOLANA_MAINNET};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -97,7 +97,7 @@ impl Broadcaster for Jito {
 mod tests {
     use super::*;
     use base64::Engine;
-    use ems_testkit::FakeJsonRpc;
+    use bdm_testkit::FakeJsonRpc;
     use std::time::Duration;
 
     fn signed_tip(to: &str, lamports: u64) -> String {

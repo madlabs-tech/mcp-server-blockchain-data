@@ -1,15 +1,15 @@
 //! payments / stablecoin / compliance operations through the App (mock ports, no network).
 
 use async_trait::async_trait;
-use chrono::Utc;
-use ems_app::{App, Caller, Catalog, Profile, ProfileSelection};
-use ems_config::{ConfigDir, ConfigLoader, EnvSource};
-use ems_domain::{AccountId, ChainId, ErrorCode};
-use ems_ports::{
+use bdm_app::{App, Caller, Catalog, Profile, ProfileSelection};
+use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+use bdm_domain::{AccountId, ChainId, ErrorCode};
+use bdm_ports::{
     PortHandle, PortResult, Registration, SanctionsScreener, ScreenResult, VendorMeta,
 };
-use ems_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
-use ems_testkit::mocks::MockEvmRpc;
+use bdm_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
+use bdm_testkit::mocks::MockEvmRpc;
+use chrono::Utc;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -35,7 +35,7 @@ fn app(regs: Vec<Registration>) -> App {
         RouterOptions::default(),
     );
     let mut catalog = Catalog::new();
-    ems_app::ops::register_all(&mut catalog);
+    bdm_app::ops::register_all(&mut catalog);
     App::new(catalog, router, 100)
 }
 
@@ -60,7 +60,7 @@ fn screener(vendor: &'static str, hit: bool) -> Registration {
 
 const WHO: &str = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045";
 
-async fn call(app: &App, tool: &str, input: Value) -> Result<Value, ems_domain::DomainError> {
+async fn call(app: &App, tool: &str, input: Value) -> Result<Value, bdm_domain::DomainError> {
     app.call(tool, input, Caller::local()).await
 }
 

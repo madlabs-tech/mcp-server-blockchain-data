@@ -1,7 +1,7 @@
-//! The configuration schema (what `config.toml`, `secrets.toml` and `EMS__*` env vars set).
+//! The configuration schema (what `config.toml`, `secrets.toml` and `BDM__*` env vars set).
 
 use crate::{redacted::Redacted, registry::ChainEntry};
-use ems_ports::Capability;
+use bdm_ports::Capability;
 use schemars::JsonSchema;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
@@ -104,7 +104,7 @@ pub struct VendorSettings {
 }
 
 /// Ordered vendor list: primary first, then fallbacks. Accepts a TOML/JSON array or a
-/// comma-separated string (`EMS__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public`).
+/// comma-separated string (`BDM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public`).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(transparent)]
 pub struct Order(pub Vec<String>);

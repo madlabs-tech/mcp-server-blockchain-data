@@ -3,10 +3,10 @@
 use super::stablecoin::{controlled, parse_account, restrictions_for, TokenError};
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use async_trait::async_trait;
+use bdm_domain::{AccountId, Attempt, AttemptOutcome, DomainError, Provenance, SourceKind};
+use bdm_ports::{Capability, ProviderError, SanctionsScreener, ScreenResult};
+use bdm_protocols::issuer::Restrictions;
 use chrono::{DateTime, Utc};
-use ems_domain::{AccountId, Attempt, AttemptOutcome, DomainError, Provenance, SourceKind};
-use ems_ports::{Capability, ProviderError, SanctionsScreener, ScreenResult};
-use ems_protocols::issuer::Restrictions;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -233,8 +233,8 @@ Caveats: sanctions lists only (not KYT risk scoring); the Chainalysis oracle may
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_domain::BlockRef;
-    use ems_protocols::issuer::{CheckKind, RestrictionCheck};
+    use bdm_domain::BlockRef;
+    use bdm_protocols::issuer::{CheckKind, RestrictionCheck};
 
     fn subject() -> AccountId {
         "eip155:1:0xd8da6bf26964af9d7eed9e03e53415d37aa96045"

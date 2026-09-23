@@ -8,13 +8,13 @@ use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
-use chrono::{DateTime, Duration, Utc};
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_domain::{AssetId, AssetRef, ChainId, Price};
-use ems_ports::{
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_domain::{AssetId, AssetRef, ChainId, Price};
+use bdm_ports::{
     PortHandle, PortResult, PriceFeed, PriceHistory, ProviderError, Registration, TokenInfo,
     TokenMetadata,
 };
+use chrono::{DateTime, Duration, Utc};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -277,7 +277,7 @@ impl TokenMetadata for CoinGecko {
 mod tests {
     use super::*;
     use crate::http::DEFAULT_TIMEOUT;
-    use ems_testkit::wiremock::{
+    use bdm_testkit::wiremock::{
         matchers::{header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
     };
@@ -285,7 +285,7 @@ mod tests {
     use serde_json::json;
 
     fn fixture(case: &str) -> Value {
-        ems_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), ID, case)
+        bdm_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), ID, case)
     }
 
     fn cg(server: &MockServer) -> CoinGecko {
@@ -419,7 +419,7 @@ mod tests {
     #[test]
     fn util_min_out_approve_and_tx() {
         use alloy_primitives::U256;
-        use ems_domain::UnsignedTx;
+        use bdm_domain::UnsignedTx;
         assert_eq!(
             util::min_out(U256::from(1_000_000u64), 50),
             U256::from(995_000u64)

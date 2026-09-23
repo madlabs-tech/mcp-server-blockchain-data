@@ -2,14 +2,14 @@
 //! quota guard, strategies, hot swap, metering, routed RPC.
 
 use async_trait::async_trait;
-use chrono::Utc;
-use ems_config::{ConfigDir, ConfigLoader, EnvSource, Loaded};
-use ems_domain::{AssetId, AttemptOutcome, ChainId, ErrorCode, Price, SourceKind};
-use ems_ports::{
+use bdm_config::{ConfigDir, ConfigLoader, EnvSource, Loaded};
+use bdm_domain::{AssetId, AttemptOutcome, ChainId, ErrorCode, Price, SourceKind};
+use bdm_ports::{
     metering::{self, CallContext},
     Capability, EvmRpc, PortHandle, PortResult, PriceFeed, ProviderError, Registration, VendorMeta,
 };
-use ems_routing::{InMemoryCounterStore, RouteReq, Router, RouterOptions, RoutingTable, WindowKey};
+use bdm_routing::{InMemoryCounterStore, RouteReq, Router, RouterOptions, RoutingTable, WindowKey};
+use chrono::Utc;
 use rust_decimal::Decimal;
 use serde_json::{json, Value};
 use std::{
@@ -124,7 +124,7 @@ fn router_with(
 ) -> Arc<Router> {
     let table = RoutingTable {
         config: load(cfg, env),
-        registry: ems_routing::ProviderRegistry::new(regs),
+        registry: bdm_routing::ProviderRegistry::new(regs),
     };
     Router::new(table, Arc::new(InMemoryCounterStore::default()), opts)
 }
@@ -147,7 +147,7 @@ fn req() -> RouteReq {
 async fn price_of(
     r: &Router,
     req: RouteReq,
-) -> Result<ems_routing::Routed<Price>, ems_routing::RouteError> {
+) -> Result<bdm_routing::Routed<Price>, bdm_routing::RouteError> {
     let asset = eth_asset();
     r.failover::<dyn PriceFeed, _, _, _>(req, |p| {
         let asset = asset.clone();
@@ -601,7 +601,7 @@ async fn hot_swap_applies_to_new_requests_only() {
     let cfg = "[routing.defaults]\nprice = [\"geckoterminal\", \"defillama\"]\n";
     r.swap(RoutingTable {
         config: load(cfg, &[]),
-        registry: ems_routing::ProviderRegistry::new(regs()),
+        registry: bdm_routing::ProviderRegistry::new(regs()),
     });
     assert_eq!(
         price_of(&r, req())
@@ -657,7 +657,7 @@ async fn routed_evm_rpc_fails_over() {
             .chain_port(ChainId::evm(1), PortHandle::EvmRpc(good.clone())),
     ];
     let r = router_with("", &[("ALCHEMY_API_KEY", "alc_key_123")], regs, fast_opts());
-    let rpc = ems_routing::RoutedEvmRpc::new(r, ChainId::evm(1)).unwrap();
+    let rpc = bdm_routing::RoutedEvmRpc::new(r, ChainId::evm(1)).unwrap();
     assert_eq!(
         rpc.request("eth_getBalance", json!(["0x0", "latest"]))
             .await

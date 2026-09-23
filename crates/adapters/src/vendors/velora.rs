@@ -6,9 +6,9 @@ use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_domain::SwapQuote;
-use ems_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_domain::SwapQuote;
+use bdm_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -112,8 +112,8 @@ mod tests {
     use super::*;
     use crate::http::DEFAULT_TIMEOUT;
     use alloy_primitives::U256;
-    use ems_domain::{AccountAddress, Amount, ChainId};
-    use ems_testkit::wiremock::{
+    use bdm_domain::{AccountAddress, Amount, ChainId};
+    use bdm_testkit::wiremock::{
         matchers::{body_partial_json, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
     };
@@ -121,7 +121,7 @@ mod tests {
     #[tokio::test]
     async fn quote_and_build() {
         let server = MockServer::start().await;
-        let fx = |c| ems_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), ID, c);
+        let fx = |c| bdm_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), ID, c);
         Mock::given(method("GET"))
             .and(path("/prices"))
             .and(query_param("network", "1"))
@@ -158,7 +158,7 @@ mod tests {
         let b = v.build(&req).await.unwrap();
         assert!(matches!(
             b.tx,
-            Some(ems_domain::UnsignedTx::Evm { chain_id: 1, .. })
+            Some(bdm_domain::UnsignedTx::Evm { chain_id: 1, .. })
         ));
         assert_eq!(b.required_approvals.len(), 1);
     }

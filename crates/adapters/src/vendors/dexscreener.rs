@@ -6,10 +6,10 @@ use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_domain::{AssetId, ChainId, Price};
+use bdm_ports::{PortHandle, PortResult, PriceFeed, ProviderError, Registration};
 use chrono::Utc;
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_domain::{AssetId, ChainId, Price};
-use ems_ports::{PortHandle, PortResult, PriceFeed, ProviderError, Registration};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -94,7 +94,7 @@ impl PriceFeed for DexScreener {
 mod tests {
     use super::*;
     use crate::http::DEFAULT_TIMEOUT;
-    use ems_testkit::wiremock::{
+    use bdm_testkit::wiremock::{
         matchers::{method, path},
         Mock, MockServer, ResponseTemplate,
     };
@@ -108,7 +108,7 @@ mod tests {
                 "/tokens/v1/base/0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
             ))
             .respond_with(
-                ResponseTemplate::new(200).set_body_json(ems_testkit::vendor_fixture(
+                ResponseTemplate::new(200).set_body_json(bdm_testkit::vendor_fixture(
                     env!("CARGO_MANIFEST_DIR"),
                     ID,
                     "tokens_v1",

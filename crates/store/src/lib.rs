@@ -1,7 +1,7 @@
 //! Platform crate for the hosted/dashboard side of the server.
 //!
 //! - [`Store`]: sqlite (WAL) on a dedicated thread. It holds usage counters (it implements
-//!   `ems_routing::CounterStore`, so quota counters survive restarts), the call-log ring,
+//!   `bdm_routing::CounterStore`, so quota counters survive restarts), the call-log ring,
 //!   client keys (SHA-256 hashes only) and per-client usage counters. Hot-path reads (`total`,
 //!   client lookup, client counters) are served from memory; writes are queued to the thread.
 //! - [`QuotaEngine`]: aggregates limit / cap / effective budget and usage from every source

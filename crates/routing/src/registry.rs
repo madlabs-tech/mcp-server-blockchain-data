@@ -1,5 +1,5 @@
-use ems_domain::ChainId;
-use ems_ports::{Capability, PortHandle, QuotaReporter, Registration, VendorMeta};
+use bdm_domain::ChainId;
+use bdm_ports::{Capability, PortHandle, QuotaReporter, Registration, VendorMeta};
 use std::{collections::HashMap, sync::Arc};
 
 type Key = (Capability, Option<ChainId>);

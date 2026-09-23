@@ -5,8 +5,8 @@
 //! A token whose ticker matches but whose address is not on the issuer's list is a lookalike.
 
 use alloy_primitives::{keccak256, Address};
-use ems_domain::{AssetId, AssetRef, ChainId};
-use ems_ports::{EvmRpc, PortResult, ProviderError};
+use bdm_domain::{AssetId, AssetRef, ChainId};
+use bdm_ports::{EvmRpc, PortResult, ProviderError};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -165,7 +165,7 @@ pub async fn oracle_paused(rpc: &dyn EvmRpc, token: Address) -> PortResult<bool>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_testkit::mocks::MockEvmRpc;
+    use bdm_testkit::mocks::MockEvmRpc;
 
     #[test]
     fn builtin_registry_is_valid() {

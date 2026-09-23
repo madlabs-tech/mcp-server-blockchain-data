@@ -1,5 +1,5 @@
 [package]
-name = "ems-config"
+name = "bdm-config"
 description = "Layered configuration: registry defaults, config.toml, secrets, env; routing order resolution."
 version.workspace = true
 edition.workspace = true
@@ -7,8 +7,8 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-ems-domain = { workspace = true }
-ems-ports = { workspace = true }
+bdm-domain = { workspace = true }
+bdm-ports = { workspace = true }
 figment = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

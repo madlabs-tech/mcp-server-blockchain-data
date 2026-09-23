@@ -10,9 +10,9 @@ use crate::{
 };
 use alloy_primitives::U256;
 use async_trait::async_trait;
-use ems_config::{ChainEntry, Loaded, Redacted, VendorStatus};
-use ems_domain::{AccountAddress, Amount, AssetId, AssetRef};
-use ems_ports::{
+use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
+use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef};
+use bdm_ports::{
     PortHandle, PortResult, ProviderError, Registration, TokenBalance, TokenBalances, VendorMeta,
 };
 use serde_json::{json, Value};
@@ -131,8 +131,8 @@ impl Ankr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_config::{ConfigDir, ConfigLoader, EnvSource, Registry};
-    use ems_testkit::{vendor_fixture, FakeJsonRpc};
+    use bdm_config::{ConfigDir, ConfigLoader, EnvSource, Registry};
+    use bdm_testkit::{vendor_fixture, FakeJsonRpc};
 
     #[tokio::test]
     async fn account_balance_uses_raw_integers() {

@@ -1,12 +1,12 @@
 //! Shared vendor HTTP client: timeouts, metering, rate-limit headers, error mapping, and secret
 //! scrubbing. Never logs or returns a full URL; only `vendor` + method label.
 
-use chrono::{DateTime, Utc};
-use ems_config::Redacted;
-use ems_ports::{
+use bdm_config::Redacted;
+use bdm_ports::{
     metering::{self, RateLimitSnapshot},
     PortResult, ProviderError, WindowKind,
 };
+use chrono::{DateTime, Utc};
 use reqwest::{header::HeaderMap, Method};
 use serde_json::Value;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};

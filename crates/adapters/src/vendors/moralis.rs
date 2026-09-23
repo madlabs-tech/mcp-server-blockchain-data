@@ -11,9 +11,9 @@
 use crate::http::{HttpClient, DEFAULT_TIMEOUT};
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
-use ems_config::{ChainEntry, Loaded, Redacted, VendorStatus};
-use ems_domain::{AccountAddress, Amount, AssetId, AssetRef, BlockRef, Transfer, TransferKind};
-use ems_ports::{
+use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
+use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef, BlockRef, Transfer, TransferKind};
+use bdm_ports::{
     Direction, Page, PortHandle, PortResult, ProviderError, Registration, TokenBalance,
     TokenBalances, TransferHistory, TransferQuery, VendorMeta,
 };
@@ -264,8 +264,8 @@ impl Moralis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_config::Registry;
-    use ems_testkit::{
+    use bdm_config::Registry;
+    use bdm_testkit::{
         vendor_fixture,
         wiremock::{
             matchers::{header, method, path, query_param},
@@ -373,9 +373,9 @@ mod tests {
 
     #[test]
     fn registers_supported_chains_only() {
-        let loaded = ems_config::ConfigLoader::new(
-            ems_config::ConfigDir::new("/nonexistent"),
-            ems_config::EnvSource::from_pairs([("MORALIS_API_KEY", "mor_key_123456")]),
+        let loaded = bdm_config::ConfigLoader::new(
+            bdm_config::ConfigDir::new("/nonexistent"),
+            bdm_config::EnvSource::from_pairs([("MORALIS_API_KEY", "mor_key_123456")]),
         )
         .unwrap()
         .load_texts("", "")

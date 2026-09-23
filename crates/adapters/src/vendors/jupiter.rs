@@ -15,14 +15,14 @@
 
 use crate::http::{HttpClient, DEFAULT_TIMEOUT};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
-use ems_config::{ChainEntry, Loaded, Redacted, VendorStatus};
-use ems_domain::{Amount, AssetId, AssetRef, Price, SwapQuote, UnsignedTx};
-use ems_ports::{
+use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
+use bdm_domain::{Amount, AssetId, AssetRef, Price, SwapQuote, UnsignedTx};
+use bdm_ports::{
     PortHandle, PortResult, PriceFeed, ProviderError, Registration, SwapQuoter, SwapRequest,
     VendorMeta,
 };
-use ems_protocols::solana::{spl::WRAPPED_SOL_MINT, tx, SOLANA_MAINNET};
+use bdm_protocols::solana::{spl::WRAPPED_SOL_MINT, tx, SOLANA_MAINNET};
+use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde_json::Value;
 use std::{str::FromStr, sync::Arc};
@@ -256,8 +256,8 @@ impl SwapQuoter for Jupiter {
 mod tests {
     use super::*;
     use base64::Engine;
-    use ems_config::Registry;
-    use ems_testkit::wiremock::{
+    use bdm_config::Registry;
+    use bdm_testkit::wiremock::{
         matchers::{header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
     };
