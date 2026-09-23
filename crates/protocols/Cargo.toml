@@ -23,6 +23,9 @@ serde_json = { workspace = true }
 sha2 = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
+# solana (T1.S1): PDA off-curve check + wire decoding
+base64 = "0.22"
+curve25519-dalek = { version = "4", default-features = false }
 
 [dev-dependencies]
 ems-testkit = { workspace = true }

@@ -43,6 +43,9 @@ openexchangerates = []
 ems-config = { workspace = true }
 ems-domain = { workspace = true }
 ems-ports = { workspace = true }
+# solana vendors (T1.S3/S4): wire checks (signature, relay tips) live in ems-protocols
+ems-protocols = { workspace = true }
+rust_decimal = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 reqwest = { workspace = true }
@@ -51,4 +54,7 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 ems-testkit = { workspace = true }
+# solana vendor tests build signed wire transactions
+base64 = "0.22"
+bs58 = { workspace = true }
 tokio = { workspace = true }
