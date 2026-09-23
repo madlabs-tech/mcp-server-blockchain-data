@@ -1,11 +1,12 @@
 //! Composition root: config → vendor factories → registry → router → catalog → app.
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use ems_app::{App, Catalog};
 use ems_config::{ConfigDir, ConfigLoader, EnvSource, Loaded, Mode};
 use ems_ports::{EvmRpc, PortHandle, PortResult, ProviderError, Registration};
-use ems_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
+use ems_routing::{ProviderRegistry, Router, RouterOptions, RoutingTable};
+use ems_store::{ClientGuard, Store};
 use serde_json::{json, Value};
 use std::{path::PathBuf, sync::Arc};
 use tokio::sync::OnceCell;
@@ -13,6 +14,7 @@ use tokio::sync::OnceCell;
 pub struct Built {
     pub loaded: Arc<Loaded>,
     pub app: Arc<App>,
+    pub store: Store,
 }
 
 pub fn load_config(dir: PathBuf) -> Result<(ConfigLoader, Loaded)> {
@@ -27,9 +29,23 @@ pub fn load_config(dir: PathBuf) -> Result<(ConfigLoader, Loaded)> {
     Ok((loader, loaded))
 }
 
-fn render(issues: &[ems_config::Issue]) -> String {
+pub fn render(issues: &[ems_config::Issue]) -> String {
     let lines: Vec<String> = issues.iter().map(|i| format!("  - {i}")).collect();
     format!("invalid configuration:\n{}", lines.join("\n"))
+}
+
+/// Open `<data_dir>/ems.db`. Self-hosted falls back to an in-memory store when the directory
+/// isn't writable (e.g. Claude Desktop starting us with cwd `/`); hosted mode must persist.
+pub fn open_store(loaded: &Loaded) -> Result<Store> {
+    let path = loaded.settings.server.data_dir.join("ems.db");
+    match Store::open(&path) {
+        Ok(s) => Ok(s),
+        Err(e) if loaded.settings.server.mode == Mode::SelfHosted => {
+            tracing::warn!(path = %path.display(), "store unavailable ({e}); usage counters are in-memory only");
+            Store::open_in_memory().context("opening in-memory store")
+        }
+        Err(e) => Err(e).with_context(|| format!("opening {}", path.display())),
+    }
 }
 
 /// Chain RPC + every compiled-in vendor module (feature-gated in `ems-adapters`).
@@ -41,39 +57,56 @@ pub fn registrations(loaded: &Loaded) -> Vec<Registration> {
         .collect()
 }
 
-pub fn build(loaded: Loaded) -> Result<Built> {
-    if loaded.settings.server.mode == Mode::Hosted {
-        // Fail closed until client-key auth (T1.D3) is wired in: never serve shared quotas openly.
-        bail!("hosted mode requires client-key authentication, which is not available in this build yet");
+/// Complete registry for a (re)loaded config: chain RPC + vendor modules + the second stage
+/// (`rpc` pseudo-vendor and on-chain oracles, built on the routed RPC so they need the router).
+/// Used at startup and by admin reloads / SIGHUP.
+pub fn full_registry(loaded: &Loaded, router: &Arc<Router>) -> ProviderRegistry {
+    let mut registry = ProviderRegistry::new(registrations(loaded));
+    for reg in ems_protocols::rpc_registrations(loaded, router) {
+        registry.add(reg);
+    }
+    registry
+}
+
+pub fn build(loaded: Loaded, store: Store) -> Result<Built> {
+    let hosted = loaded.settings.server.mode == Mode::Hosted;
+    if hosted && store.active_client_count() == 0 {
+        // Fail closed: never serve shared vendor quotas without client keys.
+        bail!(
+            "hosted mode requires at least one client key; create one with \
+             `evm-mcp-server clients create <name>` (or in the dashboard) and restart"
+        );
     }
     let loaded = Arc::new(loaded);
-    let registry = ProviderRegistry::new(registrations(&loaded));
     let router = Router::new(
         RoutingTable {
             config: loaded.clone(),
-            registry: registry.clone(),
+            registry: ProviderRegistry::new(registrations(&loaded)),
         },
-        Arc::new(InMemoryCounterStore::default()),
+        Arc::new(store.clone()),
         RouterOptions::default(),
     );
-    // Second stage: `rpc` pseudo-vendor + on-chain oracles are built on the routed RPC, so they
-    // need the router; add them and swap in the complete table.
-    let mut registry = registry;
-    for reg in ems_protocols::rpc_registrations(&loaded, &router) {
-        registry.add(reg);
-    }
     router.swap(RoutingTable {
         config: loaded.clone(),
-        registry,
+        registry: full_registry(&loaded, &router),
     });
     let mut catalog = Catalog::new();
     ems_app::ops::register_all(&mut catalog);
-    let app = Arc::new(App::new(
+    let mut app = App::new(
         catalog,
-        router,
+        router.clone(),
         loaded.settings.server.cache_max_entries,
-    ));
-    Ok(Built { loaded, app })
+    );
+    if hosted {
+        app = app.with_guard(Arc::new(ClientGuard::new(store.clone(), router)));
+    }
+    // Every call on every transport (stdio, /mcp, REST) reaches the call log / SSE stream.
+    app = app.with_observer(Arc::new(store.clone()));
+    Ok(Built {
+        loaded,
+        app: Arc::new(app),
+        store,
+    })
 }
 
 /// Wrap every EVM RPC port so its chain id is checked against `eth_chainId` once, on first use
@@ -135,7 +168,8 @@ mod tests {
     fn second_stage_registers_rpc_pseudo_vendor() {
         let loader =
             ConfigLoader::new(ConfigDir::new("/nonexistent"), EnvSource::default()).unwrap();
-        let built = build(loader.load_texts("", "").unwrap()).unwrap();
+        let store = Store::open_in_memory().unwrap();
+        let built = build(loader.load_texts("", "").unwrap(), store).unwrap();
         let table = built.app.router().table();
         let base = ChainId::evm(8453);
         for cap in [

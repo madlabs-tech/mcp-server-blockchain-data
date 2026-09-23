@@ -7,3 +7,4 @@ config/admin_token
 *.db-wal
 *.db-shm
 /data
+/crates/*/data

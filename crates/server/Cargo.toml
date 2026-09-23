@@ -18,6 +18,7 @@ ems-domain = { workspace = true }
 ems-ports = { workspace = true }
 ems-protocols = { workspace = true }
 ems-routing = { workspace = true }
+ems-store = { workspace = true }
 ems-transport-http = { workspace = true }
 ems-transport-mcp = { workspace = true }
 anyhow = { workspace = true }
@@ -34,3 +35,4 @@ chrono = { workspace = true }
 rmcp = { workspace = true, features = ["client", "transport-child-process"] }
 serde_json = { workspace = true }
 tempfile = "3"
+reqwest = { workspace = true }
