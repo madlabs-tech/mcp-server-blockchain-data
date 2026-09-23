@@ -10,10 +10,10 @@ use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_domain::{AssetId, AssetRef, Price};
+use bdm_ports::{PortHandle, PortResult, PriceFeed, PriceHistory, ProviderError, Registration};
 use chrono::{DateTime, Utc};
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_domain::{AssetId, AssetRef, Price};
-use ems_ports::{PortHandle, PortResult, PriceFeed, PriceHistory, ProviderError, Registration};
 use rust_decimal::Decimal;
 use serde_json::Value;
 use std::{collections::HashMap, sync::Arc, sync::Mutex};
@@ -187,7 +187,7 @@ impl PriceHistory for Pyth {
 mod tests {
     use super::*;
     use crate::http::DEFAULT_TIMEOUT;
-    use ems_testkit::wiremock::{
+    use bdm_testkit::wiremock::{
         matchers::{header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
     };
@@ -195,7 +195,7 @@ mod tests {
     #[tokio::test]
     async fn looks_up_feed_once_then_prices() {
         let server = MockServer::start().await;
-        let fx = |c| ems_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), ID, c);
+        let fx = |c| bdm_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), ID, c);
         Mock::given(method("GET"))
             .and(path("/v2/price_feeds"))
             .and(query_param("query", "ETH"))

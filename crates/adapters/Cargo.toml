@@ -1,5 +1,5 @@
 [package]
-name = "ems-adapters"
+name = "bdm-adapters"
 description = "Vendor adapters, one module per vendor behind a cargo feature."
 version.workspace = true
 edition.workspace = true
@@ -40,11 +40,11 @@ frankfurter = []
 openexchangerates = []
 
 [dependencies]
-ems-config = { workspace = true }
-ems-domain = { workspace = true }
-ems-ports = { workspace = true }
-# solana vendors (T1.S3/S4): wire checks (signature, relay tips) live in ems-protocols
-ems-protocols = { workspace = true }
+bdm-config = { workspace = true }
+bdm-domain = { workspace = true }
+bdm-ports = { workspace = true }
+# solana vendors (T1.S3/S4): wire checks (signature, relay tips) live in bdm-protocols
+bdm-protocols = { workspace = true }
 alloy-primitives = { workspace = true }   # evm: U256 amounts + keccak tx hash (T1.E4)
 async-trait = { workspace = true }
 chrono = { workspace = true }
@@ -59,7 +59,7 @@ hmac = { version = "0.12", optional = true }
 sha2 = { workspace = true, optional = true }
 
 [dev-dependencies]
-ems-testkit = { workspace = true }
+bdm-testkit = { workspace = true }
 # solana vendor tests build signed wire transactions
 base64 = "0.22"
 bs58 = { workspace = true }

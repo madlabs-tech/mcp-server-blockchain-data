@@ -7,7 +7,7 @@
 //! The URL passed to the constructor embeds a fake secret in its path; errors must never echo it.
 
 use crate::{CountingSink, Failure, FakeJsonRpc};
-use ems_ports::{metering, EvmRpc, ProviderError, SolanaRpc};
+use bdm_ports::{metering, EvmRpc, ProviderError, SolanaRpc};
 use serde_json::{json, Value};
 use std::{future::Future, pin::Pin, sync::Arc, time::Duration};
 

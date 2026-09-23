@@ -13,10 +13,10 @@
 //! `remaining = 0` already mark the vendor exhausted inside routing.
 
 use crate::db::Store;
+use bdm_config::{EffectiveBudget, Loaded, OnExhausted, ResetRule, Unit, VendorStatus};
+use bdm_ports::{UsageUnit, VendorUsage, WindowKind};
+use bdm_routing::{CounterStore, Dims, Router, VendorHealth, WindowKey};
 use chrono::{DateTime, Datelike, Duration as ChronoDuration, TimeZone, Utc};
-use ems_config::{EffectiveBudget, Loaded, OnExhausted, ResetRule, Unit, VendorStatus};
-use ems_ports::{UsageUnit, VendorUsage, WindowKind};
-use ems_routing::{CounterStore, Dims, Router, VendorHealth, WindowKey};
 use serde::Serialize;
 use std::{
     collections::{HashMap, HashSet},
@@ -304,7 +304,7 @@ impl QuotaEngine {
             .collect();
         let mut out = Vec::new();
         for (vendor, entry) in &cfg.registry.vendors {
-            if vendor == ems_ports::RPC_VENDOR {
+            if vendor == bdm_ports::RPC_VENDOR {
                 continue;
             }
             let Some(b) = cfg.effective_budget(vendor) else {
@@ -669,9 +669,9 @@ fn csv_cell(s: &str) -> String {
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use ems_config::{ConfigDir, ConfigLoader, EnvSource};
-    use ems_ports::{PortResult, QuotaReporter, Registration, UsageWindow, VendorMeta};
-    use ems_routing::{ProviderRegistry, RouterOptions, RoutingTable};
+    use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+    use bdm_ports::{PortResult, QuotaReporter, Registration, UsageWindow, VendorMeta};
+    use bdm_routing::{ProviderRegistry, RouterOptions, RoutingTable};
 
     fn at(y: i32, m: u32, d: u32, h: u32) -> DateTime<Utc> {
         Utc.with_ymd_and_hms(y, m, d, h, 0, 0).unwrap()
@@ -761,7 +761,7 @@ mod tests {
     async fn effective_budget_window_state_and_locks() {
         // alchemy: limit 30M, cap 15M (env, locked), reserve 20 → min(15M, 24M) = 15M
         let (e, store) = engine(
-            &[("EMS__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS", "15000000")],
+            &[("BDM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS", "15000000")],
             "[vendors.alchemy]\nreserve_pct = 20\n",
             None,
         );
@@ -787,7 +787,7 @@ mod tests {
         assert_eq!(m.alerts, vec![75]);
         assert_eq!(
             m.cap_locked_by.as_deref(),
-            Some("EMS__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS")
+            Some("BDM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS")
         );
         assert_eq!(m.limit_locked_by, None);
         assert!(a.estimated_only);

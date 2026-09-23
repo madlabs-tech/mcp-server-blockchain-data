@@ -13,16 +13,16 @@ use super::stablecoin::{parse_account, registry, resolve_canonical};
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use alloy_primitives::U256;
 use async_trait::async_trait;
-use ems_config::{ChainEntry, Strategy};
-use ems_domain::{
+use bdm_config::{ChainEntry, Strategy};
+use bdm_domain::{
     AccountAddress, Amount, AssetId, BlockRef, ChainFamily, ChainId, DomainError, ErrorCode,
     Finality, Provenance, SolanaPubkey, Transfer, TransferKind, Tx, TxStatus,
 };
-use ems_ports::{
+use bdm_ports::{
     Capability, Direction, EvmRpc, PortKind, PortResult, ProviderError, SolanaRpc, TransferHistory,
     TransferQuery,
 };
-use ems_protocols::{
+use bdm_protocols::{
     evm::tx as evm_tx,
     solana::tx as sol_tx,
     stablecoins::{StablecoinEntry, StablecoinRegistry},
@@ -869,7 +869,7 @@ Caveats: EIP-681 has no memo, so use a unique deposit address per invoice on EVM
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_domain::BalanceDelta;
+    use bdm_domain::BalanceDelta;
 
     const SOL: &str = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
     const TO: &str = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";

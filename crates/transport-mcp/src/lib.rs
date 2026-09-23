@@ -1,5 +1,5 @@
 //! MCP transport. `list_tools` / `call_tool` are generated from the Operation catalog, so every
-//! tool added in `ems-app` appears here (and in REST) without transport code.
+//! tool added in `bdm-app` appears here (and in REST) without transport code.
 //!
 //! - Non-legacy tools return `structuredContent` (`{data, meta}`) plus a pretty JSON text block,
 //!   and failures as `isError` results the model can read and act on.
@@ -8,8 +8,8 @@
 //! - Over streamable HTTP, a hosted-mode auth layer puts a [`Caller`] into the HTTP request
 //!   extensions; it is read back from the forwarded `http::request::Parts`.
 
-use ems_app::{App, Caller};
-use ems_domain::{DomainError, ErrorCode};
+use bdm_app::{App, Caller};
+use bdm_domain::{DomainError, ErrorCode};
 use rmcp::{
     model::{
         CallToolRequestParam, CallToolResult, Content, Implementation, ListToolsResult,
@@ -25,7 +25,7 @@ use rmcp::{
 use serde_json::Value;
 use std::sync::Arc;
 
-pub const SERVER_NAME: &str = "evm-mcp-server";
+pub const SERVER_NAME: &str = "blockchain-data-mcp";
 
 const INSTRUCTIONS: &str = "Chain- and provider-agnostic blockchain data for payments, stablecoin, \
 neobank and trading agents (EVM chains incl. Robinhood Chain, and Solana). Chains accept CAIP-2 ids \
@@ -56,7 +56,7 @@ impl McpServer {
             .unwrap_or_else(|| self.default_caller.clone())
     }
 
-    fn tool(op: &dyn ems_app::DynOperation) -> Tool {
+    fn tool(op: &dyn bdm_app::DynOperation) -> Tool {
         Tool {
             name: op.name().into(),
             title: None,

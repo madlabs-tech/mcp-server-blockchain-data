@@ -4,13 +4,13 @@
 
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use async_trait::async_trait;
-use ems_config::{ChainEntry, FinalityPolicy, NativeAsset};
-use ems_domain::{
+use bdm_config::{ChainEntry, FinalityPolicy, NativeAsset};
+use bdm_domain::{
     AccountAddress, Amount, AssetId, AssetRef, BlockRef, ChainFamily, ChainId, DomainError, Fiat,
     Price, Provenance, SourceKind,
 };
-use ems_ports::{Capability, EvmRpc, SolanaRpc};
-use ems_protocols::stablecoins::{StablecoinEntry, StablecoinRegistry};
+use bdm_ports::{Capability, EvmRpc, SolanaRpc};
+use bdm_protocols::stablecoins::{StablecoinEntry, StablecoinRegistry};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -215,7 +215,7 @@ impl Operation for ChainList {
                                 .vendors
                                 .iter()
                                 .filter(|v| {
-                                    cfg.vendor_status(v) == ems_config::VendorStatus::Active
+                                    cfg.vendor_status(v) == bdm_config::VendorStatus::Active
                                         && registry.get(cap, Some(&c.id), v).is_some()
                                 })
                                 .cloned()
@@ -393,7 +393,7 @@ impl Operation for ChainFinality {
             };
         if blocks[0].is_none() {
             return Err(DomainError::new(
-                ems_domain::ErrorCode::AllProvidersFailed,
+                bdm_domain::ErrorCode::AllProvidersFailed,
                 format!("could not read the head of {}", chain.id),
             ));
         }
@@ -425,11 +425,11 @@ impl Operation for ChainFinality {
 /// One head query per configured RPC vendor, through the router (breakers, quota, metering).
 async fn per_provider_heads<P>(
     ctx: &Ctx,
-    route: ems_routing::RouteReq,
+    route: bdm_routing::RouteReq,
     method: &'static str,
 ) -> Vec<ProviderHead>
 where
-    P: ems_ports::PortKind + ?Sized + RawRpc,
+    P: bdm_ports::PortKind + ?Sized + RawRpc,
 {
     match ctx
         .router()
@@ -463,19 +463,19 @@ where
 /// Parameterless JSON-RPC call on either chain transport.
 #[async_trait]
 pub(crate) trait RawRpc: Send + Sync {
-    async fn raw(&self, method: &str) -> ems_ports::PortResult<Value>;
+    async fn raw(&self, method: &str) -> bdm_ports::PortResult<Value>;
 }
 
 #[async_trait]
 impl RawRpc for dyn EvmRpc {
-    async fn raw(&self, method: &str) -> ems_ports::PortResult<Value> {
+    async fn raw(&self, method: &str) -> bdm_ports::PortResult<Value> {
         self.request(method, json!([])).await
     }
 }
 
 #[async_trait]
 impl RawRpc for dyn SolanaRpc {
-    async fn raw(&self, method: &str) -> ems_ports::PortResult<Value> {
+    async fn raw(&self, method: &str) -> bdm_ports::PortResult<Value> {
         self.request(method, json!([])).await
     }
 }

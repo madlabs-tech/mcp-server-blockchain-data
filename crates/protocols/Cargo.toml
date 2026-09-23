@@ -1,5 +1,5 @@
 [package]
-name = "ems-protocols"
+name = "bdm-protocols"
 description = "Contract and program readers (ERC-20, Multicall3, issuer controls, Chainlink, SPL...) over chain ports."
 version.workspace = true
 edition.workspace = true
@@ -7,10 +7,10 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-ems-domain = { workspace = true }
-ems-ports = { workspace = true }
-ems-config = { workspace = true }
-ems-routing = { workspace = true }
+bdm-domain = { workspace = true }
+bdm-ports = { workspace = true }
+bdm-config = { workspace = true }
+bdm-routing = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 async-trait = { workspace = true }
@@ -27,6 +27,6 @@ base64 = "0.22"
 curve25519-dalek = { version = "4", default-features = false }
 
 [dev-dependencies]
-ems-testkit = { workspace = true }
-ems-adapters = { workspace = true }   # evm: live fixture recording (#[ignore] tests) only
+bdm-testkit = { workspace = true }
+bdm-adapters = { workspace = true }   # evm: live fixture recording (#[ignore] tests) only
 tokio = { workspace = true }

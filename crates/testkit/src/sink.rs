@@ -1,4 +1,4 @@
-use ems_ports::metering::{CallContext, RateLimitSnapshot, UsageSink};
+use bdm_ports::metering::{CallContext, RateLimitSnapshot, UsageSink};
 use std::sync::Mutex;
 
 /// Records metering events for assertions.

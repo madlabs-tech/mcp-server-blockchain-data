@@ -15,10 +15,10 @@ use crate::{
     jsonrpc::JsonRpcClient,
 };
 use async_trait::async_trait;
-use ems_config::{ChainEntry, Loaded, VendorStatus};
-use ems_domain::{FeeEstimate, FeeSpeed};
-use ems_ports::{FeeOracle, PortHandle, PortResult, ProviderError, Registration, VendorMeta};
-use ems_protocols::solana::{fees, SOLANA_MAINNET};
+use bdm_config::{ChainEntry, Loaded, VendorStatus};
+use bdm_domain::{FeeEstimate, FeeSpeed};
+use bdm_ports::{FeeOracle, PortHandle, PortResult, ProviderError, Registration, VendorMeta};
+use bdm_protocols::solana::{fees, SOLANA_MAINNET};
 use serde_json::json;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -126,8 +126,8 @@ impl FeeOracle for QuickNodeFees {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_config::{Redacted, Registry};
-    use ems_testkit::FakeJsonRpc;
+    use bdm_config::{Redacted, Registry};
+    use bdm_testkit::FakeJsonRpc;
     use std::time::Duration;
 
     fn fees_for(server: &FakeJsonRpc) -> QuickNodeFees {

@@ -6,8 +6,8 @@ use crate::{
     registry::{ResetRule, Unit},
     settings::{ClientLimits, OnExhausted, OperationSettings, WindowBudget},
 };
-use ems_domain::ChainId;
-use ems_ports::{Capability, RPC_VENDOR};
+use bdm_domain::ChainId;
+use bdm_ports::{Capability, RPC_VENDOR};
 use serde::Serialize;
 
 /// Which config level produced an order (shown in the dashboard's effective-order view).

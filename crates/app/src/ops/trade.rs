@@ -7,11 +7,11 @@ use crate::{
 };
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
-use ems_domain::{
+use bdm_domain::{
     AccountAddress, Amount, AssetId, ChainFamily, DomainError, ErrorCode, SwapQuote, UnsignedTx,
 };
-use ems_ports::{Capability, SwapQuoter, SwapRequest};
+use bdm_ports::{Capability, SwapQuoter, SwapRequest};
+use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -371,7 +371,7 @@ impl Operation for TradeBuildSwapTx {
                     needed.push(tx);
                     continue;
                 };
-                match ems_protocols::evm::erc20::allowance(&rpc, token, owner, spender, "latest")
+                match bdm_protocols::evm::erc20::allowance(&rpc, token, owner, spender, "latest")
                     .await
                 {
                     Ok(have) if have >= amount => {}
@@ -408,7 +408,7 @@ mod tests {
         (
             source.into(),
             SwapQuote {
-                chain: ems_domain::ChainId::evm(1),
+                chain: bdm_domain::ChainId::evm(1),
                 sell_asset: "eip155:1/slip44:60".parse().unwrap(),
                 sell_amount: Amount::from_u128(1, 18),
                 buy_asset: "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"

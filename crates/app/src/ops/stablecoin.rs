@@ -5,17 +5,17 @@
 
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use async_trait::async_trait;
-use chrono::{TimeZone, Utc};
-use ems_config::ChainEntry;
-use ems_domain::{
+use bdm_config::ChainEntry;
+use bdm_domain::{
     AccountAddress, AssetId, ChainFamily, DomainError, Price, PriceStatus, Provenance, SourceKind,
 };
-use ems_ports::{Capability, PriceFeed, TokenMetadata};
-use ems_protocols::{
+use bdm_ports::{Capability, PriceFeed, TokenMetadata};
+use bdm_protocols::{
     evm::chainlink,
     issuer::{self, ChainRpc, Restrictions},
     stablecoins::{asset_on, FreezeCheck, PauseCheck, StablecoinEntry, StablecoinRegistry},
 };
+use chrono::{TimeZone, Utc};
 use rust_decimal::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -334,7 +334,7 @@ Caveats: an address can be frozen after this check (re-check right before sendin
         let (results, errors) = restrictions_for(ctx, chain, &address, &entries).await?;
         if results.is_empty() {
             return Err(DomainError::new(
-                ems_domain::ErrorCode::AllProvidersFailed,
+                bdm_domain::ErrorCode::AllProvidersFailed,
                 errors
                     .iter()
                     .map(|e| format!("{}: {}", e.symbol, e.error))
@@ -544,7 +544,7 @@ async fn chainlink_price(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_domain::ChainId;
+    use bdm_domain::ChainId;
 
     fn usdc() -> &'static StablecoinEntry {
         registry()
@@ -631,7 +631,7 @@ mod tests {
 
     #[test]
     fn controlled_skips_tokens_without_controls() {
-        let reg = ems_config::Registry::builtin().unwrap();
+        let reg = bdm_config::Registry::builtin().unwrap();
         let eth = reg.chains.resolve("ethereum").unwrap();
         let syms: Vec<&str> = controlled(eth)
             .unwrap()

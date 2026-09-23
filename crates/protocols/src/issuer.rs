@@ -8,8 +8,8 @@
 use crate::stablecoins::{FreezeCheck, PauseCheck, StablecoinEntry};
 use alloy_primitives::{Address, B256};
 use alloy_sol_types::{sol, SolCall};
-use ems_domain::{AccountAddress, AssetId, AssetRef, BlockRef};
-use ems_ports::{EvmRpc, PortResult, ProviderError, SolanaRpc};
+use bdm_domain::{AccountAddress, AssetId, AssetRef, BlockRef};
+use bdm_ports::{EvmRpc, PortResult, ProviderError, SolanaRpc};
 use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -352,8 +352,8 @@ mod tests {
     use super::*;
     use crate::stablecoins::StablecoinRegistry;
     use async_trait::async_trait;
-    use ems_domain::ChainId;
-    use ems_testkit::mocks::MockEvmRpc;
+    use bdm_domain::ChainId;
+    use bdm_testkit::mocks::MockEvmRpc;
     use std::sync::Mutex;
 
     fn word(n: u8) -> Value {

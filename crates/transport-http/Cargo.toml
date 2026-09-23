@@ -1,5 +1,5 @@
 [package]
-name = "ems-transport-http"
+name = "bdm-transport-http"
 description = "REST API, OpenAPI, admin API and dashboard over the Operation catalog."
 version.workspace = true
 edition.workspace = true
@@ -7,13 +7,13 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-ems-app = { workspace = true }
-ems-config = { workspace = true }
-ems-domain = { workspace = true }
-ems-ports = { workspace = true }
-ems-routing = { workspace = true }
-ems-store = { workspace = true }
-ems-transport-mcp = { workspace = true }
+bdm-app = { workspace = true }
+bdm-config = { workspace = true }
+bdm-domain = { workspace = true }
+bdm-ports = { workspace = true }
+bdm-routing = { workspace = true }
+bdm-store = { workspace = true }
+bdm-transport-mcp = { workspace = true }
 axum = { workspace = true }
 chrono = { workspace = true }
 futures = { workspace = true }

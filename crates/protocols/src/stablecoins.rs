@@ -5,8 +5,8 @@
 //! addresses must be written EIP-55 checksummed, Solana mints must be valid base58, and
 //! `(chain, address)` / `(chain, symbol)` are unique. A bad row fails `builtin()` and therefore CI.
 
+use bdm_domain::{AccountAddress, AssetId, AssetRef, ChainFamily, ChainId};
 use chrono::NaiveDate;
-use ems_domain::{AccountAddress, AssetId, AssetRef, ChainFamily, ChainId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -338,7 +338,7 @@ mod tests {
     #[test]
     fn builtin_registry_is_valid_and_on_known_chains() {
         let reg = StablecoinRegistry::builtin().unwrap_or_else(|e| panic!("{e}"));
-        let chains = ems_config::Registry::builtin().unwrap().chains;
+        let chains = bdm_config::Registry::builtin().unwrap().chains;
         assert!(reg.all().len() >= 20, "{}", reg.all().len());
         for e in reg.all() {
             assert!(

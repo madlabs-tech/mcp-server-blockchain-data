@@ -4,7 +4,7 @@
 # `source_url` and `verified_at`. Nothing invented. `verified = false` issuers are placeholders:
 # they list no tokens until someone checks the issuer docs. A token with a known ticker but an
 # address that is not listed here is reported as NOT on the official list (possible lookalike).
-# Parsed and validated by `ems_protocols::rwa::RwaRegistry` (EIP-55 checksums enforced).
+# Parsed and validated by `bdm_protocols::rwa::RwaRegistry` (EIP-55 checksums enforced).
 
 [[issuer]]
 id = "robinhood"

@@ -1,8 +1,8 @@
 //! Built-in data: chains and vendors (free tiers, key env names, URL templates, default orders).
 
 use crate::settings::{Order, WindowBudget};
-use ems_domain::{ChainFamily, ChainId, DomainError, ErrorCode};
-use ems_ports::{Capability, RpcFeatures};
+use bdm_domain::{ChainFamily, ChainId, DomainError, ErrorCode};
+use bdm_ports::{Capability, RpcFeatures};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 

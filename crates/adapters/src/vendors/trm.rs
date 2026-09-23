@@ -10,13 +10,13 @@
 use crate::http::{HttpClient, DEFAULT_TIMEOUT};
 use async_trait::async_trait;
 use base64::Engine;
-use chrono::Utc;
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_domain::AccountId;
-use ems_ports::{
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_domain::AccountId;
+use bdm_ports::{
     PortHandle, PortResult, ProviderError, Registration, SanctionsScreener, ScreenResult,
     VendorMeta,
 };
+use chrono::Utc;
 use reqwest::Method;
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -115,7 +115,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_testkit::wiremock::{
+    use bdm_testkit::wiremock::{
         matchers::{body_json, header, method, path},
         Mock, MockServer, ResponseTemplate,
     };

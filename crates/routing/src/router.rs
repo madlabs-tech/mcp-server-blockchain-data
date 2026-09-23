@@ -4,11 +4,11 @@ use crate::{
     store::CounterStore,
 };
 use arc_swap::ArcSwap;
-use ems_config::{Loaded, VendorStatus};
-use ems_domain::{
+use bdm_config::{Loaded, VendorStatus};
+use bdm_domain::{
     Attempt, AttemptOutcome, ChainId, DomainError, ErrorCode, Provenance, SourceKind,
 };
-use ems_ports::{metering::UsageSink, Capability, PortKind, ProviderError};
+use bdm_ports::{metering::UsageSink, Capability, PortKind, ProviderError};
 use futures::{stream::FuturesUnordered, StreamExt};
 use rand::Rng;
 use std::{future::Future, sync::Arc, time::Duration};
@@ -159,7 +159,7 @@ impl Router {
         self.table.store(Arc::new(table));
     }
 
-    /// Sink to install in `ems_ports::metering::scope` for every operation.
+    /// Sink to install in `bdm_ports::metering::scope` for every operation.
     pub fn usage_sink(&self) -> Arc<dyn UsageSink> {
         Arc::new(QuotaSink {
             table: self.table.clone(),

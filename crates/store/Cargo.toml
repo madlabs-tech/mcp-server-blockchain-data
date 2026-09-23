@@ -1,5 +1,5 @@
 [package]
-name = "ems-store"
+name = "bdm-store"
 description = "Persistence (sqlite: usage counters, call log, client keys), quota engine, hosted-mode client auth and limits."
 version.workspace = true
 edition.workspace = true
@@ -7,11 +7,11 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-ems-app = { workspace = true }
-ems-config = { workspace = true }
-ems-domain = { workspace = true }
-ems-ports = { workspace = true }
-ems-routing = { workspace = true }
+bdm-app = { workspace = true }
+bdm-config = { workspace = true }
+bdm-domain = { workspace = true }
+bdm-ports = { workspace = true }
+bdm-routing = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 hex = { workspace = true }

@@ -1,5 +1,5 @@
 [package]
-name = "ems-app"
+name = "bdm-app"
 description = "Use cases as Operations (Command pattern), the Catalog and tool profiles."
 version.workspace = true
 edition.workspace = true
@@ -7,11 +7,11 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-ems-domain = { workspace = true }
-ems-ports = { workspace = true }
-ems-config = { workspace = true }
-ems-routing = { workspace = true }
-ems-protocols = { workspace = true }
+bdm-domain = { workspace = true }
+bdm-ports = { workspace = true }
+bdm-config = { workspace = true }
+bdm-routing = { workspace = true }
+bdm-protocols = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-rpc-types-eth = "1.0.41"
 async-trait = { workspace = true }
@@ -30,4 +30,4 @@ tracing = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
-ems-testkit = { workspace = true }
+bdm-testkit = { workspace = true }

@@ -6,9 +6,9 @@ use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_domain::SwapQuote;
-use ems_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_domain::SwapQuote;
+use bdm_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -91,7 +91,7 @@ impl SwapQuoter for OneInch {
         let v = self.call(req, "swap", &extra).await?;
         let mut q = Self::to_quote(req, &v)?;
         let tx = util::evm_tx(util::evm_chain_id(&req.chain)?, &v["tx"])?;
-        if let ems_domain::UnsignedTx::Evm { to, .. } = &tx {
+        if let bdm_domain::UnsignedTx::Evm { to, .. } = &tx {
             q.required_approvals = util::sell_approval(req, to)?;
         }
         q.tx = Some(tx);
@@ -104,8 +104,8 @@ mod tests {
     use super::*;
     use crate::http::DEFAULT_TIMEOUT;
     use alloy_primitives::U256;
-    use ems_domain::{AccountAddress, Amount, ChainId};
-    use ems_testkit::wiremock::{
+    use bdm_domain::{AccountAddress, Amount, ChainId};
+    use bdm_testkit::wiremock::{
         matchers::{header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
     };
@@ -126,7 +126,7 @@ mod tests {
     #[tokio::test]
     async fn quote_and_build_with_approval() {
         let server = MockServer::start().await;
-        let fx = |c| ems_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), ID, c);
+        let fx = |c| bdm_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), ID, c);
         Mock::given(method("GET"))
             .and(path("/8453/quote"))
             .and(header("authorization", "Bearer 1inch-key"))

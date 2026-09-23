@@ -2,16 +2,16 @@
 
 use alloy_primitives::U256;
 use async_trait::async_trait;
-use chrono::{Duration, Utc};
-use ems_app::{App, Caller, Catalog};
-use ems_config::{ConfigDir, ConfigLoader, EnvSource};
-use ems_domain::{Amount, AssetId, ChainId, Price, RiskFlag, Severity, SwapQuote, UnsignedTx};
-use ems_ports::{
+use bdm_app::{App, Caller, Catalog};
+use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+use bdm_domain::{Amount, AssetId, ChainId, Price, RiskFlag, Severity, SwapQuote, UnsignedTx};
+use bdm_ports::{
     PortHandle, PortResult, ProviderError, Registration, RiskAssessment, SwapQuoter, SwapRequest,
     TokenInfo, TokenMetadata, TokenRisk, VendorMeta,
 };
-use ems_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
-use ems_testkit::mocks::{MockEvmRpc, MockPriceFeed, Scripted};
+use bdm_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
+use bdm_testkit::mocks::{MockEvmRpc, MockPriceFeed, Scripted};
+use chrono::{Duration, Utc};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -31,7 +31,7 @@ fn app(cfg: &str, regs: Vec<Registration>) -> App {
         RouterOptions::default(),
     );
     let mut catalog = Catalog::new();
-    ems_app::ops::register_all(&mut catalog);
+    bdm_app::ops::register_all(&mut catalog);
     App::new(catalog, router, 1000)
 }
 
@@ -49,7 +49,7 @@ fn global(id: &str, port: PortHandle) -> Registration {
     Registration::new(meta(id)).global_port(port)
 }
 
-async fn call(app: &App, tool: &str, input: Value) -> Result<Value, ems_domain::DomainError> {
+async fn call(app: &App, tool: &str, input: Value) -> Result<Value, bdm_domain::DomainError> {
     app.call(tool, input, Caller::local()).await
 }
 
@@ -178,7 +178,7 @@ async fn missing_price_is_unknown_never_zero() {
     let err = call(&none, "market_get_price", json!({"asset": USDC_BASE}))
         .await
         .unwrap_err();
-    assert_eq!(err.code, ems_domain::ErrorCode::UnsupportedCapability);
+    assert_eq!(err.code, bdm_domain::ErrorCode::UnsupportedCapability);
     assert!(err.hint.unwrap().contains("COINGECKO_API_KEY"));
 }
 
@@ -430,14 +430,14 @@ async fn build_requires_taker_enforces_min_out_and_lists_approvals() {
 
     input["min_buy_amount"] = json!("381000000000000000"); // above the fresh min_buy
     let err = call(&a, "trade_build_swap_tx", input).await.unwrap_err();
-    assert_eq!(err.code, ems_domain::ErrorCode::StaleData);
+    assert_eq!(err.code, bdm_domain::ErrorCode::StaleData);
 }
 
 // ------------------------------------------------------------------ rwa
 
 const TSLA: &str = "eip155:4663/erc20:0x322F0929c4625eD5bAd873c95208D54E1c003b2d";
 
-fn robinhood_rpc(results: &[ems_ports::PortResult<Value>]) -> Registration {
+fn robinhood_rpc(results: &[bdm_ports::PortResult<Value>]) -> Registration {
     let evm = Arc::new(MockEvmRpc {
         chain_id: 4663,
         ..Default::default()
@@ -457,7 +457,7 @@ async fn rwa_token_info_official_list_and_lookalike() {
     // The tool reads the ERC-8056 multiplier (one Multicall3 eth_call) before oraclePaused;
     // the mock pops answers in order, so script the multiplier read as unavailable first.
     let no_multiplier =
-        ems_ports::ProviderError::Unsupported("multicall unavailable in test".into());
+        bdm_ports::ProviderError::Unsupported("multicall unavailable in test".into());
     let a = app("", vec![robinhood_rpc(&[Err(no_multiplier), Ok(paused)])]);
     let out = call(&a, "rwa_token_info", json!({"asset": TSLA}))
         .await
@@ -487,5 +487,5 @@ async fn rwa_price_needs_official_token() {
     let err = call(&a, "rwa_price", json!({"asset": fake}))
         .await
         .unwrap_err();
-    assert_eq!(err.code, ems_domain::ErrorCode::NotFound);
+    assert_eq!(err.code, bdm_domain::ErrorCode::NotFound);
 }

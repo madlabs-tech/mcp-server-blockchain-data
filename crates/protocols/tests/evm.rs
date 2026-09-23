@@ -4,18 +4,18 @@
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_sol_types::{SolCall, SolEvent, SolValue};
 use async_trait::async_trait;
-use ems_config::{ChainEntry, ConfigDir, ConfigLoader, EnvSource, Loaded, Registry};
-use ems_domain::{AccountAddress, AssetId, AssetRef, Finality, TxStatus, UnsignedTx};
-use ems_ports::{
+use bdm_config::{ChainEntry, ConfigDir, ConfigLoader, EnvSource, Loaded, Registry};
+use bdm_domain::{AccountAddress, AssetId, AssetRef, Finality, TxStatus, UnsignedTx};
+use bdm_ports::{
     Capability, Direction, EvmRpc, PortHandle, PortKind, PortResult, ProviderError, Registration,
     Simulator, TokenBalances, TokenMetadata, TransferHistory, TransferQuery, VendorMeta,
 };
-use ems_protocols::evm::{
+use bdm_protocols::evm::{
     chainlink, erc20, erc8056, fees,
     multicall3::{self, IMulticall3},
     tx,
 };
-use ems_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
+use bdm_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
@@ -415,7 +415,7 @@ async fn scan_caps_at_head_chunks_and_splits_on_range_errors() {
         Ok(json!(logs))
     });
 
-    let page = ems_protocols::evm::logs::scan_transfers(
+    let page = bdm_protocols::evm::logs::scan_transfers(
         fake.as_ref(),
         &chain("ethereum"),
         &query(owner, Direction::In),
@@ -466,7 +466,7 @@ async fn scan_pages_with_cursor_and_dedupes_self_transfers() {
     });
     let mut q = query(owner, Direction::Both);
     let page =
-        ems_protocols::evm::logs::scan_transfers(fake.as_ref(), &chain("ethereum"), &q, Some(5))
+        bdm_protocols::evm::logs::scan_transfers(fake.as_ref(), &chain("ethereum"), &q, Some(5))
             .await
             .unwrap();
     // 20 calls per page, 2 per chunk (in + out) → 10 chunks of 5 blocks: 1000 down to 951.
@@ -477,7 +477,7 @@ async fn scan_pages_with_cursor_and_dedupes_self_transfers() {
     q.cursor = page.next_cursor;
     q.limit = 1;
     let next =
-        ems_protocols::evm::logs::scan_transfers(fake.as_ref(), &chain("ethereum"), &q, Some(5))
+        bdm_protocols::evm::logs::scan_transfers(fake.as_ref(), &chain("ethereum"), &q, Some(5))
             .await
             .unwrap();
     assert_eq!(next.items[0].block.as_ref().unwrap().number, 950);
@@ -485,14 +485,14 @@ async fn scan_pages_with_cursor_and_dedupes_self_transfers() {
 
     q.cursor = Some("garbage".into());
     assert!(matches!(
-        ems_protocols::evm::logs::scan_transfers(fake.as_ref(), &chain("ethereum"), &q, None).await,
+        bdm_protocols::evm::logs::scan_transfers(fake.as_ref(), &chain("ethereum"), &q, None).await,
         Err(ProviderError::Invalid(_))
     ));
 }
 
 // ------------------------------------------------------------------ fees (recorded fixtures)
 
-/// Recorded with `cargo test -p ems-protocols --test evm -- --ignored record_fee_fixtures`.
+/// Recorded with `cargo test -p bdm-protocols --test evm -- --ignored record_fee_fixtures`.
 fn fixture(name: &str) -> Value {
     let path = format!("{}/fixtures/fees/{name}.json", env!("CARGO_MANIFEST_DIR"));
     serde_json::from_str(&std::fs::read_to_string(&path).expect(&path)).unwrap()
@@ -562,7 +562,7 @@ async fn fee_estimate_fixtures_base_arbitrum_ethereum() {
 #[tokio::test]
 #[ignore]
 async fn record_fee_fixtures() {
-    use ems_adapters::{EvmRpcClient, HttpClient};
+    use bdm_adapters::{EvmRpcClient, HttpClient};
     struct Recorder(EvmRpcClient, Mutex<serde_json::Map<String, Value>>);
     #[async_trait]
     impl EvmRpc for Recorder {
@@ -583,7 +583,7 @@ async fn record_fee_fixtures() {
             EvmRpcClient::new(
                 http,
                 c.id.evm_chain_id().unwrap(),
-                ems_config::Redacted::new(url.clone()),
+                bdm_config::Redacted::new(url.clone()),
             ),
             Mutex::default(),
         );
@@ -720,7 +720,7 @@ fn public_reg(fake: &Arc<FakeEvm>) -> Registration {
         rpc_features: Default::default(),
     })
     .chain_port(
-        ems_domain::ChainId::evm(fake.chain_id),
+        bdm_domain::ChainId::evm(fake.chain_id),
         PortHandle::EvmRpc(fake.clone()),
     )
 }
@@ -741,10 +741,10 @@ fn rpc_port<P: PortKind + ?Sized>(
         RouterOptions::default(),
     );
     let mut registry = ProviderRegistry::new([public_reg(fake)]);
-    for r in ems_protocols::evm::rpc_vendor::registrations(&loaded, &router) {
+    for r in bdm_protocols::evm::rpc_vendor::registrations(&loaded, &router) {
         registry.add(r);
     }
-    let chain = ems_domain::ChainId::evm(fake.chain_id);
+    let chain = bdm_domain::ChainId::evm(fake.chain_id);
     let handle = registry.get(cap, Some(&chain), "rpc").cloned().unwrap();
     router.swap(RoutingTable {
         config: loaded,
@@ -765,7 +765,7 @@ async fn rpc_registers_every_evm_chain_but_not_solana() {
         Arc::new(InMemoryCounterStore::default()),
         RouterOptions::default(),
     );
-    let regs = ems_protocols::evm::rpc_vendor::registrations(&loaded, &router);
+    let regs = bdm_protocols::evm::rpc_vendor::registrations(&loaded, &router);
     assert_eq!(regs.len(), 1);
     assert_eq!(regs[0].vendor.id, "rpc");
     let mut per_cap: HashMap<Capability, usize> = HashMap::new();
@@ -800,7 +800,7 @@ async fn rpc_balances_pinned_to_one_block_via_multicall() {
     fake.returns::<erc20::IERC20::symbolCall>(usdc, "USDC".to_string().abi_encode());
 
     let port: Arc<dyn TokenBalances> = rpc_port(&fake, &[], Capability::TokenBalances);
-    let chain = ems_domain::ChainId::evm(1);
+    let chain = bdm_domain::ChainId::evm(1);
     let assets = [
         AssetId::native(chain.clone(), 60),
         AssetId {
@@ -827,7 +827,7 @@ async fn rpc_balances_pinned_to_one_block_via_multicall() {
     assert_eq!(calls.len(), 1, "one multicall");
     assert_eq!(calls[0][1], json!("0x1234"), "pinned to the block number");
 
-    let other = AssetId::native(ems_domain::ChainId::evm(8453), 60);
+    let other = AssetId::native(bdm_domain::ChainId::evm(8453), 60);
     assert!(matches!(
         port.balances(&AccountAddress::Evm(owner), Some(&[other]))
             .await,
@@ -861,7 +861,7 @@ async fn rpc_token_metadata_on_chain() {
     fake.returns::<erc20::IERC20::symbolCall>(token, "USDT".to_string().abi_encode());
     fake.returns::<erc20::IERC20::nameCall>(token, "Tether USD".to_string().abi_encode());
     let port: Arc<dyn TokenMetadata> = rpc_port(&fake, &[], Capability::TokenMetadata);
-    let chain = ems_domain::ChainId::evm(56);
+    let chain = bdm_domain::ChainId::evm(56);
     let m = port
         .metadata(&AssetId {
             chain: chain.clone(),

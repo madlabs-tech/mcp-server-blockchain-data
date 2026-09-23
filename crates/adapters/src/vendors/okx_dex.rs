@@ -11,9 +11,9 @@ use super::market_util as util;
 use crate::http::HttpClient;
 use async_trait::async_trait;
 use base64::Engine;
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_domain::{AssetRef, SwapQuote};
-use ems_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_domain::{AssetRef, SwapQuote};
+use bdm_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
 use hmac::{Hmac, Mac};
 use serde_json::Value;
 use sha2::Sha256;
@@ -59,7 +59,7 @@ fn sign(secret: &str, prehash: &str) -> String {
 /// (chainIndex, sell token, buy token)
 fn route(req: &SwapRequest) -> PortResult<(String, String, String)> {
     if util::is_solana_mainnet(&req.chain) {
-        let t = |a: &ems_domain::AssetId| match &a.asset {
+        let t = |a: &bdm_domain::AssetId| match &a.asset {
             AssetRef::Native { .. } => Ok(SOL_NATIVE.to_owned()),
             AssetRef::SplToken(m) => Ok(m.to_string()),
             AssetRef::Erc20(_) => Err(ProviderError::Invalid("EVM asset on Solana".into())),
@@ -197,8 +197,8 @@ impl SwapQuoter for OkxDex {
 mod tests {
     use super::*;
     use crate::http::DEFAULT_TIMEOUT;
-    use ems_domain::{Amount, ChainId};
-    use ems_testkit::wiremock::{
+    use bdm_domain::{Amount, ChainId};
+    use bdm_testkit::wiremock::{
         matchers::{header, header_exists, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
     };
@@ -222,7 +222,7 @@ mod tests {
             .and(header("OK-ACCESS-KEY", "okx-key"))
             .and(header_exists("OK-ACCESS-SIGN"))
             .respond_with(
-                ResponseTemplate::new(200).set_body_json(ems_testkit::vendor_fixture(
+                ResponseTemplate::new(200).set_body_json(bdm_testkit::vendor_fixture(
                     env!("CARGO_MANIFEST_DIR"),
                     ID,
                     "quote_solana",

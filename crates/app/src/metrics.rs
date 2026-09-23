@@ -32,13 +32,13 @@ impl OpMetrics {
     /// Prometheus exposition format.
     pub fn render_prometheus(&self) -> String {
         let mut out = String::from(
-            "# TYPE ems_op_calls_total counter\n# TYPE ems_op_errors_total counter\n\
-             # TYPE ems_op_cache_hits_total counter\n# TYPE ems_op_latency_ms_total counter\n",
+            "# TYPE bdm_op_calls_total counter\n# TYPE bdm_op_errors_total counter\n\
+             # TYPE bdm_op_cache_hits_total counter\n# TYPE bdm_op_latency_ms_total counter\n",
         );
         for (op, s) in self.snapshot() {
             out += &format!(
-                "ems_op_calls_total{{op=\"{op}\"}} {}\nems_op_errors_total{{op=\"{op}\"}} {}\n\
-                 ems_op_cache_hits_total{{op=\"{op}\"}} {}\nems_op_latency_ms_total{{op=\"{op}\"}} {}\n",
+                "bdm_op_calls_total{{op=\"{op}\"}} {}\nbdm_op_errors_total{{op=\"{op}\"}} {}\n\
+                 bdm_op_cache_hits_total{{op=\"{op}\"}} {}\nbdm_op_latency_ms_total{{op=\"{op}\"}} {}\n",
                 s.calls, s.errors, s.cache_hits, s.latency_ms_total
             );
         }

@@ -6,16 +6,16 @@ use super::chain::{
 };
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use async_trait::async_trait;
-use ems_config::ChainEntry;
-use ems_domain::{
+use bdm_config::ChainEntry;
+use bdm_domain::{
     AccountAddress, Amount, AssetId, AssetRef, ChainFamily, ChainId, DomainError, Provenance,
     Transfer,
 };
-use ems_ports::{
+use bdm_ports::{
     Capability, Direction, EvmRpc, Page, SolanaRpc, TokenBalance, TokenBalances, TransferHistory,
     TransferQuery,
 };
-use ems_protocols::solana::spl;
+use bdm_protocols::solana::spl;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -800,7 +800,7 @@ async fn validate_solana(
             let is_ata = match (
                 token_owner.parse(),
                 mint.parse(),
-                owner.parse::<ems_domain::SolanaPubkey>(),
+                owner.parse::<bdm_domain::SolanaPubkey>(),
             ) {
                 (Ok(o), Ok(m), Ok(p)) => spl::associated_token_address(&o, &m, &p)
                     .ok()
@@ -909,7 +909,7 @@ async fn check_token(
     };
     if canonical.is_none() {
         if let AssetRef::Erc20(t) = asset.asset {
-            let sym = ems_protocols::evm::erc20::symbol(&ctx.evm_rpc(chain)?, t)
+            let sym = bdm_protocols::evm::erc20::symbol(&ctx.evm_rpc(chain)?, t)
                 .await
                 .ok()
                 .flatten();
@@ -942,7 +942,7 @@ mod tests {
     use super::*;
 
     fn chain(id: &str) -> ChainEntry {
-        ems_config::Registry::builtin()
+        bdm_config::Registry::builtin()
             .unwrap()
             .chains
             .resolve(id)

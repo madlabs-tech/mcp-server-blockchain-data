@@ -2,11 +2,11 @@
 
 use crate::db::{ClientRecord, Exceeded, Store};
 use async_trait::async_trait;
+use bdm_app::{CallGuard, Caller, ClientAuth, ProfileSelection};
+use bdm_config::{ClientLimits, Loaded};
+use bdm_domain::{DomainError, ErrorCode};
+use bdm_routing::{Router, WindowKey};
 use chrono::Utc;
-use ems_app::{CallGuard, Caller, ClientAuth, ProfileSelection};
-use ems_config::{ClientLimits, Loaded};
-use ems_domain::{DomainError, ErrorCode};
-use ems_routing::{Router, WindowKey};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
@@ -179,8 +179,8 @@ impl CallGuard for ClientGuard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_config::{ConfigDir, ConfigLoader, EnvSource};
-    use ems_routing::{ProviderRegistry, RouterOptions, RoutingTable};
+    use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+    use bdm_routing::{ProviderRegistry, RouterOptions, RoutingTable};
 
     fn setup(cfg: &str) -> (Store, Arc<Router>) {
         let loader =
@@ -202,7 +202,7 @@ mod tests {
         let (store, router) = setup("");
         let auth = ClientKeyAuth::new(store.clone(), router);
         let (rec, key) = store.create_client("acme", None).await.unwrap();
-        for bad in [None, Some(""), Some("ems_nope")] {
+        for bad in [None, Some(""), Some("bdm_nope")] {
             assert_eq!(
                 auth.authenticate(bad).await.unwrap_err().code,
                 ErrorCode::Unauthorized
@@ -213,7 +213,7 @@ mod tests {
         // default client profile is "payments"
         assert_eq!(
             caller.profile,
-            Some(ProfileSelection::Profile(ems_app::Profile::Payments))
+            Some(ProfileSelection::Profile(bdm_app::Profile::Payments))
         );
         store.revoke_client(&rec.id).await.unwrap();
         assert!(auth.authenticate(Some(&key)).await.is_err());

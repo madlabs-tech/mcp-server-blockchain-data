@@ -1,10 +1,10 @@
 //! `rpc` pseudo-vendor for EVM chains: `token_balances` (Multicall3), `transfer_history` (logs),
 //! `fee_estimate`, `simulate` (`eth_simulateV1` → `debug_traceCall` → `eth_call`), `token_metadata`.
-//! Owner: `evm` (T1.E1–E3). Every port sits on `ems_routing::RoutedEvmRpc`, so it inherits the
+//! Owner: `evm` (T1.E1–E3). Every port sits on `bdm_routing::RoutedEvmRpc`, so it inherits the
 //! user's `evm_rpc` order, failover, breakers and quota guard.
 //!
 //! Private relays (Flashbots Protect, MEV Blocker; Ethereum mainnet only) need HTTP, so they live
-//! in `ems-adapters` (`vendors::{flashbots, mev_blocker}`).
+//! in `bdm-adapters` (`vendors::{flashbots, mev_blocker}`).
 
 use super::{
     block_number, block_tag, decode_transfer_log, erc20, fees, hex_u64, logs,
@@ -14,17 +14,17 @@ use super::{
 use crate::stablecoins::StablecoinRegistry;
 use alloy_primitives::{address, Address, U256};
 use async_trait::async_trait;
-use ems_config::{ChainEntry, Loaded, VendorStatus};
-use ems_domain::{
+use bdm_config::{ChainEntry, Loaded, VendorStatus};
+use bdm_domain::{
     AccountAddress, Amount, AssetId, AssetRef, BalanceDelta, ChainFamily, FeeEstimate, Transfer,
     UnsignedTx,
 };
-use ems_ports::{
+use bdm_ports::{
     Capability, EvmRpc, FeeOracle, Page, PortHandle, PortResult, ProviderError, Registration,
     SimulationResult, Simulator, TokenBalance, TokenBalances, TokenInfo, TokenMetadata,
     TransferHistory, TransferQuery, VendorMeta, RPC_VENDOR,
 };
-use ems_routing::{RoutedEvmRpc, Router};
+use bdm_routing::{RoutedEvmRpc, Router};
 use serde_json::{json, Value};
 use std::sync::Arc;
 

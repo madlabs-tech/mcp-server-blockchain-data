@@ -76,8 +76,8 @@ pub mod zeroex;
 ))]
 pub(crate) mod market_util;
 
-use ems_config::Loaded;
-use ems_ports::Registration;
+use bdm_config::Loaded;
+use bdm_ports::Registration;
 
 /// Registrations from every compiled-in vendor module (enhanced/REST APIs).
 pub fn registrations(loaded: &Loaded) -> Vec<Registration> {

@@ -7,9 +7,9 @@ use crate::{
 };
 use alloy_primitives::{hex, keccak256};
 use async_trait::async_trait;
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_domain::ChainId;
-use ems_ports::{
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_domain::ChainId;
+use bdm_ports::{
     BroadcastReceipt, Broadcaster, PortHandle, PortResult, ProviderError, Registration, VendorMeta,
 };
 use std::sync::Arc;
@@ -79,7 +79,7 @@ impl Broadcaster for Relay {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_testkit::FakeJsonRpc;
+    use bdm_testkit::FakeJsonRpc;
     use serde_json::json;
 
     /// keccak256 of the empty byte string.
@@ -105,9 +105,9 @@ mod tests {
 
     #[test]
     fn ethereum_mainnet_only() {
-        let loaded = ems_config::ConfigLoader::new(
-            ems_config::ConfigDir::new("/nonexistent"),
-            ems_config::EnvSource::from_pairs(std::iter::empty::<(&str, &str)>()),
+        let loaded = bdm_config::ConfigLoader::new(
+            bdm_config::ConfigDir::new("/nonexistent"),
+            bdm_config::EnvSource::from_pairs(std::iter::empty::<(&str, &str)>()),
         )
         .unwrap()
         .load_texts("", "")
@@ -117,6 +117,6 @@ mod tests {
         let ports = &out[0].ports;
         assert_eq!(ports.len(), 1);
         assert_eq!(ports[0].0, Some(ChainId::evm(1)));
-        assert_eq!(ports[0].1.capability(), ems_ports::Capability::PrivateRelay);
+        assert_eq!(ports[0].1.capability(), bdm_ports::Capability::PrivateRelay);
     }
 }

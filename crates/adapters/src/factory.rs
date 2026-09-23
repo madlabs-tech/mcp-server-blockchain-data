@@ -4,9 +4,9 @@ use crate::{
     chain_rpc::{EvmRpcClient, SolanaRpcClient},
     http::{HttpClient, DEFAULT_TIMEOUT},
 };
-use ems_config::{Loaded, VendorStatus};
-use ems_domain::ChainFamily;
-use ems_ports::{PortHandle, Registration, VendorMeta};
+use bdm_config::{Loaded, VendorStatus};
+use bdm_domain::ChainFamily;
+use bdm_ports::{PortHandle, Registration, VendorMeta};
 use std::sync::Arc;
 
 /// Register `EvmRpc`/`SolanaRpc` + `Broadcast` for every enabled chain and every active vendor
@@ -81,8 +81,8 @@ fn vendor_meta(loaded: &Loaded, vendor: &str) -> VendorMeta {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_config::{ConfigDir, ConfigLoader, EnvSource};
-    use ems_ports::Capability;
+    use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+    use bdm_ports::Capability;
     use std::collections::BTreeSet;
 
     fn load(env: &[(&str, &str)]) -> Loaded {

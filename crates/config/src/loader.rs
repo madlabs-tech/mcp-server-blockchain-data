@@ -130,7 +130,7 @@ pub struct ConfigLoader {
     registry: Registry,
 }
 
-const ENV_PREFIX: &str = "EMS__";
+const ENV_PREFIX: &str = "BDM__";
 
 impl ConfigLoader {
     pub fn new(dir: ConfigDir, env: EnvSource) -> Result<Self, Vec<Issue>> {
@@ -447,8 +447,8 @@ fn validate(l: &Loaded) -> Vec<Issue> {
 mod tests {
     use super::*;
     use crate::{OrderLevel, VendorStatus};
-    use ems_domain::ChainId;
-    use ems_ports::Capability;
+    use bdm_domain::ChainId;
+    use bdm_ports::Capability;
 
     fn loader(env: &[(&str, &str)]) -> (tempfile::TempDir, ConfigLoader) {
         let dir = tempfile::tempdir().unwrap();
@@ -476,7 +476,7 @@ mod tests {
 
     #[test]
     fn precedence_env_over_config_and_locking() {
-        let (_d, l) = loader(&[("EMS__ROUTING__DEFAULTS__EVM_RPC", "public,alchemy")]);
+        let (_d, l) = loader(&[("BDM__ROUTING__DEFAULTS__EVM_RPC", "public,alchemy")]);
         let cfg = "[routing.defaults]\nevm_rpc = [\"quicknode\", \"alchemy\"]\n";
         let loaded = l.load_texts(cfg, "").unwrap();
         let r = loaded.order(Capability::EvmRpc, Some(&eth()), None);
@@ -487,11 +487,11 @@ mod tests {
             .to_vec();
         assert_eq!(
             loaded.locked_by(&path),
-            Some("EMS__ROUTING__DEFAULTS__EVM_RPC")
+            Some("BDM__ROUTING__DEFAULTS__EVM_RPC")
         );
         assert_eq!(
             loaded.locked_by(&["routing".to_string()]),
-            Some("EMS__ROUTING__DEFAULTS__EVM_RPC")
+            Some("BDM__ROUTING__DEFAULTS__EVM_RPC")
         );
         assert_eq!(loaded.locked_by(&["vendors".to_string()]), None);
     }
@@ -537,10 +537,10 @@ price = ["geckoterminal"]
     #[test]
     fn env_numbers_aliases_and_keys() {
         let (_d, l) = loader(&[
-            ("EMS__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS", "15000000"),
-            ("EMS__VENDORS__ALCHEMY__RESERVE_PCT", "20"),
+            ("BDM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS", "15000000"),
+            ("BDM__VENDORS__ALCHEMY__RESERVE_PCT", "20"),
             ("ALCHEMY_API_KEY", "alc_secret_123"),
-            ("EMS__SERVER__DASHBOARD", "false"),
+            ("BDM__SERVER__DASHBOARD", "false"),
         ]);
         let loaded = l.load().unwrap();
         assert_eq!(

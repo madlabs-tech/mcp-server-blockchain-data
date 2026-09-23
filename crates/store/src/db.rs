@@ -1,9 +1,9 @@
 //! sqlite persistence on a dedicated thread, with in-memory mirrors for hot-path reads.
 
+use bdm_config::ClientLimits;
+use bdm_domain::DomainError;
+use bdm_routing::{CounterStore, Dims, WindowKey};
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use ems_config::ClientLimits;
-use ems_domain::DomainError;
-use ems_routing::{CounterStore, Dims, WindowKey};
 use rand::RngCore;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -255,7 +255,7 @@ impl Store {
 
         let (tx, rx) = mpsc::channel::<Job>();
         let handle = std::thread::Builder::new()
-            .name("ems-store".into())
+            .name("bdm-store".into())
             .spawn(move || {
                 let mut conn = conn;
                 for job in rx {
@@ -461,7 +461,7 @@ impl Store {
         if name.is_empty() || name.len() > 100 {
             return Err(StoreError("client name must be 1..=100 characters".into()));
         }
-        let key = format!("ems_{}", random_hex(32));
+        let key = format!("bdm_{}", random_hex(32));
         let rec = ClientRecord {
             id: format!("c_{}", random_hex(6)),
             name: name.to_owned(),
@@ -888,10 +888,10 @@ fn load_client_usage(c: &Connection) -> Result<HashMap<(String, WindowKey), Clie
 }
 
 /// Every call on every transport (stdio, /mcp, REST) lands in the call log / SSE stream.
-impl ems_app::CallObserver for Store {
+impl bdm_app::CallObserver for Store {
     fn on_call(
         &self,
-        caller: &ems_app::Caller,
+        caller: &bdm_app::Caller,
         op: &str,
         result: &std::result::Result<Value, DomainError>,
         latency: std::time::Duration,
@@ -933,7 +933,7 @@ mod tests {
     #[tokio::test]
     async fn counters_clients_and_calls_survive_restart() {
         let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("sub/ems.db");
+        let path = dir.path().join("sub/bdm.db");
         let now = Utc::now();
         let (month, day) = (WindowKey::month(now), WindowKey::day(now));
         let key = {
@@ -958,7 +958,7 @@ mod tests {
             );
             assert_eq!(s.total("alchemy", &month), 46);
             let (rec, key) = s.create_client("acme", None).await.unwrap();
-            assert!(key.starts_with("ems_") && key.len() > 40);
+            assert!(key.starts_with("bdm_") && key.len() > 40);
             assert_eq!(s.client_by_key(&key).unwrap().id, rec.id);
             s.admit_client("c1", now, Some(10), None).unwrap();
             s.log_call(CallRecord::from_result(
@@ -980,7 +980,7 @@ mod tests {
         assert_eq!(rows[0].0.client.as_deref(), Some("c1"));
         let c = s.client_by_key(&key).unwrap();
         assert_eq!(c.name, "acme");
-        assert!(s.client_by_key("ems_wrong").is_none());
+        assert!(s.client_by_key("bdm_wrong").is_none());
         assert_eq!(s.active_client_count(), 1);
         let cu = s.client_counters("c1", &month);
         assert_eq!((cu.requests, cu.credits), (1, 20));

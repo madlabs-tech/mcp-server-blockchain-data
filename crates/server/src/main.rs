@@ -1,22 +1,22 @@
-//! `evm-mcp-server`: blockchain data aggregator.
+//! `blockchain-data-mcp`: blockchain data aggregator.
 //!
 //! Usage:
-//!   evm-mcp-server [--config-dir DIR]          self-hosted: MCP over stdio (Claude Desktop); also
+//!   blockchain-data-mcp [--config-dir DIR]          self-hosted: MCP over stdio (Claude Desktop); also
 //!                                              serves REST + dashboard on `server.http_bind` if free
-//!   evm-mcp-server serve [--config-dir DIR]    HTTP only (self-hosted: `http_bind`; hosted:
+//!   blockchain-data-mcp serve [--config-dir DIR]    HTTP only (self-hosted: `http_bind`; hosted:
 //!                                              public router on `public_bind`, admin on `admin_bind`)
-//!   evm-mcp-server clients create <name>       create a client key (printed once) for hosted mode
-//!   evm-mcp-server clients list                list client keys (ids and names, never keys)
+//!   blockchain-data-mcp clients create <name>       create a client key (printed once) for hosted mode
+//!   blockchain-data-mcp clients list                list client keys (ids and names, never keys)
 //!
 //! `mode = "hosted"` always runs HTTP (never stdio) and refuses to start without client keys.
 
 mod wiring;
 
 use anyhow::{bail, Context, Result};
-use ems_config::{ConfigLoader, Loaded, Mode};
-use ems_store::{ClientKeyAuth, QuotaEngine, Store};
-use ems_transport_http::{admin_router, ensure_admin_token, public_router, AdminState, HttpState};
-use ems_transport_mcp::McpServer;
+use bdm_config::{ConfigLoader, Loaded, Mode};
+use bdm_store::{ClientKeyAuth, QuotaEngine, Store};
+use bdm_transport_http::{admin_router, ensure_admin_token, public_router, AdminState, HttpState};
+use bdm_transport_mcp::McpServer;
 use std::{path::PathBuf, sync::Arc};
 
 const DEFAULT_ADMIN_BIND: &str = "127.0.0.1:8788";
@@ -33,7 +33,7 @@ struct Args {
 }
 
 const USAGE: &str =
-    "usage: evm-mcp-server [serve | clients create <name> | clients list] [--config-dir DIR]";
+    "usage: blockchain-data-mcp [serve | clients create <name> | clients list] [--config-dir DIR]";
 
 fn parse_args() -> Result<Args> {
     let mut command = Command::Run { serve: false };
@@ -90,7 +90,7 @@ async fn main() -> Result<()> {
 }
 
 async fn clients_create(loaded: &Loaded, name: &str) -> Result<()> {
-    let path = loaded.settings.server.data_dir.join("ems.db");
+    let path = loaded.settings.server.data_dir.join("bdm.db");
     let store = Store::open(&path).with_context(|| format!("opening {}", path.display()))?;
     let (rec, key) = store.create_client(name, None).await?;
     println!("client id: {}\nname:      {}\nkey:       {key}\n\nThe key is shown once and stored only as a SHA-256 hash.", rec.id, rec.name);
@@ -98,7 +98,7 @@ async fn clients_create(loaded: &Loaded, name: &str) -> Result<()> {
 }
 
 fn clients_list(loaded: &Loaded) -> Result<()> {
-    let path = loaded.settings.server.data_dir.join("ems.db");
+    let path = loaded.settings.server.data_dir.join("bdm.db");
     let store = Store::open(&path).with_context(|| format!("opening {}", path.display()))?;
     for c in store.clients() {
         let state = if c.active() { "active" } else { "revoked" };
@@ -135,7 +135,7 @@ fn admin_state(
                 Arc::new(loader),
                 {
                     let router = built.app.router().clone();
-                    Arc::new(move |l: &ems_config::Loaded| wiring::full_registry(l, &router))
+                    Arc::new(move |l: &bdm_config::Loaded| wiring::full_registry(l, &router))
                 },
                 token,
             ))
@@ -182,7 +182,7 @@ async fn run(loader: ConfigLoader, loaded: Loaded, serve: bool) -> Result<()> {
         version = env!("CARGO_PKG_VERSION"),
         tools = built.app.catalog().len(),
         mode = ?settings.mode,
-        "starting evm-mcp-server"
+        "starting blockchain-data-mcp"
     );
 
     if settings.mode == Mode::Hosted {

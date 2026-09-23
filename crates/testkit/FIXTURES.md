@@ -1,6 +1,6 @@
 # Vendor fixtures
 
-Recorded vendor responses used by adapter tests (`ems_testkit::vendor_fixture`).
+Recorded vendor responses used by adapter tests (`bdm_testkit::vendor_fixture`).
 
 - Path: `<crate>/fixtures/<vendor>/<case>.json` (e.g. `fixtures/coingecko/simple_price_usdc.json`).
 - Record from a real call; **never invent data**. Put the recording date and the request

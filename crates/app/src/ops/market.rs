@@ -3,13 +3,13 @@
 
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use async_trait::async_trait;
-use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use ems_domain::{
+use bdm_domain::{
     AssetId, AssetRef, Attempt, AttemptOutcome, DomainError, ErrorCode, Price, PriceAggregate,
     PriceStatus, Provenance, RiskFlag, RiskReport, Severity, SourceKind,
 };
-use ems_ports::{Capability, EvmRpc, PriceFeed, PriceHistory, SolanaRpc, TokenMetadata, TokenRisk};
-use ems_routing::RouteError;
+use bdm_ports::{Capability, EvmRpc, PriceFeed, PriceHistory, SolanaRpc, TokenMetadata, TokenRisk};
+use bdm_routing::RouteError;
+use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -68,10 +68,10 @@ pub(crate) fn provenance_from(e: RouteError, chain: &AssetId) -> Provenance {
     p
 }
 
-pub(crate) fn rpc_provenance(chain: &ems_domain::ChainId) -> Provenance {
+pub(crate) fn rpc_provenance(chain: &bdm_domain::ChainId) -> Provenance {
     let mut p = Provenance::new(SourceKind::Primary);
     p.chain = Some(chain.clone());
-    p.provider = Some(ems_ports::RPC_VENDOR.into());
+    p.provider = Some(bdm_ports::RPC_VENDOR.into());
     p
 }
 
@@ -331,11 +331,11 @@ pub struct TokenGetMetadata;
 /// Decimals from the first source in routing order; other fields from the first that has them.
 pub(crate) fn merge_metadata(
     asset: &AssetId,
-    infos: Vec<(String, ems_ports::TokenInfo)>,
+    infos: Vec<(String, bdm_ports::TokenInfo)>,
 ) -> Option<TokenMetadataOut> {
     let (first_vendor, first) = infos.first()?;
     let pick =
-        |f: fn(&ems_ports::TokenInfo) -> Option<String>| infos.iter().find_map(|(_, i)| f(i));
+        |f: fn(&bdm_ports::TokenInfo) -> Option<String>| infos.iter().find_map(|(_, i)| f(i));
     let conflicts = infos
         .iter()
         .skip(1)
@@ -439,7 +439,7 @@ fn rpc_flag(code: &str, severity: Severity, detail: Option<String>) -> RiskFlag 
     RiskFlag {
         code: code.into(),
         severity,
-        source: ems_ports::RPC_VENDOR.into(),
+        source: bdm_ports::RPC_VENDOR.into(),
         detail,
     }
 }
@@ -607,11 +607,11 @@ impl Operation for TokenCheckRisk {
         };
         match onchain {
             Ok(f) => {
-                sources.push(ems_ports::RPC_VENDOR.into());
+                sources.push(bdm_ports::RPC_VENDOR.into());
                 flags.extend(f);
             }
             Err(e) => meta.providers_tried.push(Attempt {
-                vendor: ems_ports::RPC_VENDOR.into(),
+                vendor: bdm_ports::RPC_VENDOR.into(),
                 outcome: AttemptOutcome::Failed,
                 reason: Some(ctx.config().scrub(&e.message)),
                 error_code: Some(e.code),
@@ -637,7 +637,7 @@ impl Operation for TokenCheckRisk {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_domain::RiskLevel;
+    use bdm_domain::RiskLevel;
 
     fn p(v: &str, secs_ago: i64, source: &str) -> Price {
         Price {
@@ -710,7 +710,7 @@ mod tests {
         let asset: AssetId = "eip155:56/erc20:0x55d398326f99059fF775485246999027B3197955"
             .parse()
             .unwrap();
-        let info = |d, sym: Option<&str>, src: &str| ems_ports::TokenInfo {
+        let info = |d, sym: Option<&str>, src: &str| bdm_ports::TokenInfo {
             asset: asset.clone(),
             decimals: d,
             symbol: sym.map(str::to_owned),

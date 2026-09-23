@@ -8,12 +8,12 @@
 
 use crate::http::{HttpClient, DEFAULT_TIMEOUT};
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDate, Utc};
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_ports::{
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_ports::{
     FxRate, FxRates, PortHandle, PortResult, ProviderError, QuotaReporter, Registration, UsageUnit,
     UsageWindow, VendorMeta, VendorUsage, WindowKind,
 };
+use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde_json::Value;
 use std::{str::FromStr, sync::Arc};
@@ -151,7 +151,7 @@ fn parse(v: &Value, base: &str, quote: &str, date: Option<NaiveDate>) -> PortRes
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ems_testkit::wiremock::{
+    use bdm_testkit::wiremock::{
         matchers::{method, path, query_param},
         Mock, MockServer, ResponseTemplate,
     };

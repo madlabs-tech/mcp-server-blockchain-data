@@ -2,7 +2,7 @@
 //!
 //! Security:
 //! - every `/admin/api/*` call needs `Authorization: Bearer <admin token>` (401 otherwise) and
-//!   the custom header `X-EMS-Admin: 1` (403 otherwise; browsers can't send it cross-site
+//!   the custom header `X-BDM-Admin: 1` (403 otherwise; browsers can't send it cross-site
 //!   without a CORS preflight, which we never grant, so it blocks CSRF);
 //! - secrets are never returned: key fields are write-only (status only), and config responses
 //!   are scrubbed of every known secret value;
@@ -21,18 +21,18 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use chrono::Utc;
-use ems_app::{App, DynOperation, Profile};
-use ems_config::{
+use bdm_app::{App, DynOperation, Profile};
+use bdm_config::{
     apply_edits, ClientLimits, ConfigLoader, Edit, Issue, Loaded, OnExhausted, VendorStatus,
 };
-use ems_domain::{ChainId, DomainError, ErrorCode};
-use ems_ports::{
+use bdm_domain::{ChainId, DomainError, ErrorCode};
+use bdm_ports::{
     metering::{self, CallContext},
     Capability, EvmRpc, FxRates, PortKind, SolanaRpc,
 };
-use ems_routing::{ProviderRegistry, Router as EmsRouter, RoutingTable, VendorHealth, WindowKey};
-use ems_store::{effective_client_limits, ClientRecord, QuotaEngine, Store};
+use bdm_routing::{ProviderRegistry, Router as EmsRouter, RoutingTable, VendorHealth, WindowKey};
+use bdm_store::{effective_client_limits, ClientRecord, QuotaEngine, Store};
+use chrono::Utc;
 use rand::RngCore;
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -111,7 +111,7 @@ impl AdminState {
     /// Validate edits without writing (applied to a throwaway copy of the config dir).
     pub fn validate(&self, edits: &[Edit]) -> Result<Vec<Issue>, Vec<Issue>> {
         let current = self.router().table().config.clone();
-        let tmp = std::env::temp_dir().join(format!("ems-validate-{}", random_hex(8)));
+        let tmp = std::env::temp_dir().join(format!("bdm-validate-{}", random_hex(8)));
         let io = |e: std::io::Error| vec![Issue::error("validate", e.to_string())];
         std::fs::create_dir_all(&tmp).map_err(io)?;
         let result = (|| {
@@ -124,7 +124,7 @@ impl AdminState {
                 }
             }
             let loader =
-                ConfigLoader::new(ems_config::ConfigDir::new(&tmp), self.loader.env.clone())?;
+                ConfigLoader::new(bdm_config::ConfigDir::new(&tmp), self.loader.env.clone())?;
             apply_edits(&loader, &current, edits).map(|l| l.warnings)
         })();
         let _ = std::fs::remove_dir_all(&tmp);
@@ -156,7 +156,7 @@ pub fn ensure_admin_token(dir: &FsPath) -> std::io::Result<(String, bool)> {
         Err(e) => return Err(e),
     }
     let token = random_hex(32);
-    ems_config::write_atomic(&path, &format!("{token}\n"), Some(0o600))
+    bdm_config::write_atomic(&path, &format!("{token}\n"), Some(0o600))
         .map_err(std::io::Error::other)?;
     Ok((token, true))
 }
@@ -238,10 +238,10 @@ async fn admin_auth(State(s): State<AdminState>, req: Request, next: Next) -> Re
                 .with_hint("the token is in config/admin_token"),
         );
     }
-    if h.get("x-ems-admin").and_then(|v| v.to_str().ok()) != Some("1") {
+    if h.get("x-bdm-admin").and_then(|v| v.to_str().ok()) != Some("1") {
         let e = DomainError::new(
             ErrorCode::Unauthorized,
-            "missing X-EMS-Admin: 1 header (CSRF protection)",
+            "missing X-BDM-Admin: 1 header (CSRF protection)",
         );
         return (StatusCode::FORBIDDEN, Json(json!({ "error": e }))).into_response();
     }
@@ -303,7 +303,7 @@ fn bind_url(bind: &str) -> String {
 async fn connect(State(s): State<AdminState>) -> Response {
     let cfg = s.router().table().config.clone();
     let srv = &cfg.settings.server;
-    let hosted = srv.mode == ems_config::Mode::Hosted;
+    let hosted = srv.mode == bdm_config::Mode::Hosted;
     let http_url = if hosted {
         bind_url(srv.admin_bind.as_deref().unwrap_or("127.0.0.1:8788"))
     } else {
@@ -313,7 +313,7 @@ async fn connect(State(s): State<AdminState>) -> Response {
     let mcp_url = format!("{}/mcp", public_url.as_deref().unwrap_or(&http_url));
     let binary_path = std::env::current_exe()
         .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "evm-mcp-server".into());
+        .unwrap_or_else(|_| "blockchain-data-mcp".into());
     let root = &s.loader.dir.root;
     let config_dir = std::fs::canonicalize(root)
         .unwrap_or_else(|_| root.clone())
@@ -321,7 +321,7 @@ async fn connect(State(s): State<AdminState>) -> Response {
         .to_string();
     let sample_tool = s
         .app
-        .visible(&ems_app::Caller::local())
+        .visible(&bdm_app::Caller::local())
         .first()
         .map(|o| o.name().to_owned());
     Json(json!({
@@ -389,7 +389,7 @@ fn order_view(
                 {
                     return Some("quota reserve reached".into());
                 }
-                (h.breaker == ems_routing::BreakerState::Open).then(|| "breaker open".into())
+                (h.breaker == bdm_routing::BreakerState::Open).then(|| "breaker open".into())
             });
             if let Some(why) = &reason {
                 if matches!(cfg.vendor_status(v), VendorStatus::Unknown)
@@ -492,14 +492,14 @@ async fn config(State(s): State<AdminState>) -> Response {
         })
         .collect();
 
-    let chains: Vec<&ems_config::ChainEntry> = cfg.registry.chains.all().iter().collect();
+    let chains: Vec<&bdm_config::ChainEntry> = cfg.registry.chains.all().iter().collect();
     let mut orders = serde_json::Map::new();
     for cap in Capability::ALL {
         let mut per_chain = serde_json::Map::new();
         for c in &chains {
             let fits = match cap {
-                Capability::EvmRpc => c.family == ems_domain::ChainFamily::Evm,
-                Capability::SolanaRpc => c.family == ems_domain::ChainFamily::Solana,
+                Capability::EvmRpc => c.family == bdm_domain::ChainFamily::Evm,
+                Capability::SolanaRpc => c.family == bdm_domain::ChainFamily::Solana,
                 _ => true,
             };
             if fits && c.enabled {
@@ -523,7 +523,7 @@ async fn config(State(s): State<AdminState>) -> Response {
 
     let visible: Vec<String> = s
         .app
-        .visible(&ems_app::Caller::local())
+        .visible(&bdm_app::Caller::local())
         .iter()
         .map(|o| o.name().to_owned())
         .collect();
@@ -762,7 +762,7 @@ async fn vendor_test(State(s): State<AdminState>, Path(id): Path<String>) -> Res
         }
         (
             "none",
-            Err(ems_ports::ProviderError::Unsupported(
+            Err(bdm_ports::ProviderError::Unsupported(
                 "no cheap test for this vendor; real calls exercise it".into(),
             )),
         )
@@ -772,7 +772,7 @@ async fn vendor_test(State(s): State<AdminState>, Path(id): Path<String>) -> Res
             Ok(r) => r,
             Err(_) => (
                 "timeout",
-                Err(ems_ports::ProviderError::Transient("timed out".into())),
+                Err(bdm_ports::ProviderError::Transient("timed out".into())),
             ),
         };
     let latency_ms = started.elapsed().as_millis() as u64;

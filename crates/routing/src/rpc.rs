@@ -1,11 +1,11 @@
 //! Routed chain RPC: an `EvmRpc` / `SolanaRpc` that fails over across every configured RPC
-//! vendor. `ems-protocols` readers and the `rpc` pseudo-vendor build on these, so on-chain
+//! vendor. `bdm-protocols` readers and the `rpc` pseudo-vendor build on these, so on-chain
 //! reads get the user's order, breakers and quota guard for free.
 
 use crate::router::{RouteReq, Router};
 use async_trait::async_trait;
-use ems_domain::ChainId;
-use ems_ports::{Capability, EvmRpc, PortResult, ProviderError, SolanaRpc};
+use bdm_domain::ChainId;
+use bdm_ports::{Capability, EvmRpc, PortResult, ProviderError, SolanaRpc};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -74,7 +74,7 @@ impl SolanaRpc for RoutedSolanaRpc {
 /// Collapse a routed failure back into the port error taxonomy (callers of the routed RPC are
 /// themselves ports, e.g. the `rpc` pseudo-vendor, so the outer router sees the right kind).
 fn route_to_provider(e: crate::router::RouteError) -> ProviderError {
-    use ems_domain::ErrorCode::*;
+    use bdm_domain::ErrorCode::*;
     match e.error.code {
         InvalidInput => ProviderError::Invalid(e.error.message),
         NotFound => ProviderError::NotFound,

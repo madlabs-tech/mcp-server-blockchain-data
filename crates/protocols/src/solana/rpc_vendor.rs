@@ -12,16 +12,16 @@
 use super::{native_asset, spl, token_asset, tx};
 use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
-use ems_config::{ChainEntry, Loaded};
-use ems_domain::{
+use bdm_config::{ChainEntry, Loaded};
+use bdm_domain::{
     AccountAddress, Amount, AssetId, AssetRef, ChainFamily, SolanaPubkey, Transfer, UnsignedTx,
 };
-use ems_ports::{
+use bdm_ports::{
     Direction, FeeOracle, Page, PortHandle, PortResult, ProviderError, Registration,
     SimulationResult, Simulator, SolanaRpc, TokenBalance, TokenBalances, TokenInfo, TokenMetadata,
     TransferHistory, TransferQuery, VendorMeta, RPC_VENDOR,
 };
-use ems_routing::{RoutedSolanaRpc, Router};
+use bdm_routing::{RoutedSolanaRpc, Router};
 use serde_json::json;
 use std::{collections::BTreeMap, sync::Arc};
 
@@ -237,7 +237,7 @@ impl TransferHistory for SolanaRpcVendor {
 
 #[async_trait]
 impl FeeOracle for SolanaRpcVendor {
-    async fn fee_estimate(&self) -> PortResult<ems_domain::FeeEstimate> {
+    async fn fee_estimate(&self) -> PortResult<bdm_domain::FeeEstimate> {
         super::fees::fee_estimate(self.rpc.as_ref(), &self.chain, &[]).await
     }
 }
@@ -254,7 +254,7 @@ impl Simulator for SolanaRpcVendor {
         let UnsignedTx::Solana { message_base64, .. } = unsigned else {
             return Err(ProviderError::Invalid("not a Solana transaction".into()));
         };
-        let invalid = |e: ems_domain::DomainError| ProviderError::Invalid(e.to_string());
+        let invalid = |e: bdm_domain::DomainError| ProviderError::Invalid(e.to_string());
         let wire = tx::transaction_for_simulation(message_base64).map_err(invalid)?;
         let v = self
             .rpc
@@ -328,7 +328,7 @@ mod tests {
     use super::*;
     use crate::solana::testutil::{fixture, mainnet, FnRpc};
     use alloy_primitives::U256;
-    use ems_domain::TransferKind;
+    use bdm_domain::TransferKind;
     use serde_json::Value;
 
     const OWNER: &str = "Go5EVXxV3ob4CJVaq6YiGGUKqPmEfDo32kSmbWsYevsF";
@@ -541,9 +541,9 @@ mod tests {
 
     #[test]
     fn registers_every_solana_port() {
-        use ems_config::{ConfigDir, ConfigLoader, EnvSource};
-        use ems_ports::Capability;
-        use ems_routing::{InMemoryCounterStore, ProviderRegistry, RouterOptions, RoutingTable};
+        use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+        use bdm_ports::Capability;
+        use bdm_routing::{InMemoryCounterStore, ProviderRegistry, RouterOptions, RoutingTable};
         let loaded = ConfigLoader::new(
             ConfigDir::new("/nonexistent"),
             EnvSource::from_pairs(Vec::<(String, String)>::new()),

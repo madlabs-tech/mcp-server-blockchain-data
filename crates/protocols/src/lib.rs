@@ -1,7 +1,7 @@
 //! Protocol readers over the chain RPC ports, plus the `rpc` pseudo-vendor.
 //!
 //! Everything here takes `&dyn EvmRpc` / `&dyn SolanaRpc`, so passing a *routed* RPC
-//! (`ems_routing::RoutedEvmRpc`) gives every reader the user's vendor order, breakers and quota
+//! (`bdm_routing::RoutedEvmRpc`) gives every reader the user's vendor order, breakers and quota
 //! guard for free. Functions shared across Phase 1 teams have their signatures fixed here;
 //! stubs return `ProviderError::Unsupported("not implemented yet (<task>)")` until filled in.
 //!
@@ -20,9 +20,9 @@ pub mod sanctions;
 pub mod solana;
 pub mod stablecoins;
 
-use ems_config::Loaded;
-use ems_ports::Registration;
-use ems_routing::Router;
+use bdm_config::Loaded;
+use bdm_ports::Registration;
+use bdm_routing::Router;
 use std::sync::Arc;
 
 /// Registrations built on the routed chain RPC (`rpc` pseudo-vendor, on-chain oracles). Called by

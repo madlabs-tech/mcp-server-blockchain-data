@@ -8,9 +8,9 @@ use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
-use ems_config::{Loaded, Redacted, VendorStatus};
-use ems_domain::SwapQuote;
-use ems_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
+use bdm_config::{Loaded, Redacted, VendorStatus};
+use bdm_domain::SwapQuote;
+use bdm_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -119,8 +119,8 @@ mod tests {
     use super::*;
     use crate::http::DEFAULT_TIMEOUT;
     use alloy_primitives::U256;
-    use ems_domain::{AccountAddress, Amount, ChainId};
-    use ems_testkit::wiremock::{
+    use bdm_domain::{AccountAddress, Amount, ChainId};
+    use bdm_testkit::wiremock::{
         matchers::{header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,
     };
@@ -133,7 +133,7 @@ mod tests {
             .and(header("0x-version", "v2"))
             .and(query_param("chainId", "4663"))
             .respond_with(
-                ResponseTemplate::new(200).set_body_json(ems_testkit::vendor_fixture(
+                ResponseTemplate::new(200).set_body_json(bdm_testkit::vendor_fixture(
                     env!("CARGO_MANIFEST_DIR"),
                     ID,
                     "allowance_holder_quote",

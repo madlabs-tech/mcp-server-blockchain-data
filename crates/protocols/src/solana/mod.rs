@@ -15,8 +15,8 @@ pub mod rpc_vendor;
 pub mod spl;
 pub mod tx;
 
-use ems_config::ChainEntry;
-use ems_domain::{AssetId, AssetRef, Finality, SolanaPubkey};
+use bdm_config::ChainEntry;
+use bdm_domain::{AssetId, AssetRef, Finality, SolanaPubkey};
 
 /// CAIP-2 id of Solana mainnet-beta (genesis-hash prefix). Mainnet-only vendor APIs (Jito,
 /// Helius Sender, Jupiter) register for this chain only.
@@ -61,8 +61,8 @@ pub(crate) fn token_asset(chain: &ChainEntry, mint: SolanaPubkey) -> AssetId {
 #[cfg(test)]
 pub(crate) mod testutil {
     use async_trait::async_trait;
-    use ems_config::{ChainEntry, Registry};
-    use ems_ports::{PortResult, ProviderError, SolanaRpc};
+    use bdm_config::{ChainEntry, Registry};
+    use bdm_ports::{PortResult, ProviderError, SolanaRpc};
     use serde_json::Value;
     use std::sync::Mutex;
 

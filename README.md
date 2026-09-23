@@ -1,4 +1,4 @@
-# evm-mcp-server
+# blockchain-data-mcp
 
 Chain- and provider-agnostic blockchain data for AI agents that move money: payments, stablecoin, neobank and trading. One binary, one config, exposed as **MCP** (stdio or streamable HTTP) and **REST**.
 
@@ -11,8 +11,8 @@ Chain- and provider-agnostic blockchain data for AI agents that move money: paym
 ## Quick start
 
 ```bash
-cargo build --release -p ems-server        # binary: target/release/evm-mcp-server (Rust 1.90)
-./target/release/evm-mcp-server serve      # REST + MCP + dashboard on http://127.0.0.1:8787
+cargo build --release -p bdm-server        # binary: target/release/blockchain-data-mcp (Rust 1.90)
+./target/release/blockchain-data-mcp serve      # REST + MCP + dashboard on http://127.0.0.1:8787
 curl -s http://127.0.0.1:8787/v1/tools | head -c 400
 curl -s -X POST http://127.0.0.1:8787/v1/chain/list -H 'content-type: application/json' -d '{}'
 ```
@@ -25,10 +25,10 @@ No keys needed for the above. To add vendors, `cp .env.example .env`, fill in th
 {
   "mcpServers": {
     "blockchain-data": {
-      "command": "/path/to/target/release/evm-mcp-server",
+      "command": "/path/to/target/release/blockchain-data-mcp",
       "args": ["--config-dir", "/path/to/config"],
       "env": {
-        "EMS__SERVER__DATA_DIR": "/path/to/data",
+        "BDM__SERVER__DATA_DIR": "/path/to/data",
         "ALCHEMY_API_KEY": "…",
         "HELIUS_API_KEY": "…"
       }
@@ -44,10 +44,10 @@ While Claude Desktop runs it, the dashboard is also up at `http://127.0.0.1:8787
 **CLI**
 
 ```
-evm-mcp-server [--config-dir DIR]          MCP on stdio + HTTP on server.http_bind (self-hosted)
-evm-mcp-server serve [--config-dir DIR]    HTTP only
-evm-mcp-server clients create <name>       hosted mode: mint a client key (printed once)
-evm-mcp-server clients list                hosted mode: ids, status, names (never keys)
+blockchain-data-mcp [--config-dir DIR]          MCP on stdio + HTTP on server.http_bind (self-hosted)
+blockchain-data-mcp serve [--config-dir DIR]    HTTP only
+blockchain-data-mcp clients create <name>       hosted mode: mint a client key (printed once)
+blockchain-data-mcp clients list                hosted mode: ids, status, names (never keys)
 ```
 
 `--config-dir` defaults to `./config`.
@@ -60,14 +60,14 @@ Layered, later wins:
 built-in registry (registry/*.toml, compiled in)
   < config/config.toml      (the dashboard writes this; start from config/config.example.toml)
   < config/secrets.toml     (API keys, mode 0600, written by the dashboard)
-  < environment             (EMS__<PATH> with "__" between segments, plus the vendor key vars)
+  < environment             (BDM__<PATH> with "__" between segments, plus the vendor key vars)
 ```
 
 Anything set by env is shown as **locked by env** in the dashboard and cannot be edited there. `POST /admin/api/reload` or `kill -HUP <pid>` re-reads the files.
 
-**Env mapping.** `EMS__SERVER__HTTP_BIND=127.0.0.1:8787` sets `[server] http_bind`; `EMS__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS=15000000` sets `[vendors.alchemy.cap] monthly_credits`; `EMS__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public` sets an order. Vendor keys use their own names (`ALCHEMY_API_KEY`, `QN_ENDPOINT_NAME`, …; see the vendor table).
+**Env mapping.** `BDM__SERVER__HTTP_BIND=127.0.0.1:8787` sets `[server] http_bind`; `BDM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS=15000000` sets `[vendors.alchemy.cap] monthly_credits`; `BDM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public` sets an order. Vendor keys use their own names (`ALCHEMY_API_KEY`, `QN_ENDPOINT_NAME`, …; see the vendor table).
 
-**Server** (`[server]`): `mode` (`self_hosted` | `hosted`), `http_bind` (self-hosted, default `127.0.0.1:8787`), `public_bind` + `admin_bind` (hosted, admin defaults to `127.0.0.1:8788`), `dashboard` (bool), `tool_profile`, `enabled_tools` / `disabled_tools`, `data_dir` (default `./data`, holds `ems.db`), `cache_max_entries`, `quota_poll_secs`.
+**Server** (`[server]`): `mode` (`self_hosted` | `hosted`), `http_bind` (self-hosted, default `127.0.0.1:8787`), `public_bind` + `admin_bind` (hosted, admin defaults to `127.0.0.1:8788`), `dashboard` (bool), `tool_profile`, `enabled_tools` / `disabled_tools`, `data_dir` (default `./data`, holds `bdm.db`), `cache_max_entries`, `quota_poll_secs`.
 
 **Vendor budget** (`[vendors.<id>]`):
 
@@ -187,7 +187,7 @@ Signup URLs and per-method cost tables are in `registry/vendors.toml`. Quota sho
 
 `/dashboard` (self-hosted: on `http_bind`; hosted: on `admin_bind` only). Sign in with the token from `<config-dir>/admin_token`, generated on first start (mode 0600) and printed once in the log. Pages: overview (live call log), vendors (keys are write-only), routing, quota (limit / cap / used per vendor, source badge `vendor API` / `headers` / `estimated`, burn rate, CSV export), chains, tools, clients (hosted).
 
-Every `/admin/api/*` call needs `Authorization: Bearer <admin token>` **and** `X-EMS-Admin: 1` (CSRF guard). No response ever contains a key.
+Every `/admin/api/*` call needs `Authorization: Bearer <admin token>` **and** `X-BDM-Admin: 1` (CSRF guard). No response ever contains a key.
 
 | Endpoint | Purpose |
 |---|---|
@@ -210,7 +210,7 @@ Public router (both modes): `POST /v1/<domain>/<tool>`, `POST /v1/tools/<name>`,
 
 - HTTP only (never stdio). Public REST + `/mcp` on `public_bind`, dashboard + admin API on `admin_bind` (default `127.0.0.1:8788`, never the public port).
 - Every public request needs `Authorization: Bearer <client key>`; unauthenticated requests get 401. Keys are stored as SHA-256 hashes and shown once.
-- **Fails closed:** refuses to start until at least one client key exists (`evm-mcp-server clients create <name>`).
+- **Fails closed:** refuses to start until at least one client key exists (`blockchain-data-mcp clients create <name>`).
 - Per-client limits from `[clients.default]`, overridable per key: `requests_per_minute` (token bucket), `daily_requests` (reset 00:00 UTC), `monthly_credits` (vendor credits spent on the client's behalf, reset on the 1st), `tool_profile`. Over the limit → HTTP 429 `QUOTA_EXCEEDED` with `Retry-After`.
 - Vendor limits/caps still apply on top; set a `cap` below every `limit` the public instance uses.
 
@@ -219,14 +219,14 @@ Client config:
 ```json
 { "mcpServers": { "blockchain-data": {
   "url": "https://your.domain/mcp",
-  "headers": { "Authorization": "Bearer ems_…" } } } }
+  "headers": { "Authorization": "Bearer bdm_…" } } } }
 ```
 
 Deployment (Docker + Caddy, systemd, backups, security checklist): **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
 ## Legacy compatibility
 
-- The binary is still named `evm-mcp-server`, so existing MCP client configs keep working.
+- The binary is still named `blockchain-data-mcp`, so existing MCP client configs keep working.
 - The four original tools (`eth_get_balance`, `eth_get_code`, `eth_gas_price`, `eth_get_transaction_by_hash`) are kept as aliases in the `legacy` domain with unchanged chain names; prefer `wallet_get_balances`, `address_validate`, `tx_estimate_fee`, `tx_get`.
 - `RPC_URL` is deprecated and now applies to **Ethereum (`eip155:1`) only** (it becomes `[custom_rpc.rpc_url]`, locked by env, with a startup warning). It used to be applied to every chain. Use vendor keys or `[custom_rpc]` per chain instead.
 
@@ -236,7 +236,7 @@ Deployment (Docker + Caddy, systemd, backups, security checklist): **[DEPLOYMENT
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
-cargo hack check -p ems-adapters --each-feature --no-dev-deps   # every vendor builds alone
+cargo hack check -p bdm-adapters --each-feature --no-dev-deps   # every vendor builds alone
 ```
 
 Workspace crates: `domain` (types), `ports` (vendor traits), `config` (registry + layering), `routing` (orders, budgets, breakers), `protocols` (on-chain implementations: Multicall3, getLogs, oracles, Solana wire), `adapters` (one module per vendor, **one cargo feature per vendor**; default = verified free tiers), `app` (tool catalog, `crates/app/src/ops/*`), `store` (sqlite: usage, clients, call log), `transport-mcp`, `transport-http` (REST + dashboard), `server` (binary), `testkit`.
