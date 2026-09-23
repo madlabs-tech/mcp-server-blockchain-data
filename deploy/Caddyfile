@@ -1,0 +1,15 @@
+# Replace your.domain with the DNS name pointing at this VPS; Caddy fetches the certificate itself.
+# Only /v1/*, /mcp, /openapi.json and /healthz are proxied. The dashboard and /admin/api live on
+# the admin port (8788), which is not routed here.
+your.domain {
+	encode gzip
+	@public path /v1/* /mcp /mcp/* /openapi.json /healthz
+	handle @public {
+		reverse_proxy evm-mcp-server:8787 {
+			flush_interval -1
+		}
+	}
+	handle {
+		respond 404
+	}
+}
