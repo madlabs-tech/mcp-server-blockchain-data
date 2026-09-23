@@ -1297,6 +1297,7 @@ dependencies = [
  "async-trait",
  "bs58",
  "chrono",
+ "ems-adapters",
  "ems-config",
  "ems-domain",
  "ems-ports",
