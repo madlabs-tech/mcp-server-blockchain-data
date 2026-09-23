@@ -35,6 +35,7 @@ pub fn rpc_registrations(loaded: &Loaded, router: &Arc<Router>) -> Vec<Registrat
     out
 }
 
+#[allow(dead_code)] // kept for remaining Phase 1 stubs (market-trading branch)
 pub(crate) fn not_yet(task: &str) -> ProviderError {
     ProviderError::Unsupported(format!("not implemented yet ({task})"))
 }

@@ -115,8 +115,12 @@ free_tier_verified = true
 unit = "credits"
 reset = "calendar_month"
 limit = { monthly = 1_000_000, rps = 10 }
-default_cost = 1
-costs = { getAssetsByOwner = 10, getAsset = 10, getPriorityFeeEstimate = 1, getTransaction = 1 }
+default_cost = 1                               # standard RPC calls: 1 credit
+# https://www.helius.dev/pricing: DAS 10 credits; archival getTransaction / getSignaturesForAddress
+# can cost 10 (not knowable per call, so metered at 1: estimate). Paid-only methods
+# (getTransfersByAddress, getTransactionsForAddress) are never called by the adapter.
+costs = { getAssetsByOwner = 10, getAsset = 10, getPriorityFeeEstimate = 1, getTransaction = 1, sendTransaction = 1 }
+note = "Free: 1M credits/mo, 10 RPS; DAS limited to 2 RPS; sendTransaction 1/s. No credit-free usage API confirmed (usage is estimated)."
 [vendor.helius.rpc_urls]
 "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp" = "https://mainnet.helius-rpc.com/?api-key={api_key}"
 
@@ -201,6 +205,9 @@ free_tier_verified = true
 unit = "requests"
 reset = "rolling"
 limit = { per_minute = 30 }                    # keyless; 60/min with a free key
+# https://developers.jup.ag/docs/portal/rate-limits (Keyless 0.5 RPS / 30 RPM; Free 1 RPS / 60 RPM)
+costs = { price_v3 = 1, swap_v2_order = 1 }    # a non-SOL swap quote also calls price_v3 (decimals)
+note = "Price v3 + Swap v2 /order on api.jup.ag. Set limit.per_minute = 60 with JUPITER_API_KEY."
 
 [vendor.pyth]
 display_name = "Pyth (Hermes / Benchmarks)"
@@ -313,7 +320,8 @@ requires_key = false
 free_tier_verified = true
 unit = "requests"
 reset = "rolling"
-limit = { rps = 1 }                            # ⚠ public endpoint limits
+limit = { rps = 1 }                            # keyless: 1 req/s per IP per region (docs.jito.wtf/lowlatencytxnsend)
+note = "sendTransaction?bundleOnly=true (private). Tx must tip >= 1000 lamports to a Jito tip account (checked locally)."
 
 [vendor.helius_sender]
 display_name = "Helius Sender"
@@ -321,8 +329,8 @@ requires_key = false
 free_tier_verified = true
 unit = "requests"
 reset = "rolling"
-limit = { rps = 50 }
-note = "Requires a tip + compute-price instruction in the transaction."
+limit = { rps = 50 }                           # 50 TPS keyless (helius.dev/docs/sending-transactions/sender)
+note = "Keyless, no credits. Tx must tip >= 0.001 SOL to a Sender tip account and set a compute-unit price (checked locally)."
 
 # ----------------------------------------------------------------------------- compliance / fiat
 [vendor.chainalysis_oracle]
