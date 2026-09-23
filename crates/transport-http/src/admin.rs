@@ -165,6 +165,7 @@ pub fn ensure_admin_token(dir: &FsPath) -> std::io::Result<(String, bool)> {
 pub fn admin_router(state: AdminState) -> Router {
     let api = Router::new()
         .route("/admin/api/health", get(health))
+        .route("/admin/api/connect", get(connect))
         .route("/admin/api/config", get(config).put(config_apply))
         .route("/admin/api/config/validate", post(config_validate))
         .route("/admin/api/reload", post(reload))
@@ -279,6 +280,61 @@ async fn health(State(s): State<AdminState>) -> Response {
             "ops": s.app.metrics().snapshot(),
         }),
     )
+}
+
+// ------------------------------------------------------------------ connect
+
+/// `host:port` bind → base URL a client can use (wildcard hosts become loopback).
+fn bind_url(bind: &str) -> String {
+    let (host, port) = bind.rsplit_once(':').unwrap_or((bind, ""));
+    let host = match host.trim_matches(|c| c == '[' || c == ']') {
+        "0.0.0.0" | "::" | "" => "127.0.0.1".to_owned(),
+        h if h.contains(':') => format!("[{h}]"),
+        h => h.to_owned(),
+    };
+    if port.is_empty() {
+        format!("http://{host}")
+    } else {
+        format!("http://{host}:{port}")
+    }
+}
+
+/// Facts the dashboard needs to generate MCP/REST client snippets. Secret-free by construction.
+async fn connect(State(s): State<AdminState>) -> Response {
+    let cfg = s.router().table().config.clone();
+    let srv = &cfg.settings.server;
+    let hosted = srv.mode == ems_config::Mode::Hosted;
+    let http_url = if hosted {
+        bind_url(srv.admin_bind.as_deref().unwrap_or("127.0.0.1:8788"))
+    } else {
+        bind_url(&srv.http_bind)
+    };
+    let public_url = hosted.then(|| bind_url(srv.public_bind.as_deref().unwrap_or_default()));
+    let mcp_url = format!("{}/mcp", public_url.as_deref().unwrap_or(&http_url));
+    let binary_path = std::env::current_exe()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|_| "evm-mcp-server".into());
+    let root = &s.loader.dir.root;
+    let config_dir = std::fs::canonicalize(root)
+        .unwrap_or_else(|_| root.clone())
+        .display()
+        .to_string();
+    let sample_tool = s
+        .app
+        .visible(&ems_app::Caller::local())
+        .first()
+        .map(|o| o.name().to_owned());
+    Json(json!({
+        "mode": srv.mode,
+        "http_url": http_url,
+        "public_url": public_url,
+        "mcp_url": mcp_url,
+        "binary_path": binary_path,
+        "config_dir": config_dir,
+        "tool_profile": srv.tool_profile,
+        "sample_tool": sample_tool,
+    }))
+    .into_response()
 }
 
 // ------------------------------------------------------------------ config
