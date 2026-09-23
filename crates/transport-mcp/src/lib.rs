@@ -61,8 +61,11 @@ impl McpServer {
             name: op.name().into(),
             title: None,
             description: Some(op.description().into()),
-            input_schema: Arc::new(op.input_schema()),
-            output_schema: (!op.legacy()).then(|| Arc::new(op.output_schema())),
+            input_schema: Arc::new(compact(op.input_schema())),
+            // No output schema on purpose: clients put the whole tool list into the model's
+            // context, and output schemas were 86% of it (~250 KB for 34 tools). The result JSON
+            // is self-describing and REST still serves them in /openapi.json.
+            output_schema: None,
             annotations: Some(ToolAnnotations {
                 title: None,
                 read_only_hint: Some(op.read_only()),
@@ -89,6 +92,13 @@ impl McpServer {
             StreamableHttpServerConfig::default(),
         )
     }
+}
+
+/// Drop JSON-Schema metadata the model doesn't need (`$schema`, `title`) to keep the tool list small.
+fn compact(mut schema: serde_json::Map<String, Value>) -> serde_json::Map<String, Value> {
+    schema.remove("$schema");
+    schema.remove("title");
+    schema
 }
 
 fn pretty(v: &Value) -> String {

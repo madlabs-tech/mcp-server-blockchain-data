@@ -169,7 +169,12 @@ impl Operation for WalletGetBalances {
                 .filter(|c| c.family == owner.family())
                 .collect(),
         };
-        if let Some(c) = chains.iter().find(|c| c.family != owner.family()) {
+        // A chain the address can't exist on gets its own error row; the other chains still
+        // answer (agents often ask for "all my chains" with one address family).
+        let (chains, mismatched): (Vec<&ChainEntry>, Vec<&ChainEntry>) =
+            chains.into_iter().partition(|c| c.family == owner.family());
+        if chains.is_empty() {
+            let c = mismatched.first().expect("at least one chain");
             return Err(DomainError::invalid(format!(
                 "{owner} is not a valid address on {} ({:?} chain)",
                 c.id, c.family
@@ -194,7 +199,18 @@ impl Operation for WalletGetBalances {
         }))
         .await;
 
-        let mut out = Vec::new();
+        let mut out: Vec<ChainBalances> = mismatched
+            .iter()
+            .map(|c| ChainBalances {
+                chain: c.id.clone(),
+                provider: None,
+                balances: Vec::new(),
+                error: Some(DomainError::invalid(format!(
+                    "{owner} is not a valid address on {} ({:?} chain)",
+                    c.id, c.family
+                ))),
+            })
+            .collect();
         let mut metas = Vec::new();
         for (chain, r) in chains.iter().zip(results) {
             match r {

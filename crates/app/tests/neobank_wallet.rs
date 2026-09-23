@@ -994,3 +994,47 @@ async fn ledger_rows_are_valued_at_block_time() {
     assert_eq!(rows[0]["block_time"], "2023-11-14T22:13:20Z");
     assert_eq!(out["data"]["currency"], "USD");
 }
+
+#[tokio::test]
+async fn balances_report_family_mismatch_per_chain() {
+    // An EVM address asked on base + solana: solana gets an error row, base still answers.
+    let base = Arc::new(MockTokenBalances::default());
+    base.script.always(Ok(vec![TokenBalance {
+        asset: "eip155:8453/slip44:60".parse().unwrap(),
+        amount: Amount::from_u128(1, 18),
+        symbol: None,
+        token_account: None,
+    }]));
+    let a = app(
+        &[],
+        vec![reg(
+            "rpc",
+            vec![(chain("eip155:8453"), PortHandle::TokenBalances(base))],
+        )],
+    );
+    let v = call(
+        &a,
+        "wallet_get_balances",
+        json!({"chains": ["base", "solana"], "address": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"}),
+    )
+    .await
+    .expect("one bad chain must not fail the whole request");
+    let chains = v["data"]["chains"].as_array().unwrap();
+    let sol = chains
+        .iter()
+        .find(|c| c["chain"].as_str().unwrap().starts_with("solana:"))
+        .unwrap();
+    assert_eq!(sol["error"]["code"], "INVALID_INPUT");
+    let b = chains.iter().find(|c| c["chain"] == "eip155:8453").unwrap();
+    assert_eq!(b["balances"].as_array().unwrap().len(), 1);
+
+    // Every chain wrong → still a plain error.
+    let err = call(
+        &a,
+        "wallet_get_balances",
+        json!({"chains": ["solana"], "address": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045"}),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(err.code, ErrorCode::InvalidInput);
+}
