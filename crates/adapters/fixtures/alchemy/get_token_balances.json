@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "source": "Response shape from the official docs example (https://www.alchemy.com/docs/reference/alchemy-gettokenbalances); NOT a live recording (no API key during T1.E4). Addresses/hashes are placeholders.",
+    "recorded_at": "2026-09-23",
+    "request": {
+      "method": "alchemy_getTokenBalances",
+      "params": [
+        "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+        "erc20"
+      ]
+    }
+  },
+  "response": {
+    "address": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+    "tokenBalances": [
+      {
+        "contractAddress": "0x2222222222222222222222222222222222222222",
+        "tokenBalance": "0x0000000000000000000000000000000000000000000000000000000000bc614e"
+      },
+      {
+        "contractAddress": "0x4444444444444444444444444444444444444444",
+        "tokenBalance": "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      {
+        "contractAddress": "0x5555555555555555555555555555555555555555",
+        "tokenBalance": "0x0000000000000000000000000000000000000000000000000000000000000001"
+      }
+    ],
+    "pageKey": null
+  }
+}

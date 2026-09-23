@@ -41,6 +41,7 @@ openexchangerates = []
 
 [dependencies]
 ems-config = { workspace = true }
+alloy-primitives = { workspace = true }   # evm: U256 amounts + keccak tx hash (T1.E4)
 ems-domain = { workspace = true }
 ems-ports = { workspace = true }
 async-trait = { workspace = true }
