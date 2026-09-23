@@ -1208,6 +1208,7 @@ name = "ems-adapters"
 version = "0.2.0-dev"
 dependencies = [
  "async-trait",
+ "base64",
  "chrono",
  "ems-config",
  "ems-domain",
@@ -1304,6 +1305,7 @@ dependencies = [
  "ems-testkit",
  "hex",
  "rust_decimal",
+ "schemars 1.0.4",
  "serde",
  "serde_json",
  "sha2",
