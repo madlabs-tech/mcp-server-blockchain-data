@@ -102,8 +102,12 @@ struct Harness {
 
 impl Harness {
     async fn start() -> Self {
+        Self::start_with(CONFIG).await
+    }
+
+    async fn start_with(config: &str) -> Self {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("config.toml"), CONFIG).unwrap();
+        std::fs::write(dir.path().join("config.toml"), config).unwrap();
         let loader = ConfigLoader::new(
             ConfigDir::new(dir.path()),
             EnvSource::from_pairs([("EMS__VENDORS__ALCHEMY__CAP__MONTHLY", "100")]),
@@ -456,4 +460,55 @@ async fn admin_body_limit() {
         .await
         .unwrap();
     assert_eq!(r.status(), 413);
+}
+
+#[tokio::test]
+async fn connect_facts_self_hosted_and_hosted() {
+    let h = Harness::start().await;
+    let text = h
+        .admin(reqwest::Method::GET, "/admin/api/connect")
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert!(
+        !text.contains("127.0.0.1:9/"),
+        "custom RPC URL leaked: {text}"
+    );
+    assert!(!text.contains(TOKEN));
+    let c: Value = serde_json::from_str(&text).unwrap();
+    assert_eq!(c["mode"], "self_hosted");
+    assert_eq!(c["http_url"], "http://127.0.0.1:8787");
+    assert_eq!(c["mcp_url"], "http://127.0.0.1:8787/mcp");
+    assert!(c["public_url"].is_null());
+    assert_eq!(c["tool_profile"], "all");
+    assert_eq!(c["sample_tool"], "chain_who_answers");
+    assert!(c["binary_path"].as_str().unwrap().len() > 1);
+    assert_eq!(
+        c["config_dir"],
+        h._dir.path().canonicalize().unwrap().to_str().unwrap()
+    );
+
+    let hosted = Harness::start_with(
+        "[server]\nmode = \"hosted\"\npublic_bind = \"0.0.0.0:9001\"\nadmin_bind = \"127.0.0.1:9002\"\ntool_profile = \"payments\"\n",
+    )
+    .await;
+    let c: Value = hosted
+        .admin(reqwest::Method::GET, "/admin/api/connect")
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(c["mode"], "hosted");
+    assert_eq!(c["http_url"], "http://127.0.0.1:9002");
+    assert_eq!(
+        c["public_url"], "http://127.0.0.1:9001",
+        "wildcard bind becomes loopback"
+    );
+    assert_eq!(c["mcp_url"], "http://127.0.0.1:9001/mcp");
+    assert_eq!(c["tool_profile"], "payments");
 }

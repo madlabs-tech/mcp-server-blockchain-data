@@ -12,12 +12,13 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="top">
   <div class="brand">
-    <span class="logo" aria-hidden="true">◆</span>
+    <svg class="logo" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>
     <span>evm-mcp-server</span>
     <span id="mode" class="badge" hidden></span>
   </div>
   <nav aria-label="Dashboard sections">
     <ul id="nav">
+      <li><a href="#setup">Setup</a></li>
       <li><a href="#overview">Overview</a></li>
       <li><a href="#quota">Quota</a></li>
       <li><a href="#vendors">Vendors</a></li>
@@ -28,9 +29,9 @@
     </ul>
   </nav>
   <div class="top-actions">
-    <button type="button" id="theme" class="ghost" aria-label="Toggle dark mode">◐</button>
-    <button type="button" id="reload" class="ghost" hidden>Reload config</button>
-    <button type="button" id="logout" class="ghost" hidden>Sign out</button>
+    <button type="button" id="theme" class="btn icon ghost" aria-label="Toggle dark mode"></button>
+    <button type="button" id="reload" class="btn icon ghost" aria-label="Reload config from disk" title="Reload config from disk" hidden></button>
+    <button type="button" id="logout" class="btn ghost" hidden>Sign out</button>
   </div>
 </header>
 
@@ -43,7 +44,7 @@
     <form id="login-form">
       <label for="token">Admin token</label>
       <input id="token" name="token" type="password" autocomplete="off" required spellcheck="false">
-      <button type="submit">Sign in</button>
+      <button type="submit" class="btn primary">Sign in</button>
     </form>
     <p class="muted">The token is kept in this tab only (session storage).</p>
   </section>
