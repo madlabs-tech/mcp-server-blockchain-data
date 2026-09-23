@@ -203,10 +203,10 @@ Each teammate works in its own modules, tests against `testkit`, and implements 
 - [~] **T1.M4** `registry/rwa.toml` (Robinhood official list source, xStocks/Ondo/Dinari placeholders marked unverified), `rwa_token_info` (multiplier current/pending, `oraclePaused`, official-list check), `rwa_price` (Chainlink equity feed, market-session calendar incl. US holidays, staleness by session, sequencer uptime).
 
 ### neobank-wallet
-- [~] **T1.N1** Operations `chain_list`, `chain_finality`, `provider_health` (read-only), `wallet_get_balances` (cross-chain, stablecoin filter, share-equivalent for ERC-8056/scaled-UI), `wallet_get_transfers`.
-- [~] **T1.N2** Operations `tx_get`, `tx_status`, `tx_estimate_fee`, `tx_simulate`, `tx_build_transfer`, `tx_broadcast`, all over the chain ports (EVM and Solana behind the same Operation).
-- [~] **T1.N3** `address_validate` (checksum/base58, EOA/contract/smart account, Solana owner vs ATA, token exists on chain, native vs bridged via the registry).
-- [~] **T1.N4** Adapters `frankfurter` and `openexchangerates`. Operations `fiat_get_fx_rate` (business date labeled), `neobank_card_funding_status` (min(balance, allowance / delegatedAmount) for the issuer spender + decline reason), `neobank_get_ledger` (credit/debit rows, block-time fiat valuation + source, par vs market).
+- [x] **T1.N1** Operations `chain_list`, `chain_finality`, `provider_health` (read-only), `wallet_get_balances` (cross-chain, stablecoin filter, share-equivalent for ERC-8056/scaled-UI), `wallet_get_transfers`.
+- [x] **T1.N2** Operations `tx_get`, `tx_status`, `tx_estimate_fee`, `tx_simulate`, `tx_build_transfer`, `tx_broadcast`, all over the chain ports (EVM and Solana behind the same Operation).
+- [x] **T1.N3** `address_validate` (checksum/base58, EOA/contract/smart account, Solana owner vs ATA, token exists on chain, native vs bridged via the registry).
+- [x] **T1.N4** Adapters `frankfurter` and `openexchangerates`. Operations `fiat_get_fx_rate` (business date labeled), `neobank_card_funding_status` (min(balance, allowance / delegatedAmount) for the issuer spender + decline reason), `neobank_get_ledger` (credit/debit rows, block-time fiat valuation + source, par vs market).
 
 ### platform-dashboard
 - [~] **T1.D1** `store` (rusqlite bundled, WAL): usage counters (vendor × window × method × chain × tool × client), call log ring, client keys (SHA-256), migrations. Implements the routing counter-store trait so counters survive restarts.
@@ -241,6 +241,17 @@ Each teammate works in its own modules, tests against `testkit`, and implements 
   Accept: the dashboard checks in PLAN.md Verification, driven via Chrome.
 
 ---
+
+## Phase 2 follow-ups (collected from Phase 1 reports)
+- [ ] **F1** (from neobank-wallet)
+  - `wallet_get_balances` share-equivalent amounts for ERC-8056 and scaled-UI tokens. Needs `evm::erc8056` (evm).
+  - `tx_build_transfer` on Solana: add compute-budget / priority-fee instructions.
+- [ ] **F2** (contract requests from neobank-wallet):
+  - `ChainEntry.no_private_mempool`. Currently inferred from "no private relay registered".
+  - `StablecoinEntry.issuance` / `peg_currency`. Peg currently guessed from the symbol. Check against the payments merge.
+  - Memo / system / ATA instruction builders in `protocols::solana::spl`.
+  - Method-dispatching RPC mocks in testkit.
+- [ ] **F3** Wire `App::with_observer` (CallObserver, f577fb2) when merging platform-dashboard.
 
 ## Phase 2: Integration (owner: `lead`)
 - [ ] **T2.1** Wire all factories in `crates/server`. Default build = free-tier features; zero-key boot works.
