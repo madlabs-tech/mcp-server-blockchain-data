@@ -1,8 +1,15 @@
 //! HTTP transport: REST (`POST /v1/<domain>/<tool>`), OpenAPI, MCP streamable HTTP (`/mcp`),
-//! health and metrics on the public router; admin API + dashboard on a separate router that the
-//! server binds to `admin_bind` in hosted mode (T1.D4/T1.D5 fill it in).
+//! health and metrics on the public router; admin API + dashboard ([`admin_router`]) on a
+//! separate router that the server binds to `admin_bind` in hosted mode (localhost otherwise).
 //!
 //! REST and MCP return byte-identical JSON for the same input (both call [`App::call`]).
+//!
+//! Call log: if the server layers an `axum::Extension<ems_store::Store>` onto the public router,
+//! every REST call is appended to the store's call log (dashboard live stream).
+
+mod admin;
+
+pub use admin::{admin_router, ensure_admin_token, AdminState, Rebuild, ADMIN_BODY_LIMIT};
 
 use axum::{
     extract::{Path, Request, State},
@@ -16,7 +23,7 @@ use ems_app::{App, Caller, ClientAuth};
 use ems_domain::{DomainError, ErrorCode};
 use ems_transport_mcp::McpServer;
 use serde_json::{json, Map, Value};
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 use tower_http::{limit::RequestBodyLimitLayer, trace::TraceLayer};
 
 /// Max request body for REST / MCP calls.
@@ -43,14 +50,6 @@ pub fn public_router(state: HttpState) -> Router {
         .route("/metrics", get(metrics))
         .layer(RequestBodyLimitLayer::new(BODY_LIMIT))
         .layer(TraceLayer::new_for_http())
-        .with_state(state)
-}
-
-/// Admin router skeleton (dashboard + admin API are added by the platform module).
-pub fn admin_router(state: HttpState) -> Router {
-    Router::new()
-        .route("/admin/api/health", get(admin_health))
-        .layer(RequestBodyLimitLayer::new(BODY_LIMIT))
         .with_state(state)
 }
 
@@ -136,7 +135,9 @@ async fn call_by_name(
 }
 
 async fn call(s: HttpState, name: String, req: Request) -> Response {
+    let started = Instant::now();
     let caller = caller_of(req.extensions());
+    let call_log = req.extensions().get::<ems_store::Store>().cloned();
     let bytes = match axum::body::to_bytes(req.into_body(), BODY_LIMIT).await {
         Ok(b) => b,
         Err(_) => {
@@ -153,7 +154,16 @@ async fn call(s: HttpState, name: String, req: Request) -> Response {
             }
         }
     };
-    match s.app.call(&name, input, caller).await {
+    let result = s.app.call(&name, input, caller.clone()).await;
+    if let Some(store) = call_log {
+        store.log_call(ems_store::CallRecord::from_result(
+            caller.client.as_deref(),
+            &name,
+            &result,
+            started.elapsed(),
+        ));
+    }
+    match result {
         Ok(v) => Json(v).into_response(),
         Err(e) => error_response(e),
     }
@@ -228,8 +238,4 @@ async fn metrics(State(s): State<HttpState>) -> Response {
         out,
     )
         .into_response()
-}
-
-async fn admin_health(State(s): State<HttpState>) -> Json<Value> {
-    Json(json!({ "vendors": s.app.router().health() }))
 }
