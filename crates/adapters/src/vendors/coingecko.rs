@@ -4,10 +4,7 @@
 //! GeckoTerminal network + contract), native coins use `/simple/price` with the coin id.
 //! Ports: `PriceFeed`, `PriceHistory` (365 days on Demo), `TokenMetadata`.
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

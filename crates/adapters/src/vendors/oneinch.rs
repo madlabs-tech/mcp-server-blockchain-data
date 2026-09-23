@@ -2,10 +2,7 @@
 //! `quote` → `/quote`; `build` → `/swap` (needs `taker`) + ERC-20 approval to the router
 //! (the swap tx's `to`). Robinhood Chain (4663) is supported per 1inch docs.
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

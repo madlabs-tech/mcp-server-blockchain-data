@@ -5,10 +5,7 @@
 //! so `build` returns `Unsupported` and routing moves to the next vendor. Native sells need
 //! the eth-flow contract and are not supported.
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

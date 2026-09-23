@@ -2,10 +2,7 @@
 //! Port: `PriceFeed` (USD) from the most liquid pair where the token is the base token.
 //! Note: DexScreener "boosts" are paid ads; we never rank by them.
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

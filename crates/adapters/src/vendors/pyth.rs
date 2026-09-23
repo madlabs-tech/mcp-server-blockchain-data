@@ -6,10 +6,7 @@
 //! ERC-20/SPL assets return `Unsupported` and routing moves on. Feed ids are looked up once via
 //! Hermes `/v2/price_feeds` and cached.
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

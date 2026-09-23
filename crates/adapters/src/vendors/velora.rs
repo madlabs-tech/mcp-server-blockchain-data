@@ -2,10 +2,7 @@
 //! Owner: `market-trading` (T1.M3). `quote` → `GET /prices` (v6.2); `build` → `/prices` then
 //! `POST /transactions/{network}` + ERC-20 approval to the route's token-transfer proxy.
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

@@ -12,4 +12,3 @@ ems-domain = { workspace = true }
 http = { workspace = true }
 rmcp = { workspace = true, features = ["transport-streamable-http-server"] }
 serde_json = { workspace = true }
-tracing = { workspace = true }

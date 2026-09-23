@@ -6,10 +6,7 @@
 //! `quote` → `/quote` (EVM + Solana); `build` → `/swap` + approval to the spender from
 //! `/approve-transaction` (EVM only; Solana builds are not supported yet).
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

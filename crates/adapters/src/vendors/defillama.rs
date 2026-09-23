@@ -1,10 +1,7 @@
 //! `defillama` coins API (`coins.llama.fi`, keyless, non-Pro endpoints only).
 //! Owner: `market-trading` (T1.M1). Ports: `PriceFeed`, `PriceHistory` (USD).
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

@@ -4,10 +4,7 @@
 //! `taker`) + approval to `issues.allowance.spender` when the current allowance is short.
 //! Supports Robinhood Chain (4663).
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

@@ -1,10 +1,7 @@
 //! `geckoterminal` public API (keyless, ~10–30 req/min ⚠). Owner: `market-trading` (T1.M1).
 //! Ports: `PriceFeed` (USD, tokens only, with pool reserve as liquidity), `TokenMetadata`.
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

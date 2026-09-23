@@ -6,10 +6,7 @@
 //! Permit2, returned ready-made by the API) + `POST /v1/swap`. Quotes that need a Permit2
 //! signature (`permitData`) are not buildable here yet and return `Unsupported`.
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

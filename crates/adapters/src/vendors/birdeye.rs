@@ -2,10 +2,7 @@
 //! Ports: `PriceFeed` (USD, with liquidity), `PriceHistory` (1-minute candles). Headers:
 //! `X-API-KEY` and `x-chain`. Native SOL is priced through the wrapped-SOL mint.
 
-// Shared helpers compiled into each vendor module so every feature builds alone.
-#[allow(clippy::duplicate_mod)]
-#[path = "market_util.rs"]
-mod util;
+use super::market_util as util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;

@@ -1,7 +1,5 @@
-//! Helpers shared by the market-trading vendor modules. Included per module with
-//! `#[path = "market_util.rs"] mod util;` so every vendor feature still builds alone and the
-//! shared `vendors/mod.rs` stays untouched. Owner: `market-trading`.
-#![allow(dead_code)]
+//! Helpers shared by the market-trading vendor modules (`use super::market_util as util;`).
+#![allow(dead_code)] // not every helper is used when a single vendor feature builds alone
 
 use crate::http::{HttpClient, DEFAULT_TIMEOUT};
 use alloy_primitives::{Address, U256};

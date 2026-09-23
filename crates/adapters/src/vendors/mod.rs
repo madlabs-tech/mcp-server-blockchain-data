@@ -57,6 +57,25 @@ pub mod velora;
 #[cfg(feature = "zeroex")]
 pub mod zeroex;
 
+#[cfg(any(
+    feature = "birdeye",
+    feature = "coingecko",
+    feature = "cow",
+    feature = "defillama",
+    feature = "dexscreener",
+    feature = "geckoterminal",
+    feature = "goplus",
+    feature = "honeypot_is",
+    feature = "okx_dex",
+    feature = "oneinch",
+    feature = "pyth",
+    feature = "rugcheck",
+    feature = "uniswap_api",
+    feature = "velora",
+    feature = "zeroex"
+))]
+pub(crate) mod market_util;
+
 use ems_config::Loaded;
 use ems_ports::Registration;
 

@@ -21,7 +21,7 @@ pub mod solana;
 pub mod stablecoins;
 
 use ems_config::Loaded;
-use ems_ports::{ProviderError, Registration};
+use ems_ports::Registration;
 use ems_routing::Router;
 use std::sync::Arc;
 
@@ -33,9 +33,4 @@ pub fn rpc_registrations(loaded: &Loaded, router: &Arc<Router>) -> Vec<Registrat
     out.extend(solana::rpc_vendor::registrations(loaded, router));
     out.extend(sanctions::registrations(loaded, router));
     out
-}
-
-#[allow(dead_code)] // kept for remaining Phase 1 stubs (market-trading branch)
-pub(crate) fn not_yet(task: &str) -> ProviderError {
-    ProviderError::Unsupported(format!("not implemented yet ({task})"))
 }
