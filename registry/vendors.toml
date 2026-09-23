@@ -331,17 +331,19 @@ requires_key = false
 free_tier_verified = true
 unit = "requests"
 reset = "rolling"
-note = "EVM only; read via routed RPC (metered there). Different contract address on Base."
+note = "isSanctioned(address) via routed RPC (metered there). 0x40C5…C8fb on Ethereum/OP/BSC/Polygon/Avalanche/Arbitrum, 0x3A91…739B on Base; not on Robinhood Chain or Solana. Source: https://go.chainalysis.com/chainalysis-oracle-docs.html. May lag official lists."
 
 [vendor.trm]
 display_name = "TRM Labs sanctions API"
-requires_key = true
+requires_key = false                           # keyless works (1 req/s, 100/day); a key raises limits
 keys = { api_key = "TRM_API_KEY" }
 signup_url = "https://www.trmlabs.com/products/sanctions"
 free_tier_verified = true
 unit = "requests"
 reset = "daily_utc"
-limit = { daily = 100, rps = 1 }
+limit = { daily = 100, rps = 1 }               # keyless tier; with a key: 1000 rps / 100K per day (override `vendors.trm.limit`)
+costs = { "sanctions/screening" = 1 }
+note = "POST /public/v1/sanctions/screening (https://docs.sanctions.trmlabs.com/). Address only, no chain field."
 
 [vendor.frankfurter]
 display_name = "Frankfurter (ECB)"

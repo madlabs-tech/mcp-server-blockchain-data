@@ -20,7 +20,7 @@ helius = []
 jito = []
 jupiter = []
 quicknode_sol = []
-trm = []
+trm = ["dep:base64"]
 coingecko = []
 geckoterminal = []
 defillama = []
@@ -45,6 +45,7 @@ alloy-primitives = { workspace = true }   # evm: U256 amounts + keccak tx hash (
 ems-domain = { workspace = true }
 ems-ports = { workspace = true }
 async-trait = { workspace = true }
+base64 = { version = "0.22", optional = true }
 chrono = { workspace = true }
 reqwest = { workspace = true }
 rust_decimal = { workspace = true }

@@ -20,6 +20,7 @@ bs58 = { workspace = true }
 futures = { workspace = true }
 chrono = { workspace = true }
 moka = { workspace = true }
+rand = { workspace = true }
 rust_decimal = { workspace = true }
 schemars = { workspace = true, features = ["chrono04"] }
 serde = { workspace = true }
