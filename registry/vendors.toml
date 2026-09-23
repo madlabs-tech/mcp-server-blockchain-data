@@ -68,7 +68,10 @@ unit = "credits"
 reset = "calendar_month"
 limit = { monthly = 30_000_000 }
 default_cost = 20
-costs = { eth_blockNumber = 10, eth_chainId = 0, eth_getBalance = 20, eth_call = 26, eth_getLogs = 75, eth_getTransactionReceipt = 20, eth_sendRawTransaction = 250, eth_feeHistory = 10, eth_simulateV1 = 100, alchemy_getAssetTransfers = 150, alchemy_getTokenBalances = 26 }   # ⚠ estimates
+costs = { eth_blockNumber = 10, eth_chainId = 0, eth_getBalance = 20, eth_call = 26, eth_getLogs = 75, eth_getTransactionReceipt = 20, eth_getTransactionByHash = 20, eth_getBlockByNumber = 20, eth_sendRawTransaction = 250, eth_feeHistory = 10, eth_simulateV1 = 100, debug_traceCall = 170, alchemy_getAssetTransfers = 150, alchemy_getTokenBalances = 26, alchemy_getTokenMetadata = 10 }   # ⚠ estimates
+# Enhanced APIs (alchemy_getAssetTransfers / getTokenBalances) run on the rpc_urls below. The Transfers
+# API is documented for Ethereum, Base, Polygon, Arbitrum, Optimism; other networks answer "unsupported"
+# and routing moves on. `internal` transfers only on Ethereum, Polygon, Base.
 rpc_features = { get_logs_max_range = 10, simulate_v1 = true }
 [vendor.alchemy.rpc_urls]
 "eip155:1"      = "https://eth-mainnet.g.alchemy.com/v2/{api_key}"
@@ -92,14 +95,15 @@ reset = "calendar_month"
 limit = { monthly = 10_000_000, rps = 15 }     # ⚠ one source says 50M
 default_cost = 20                              # ⚠ estimate
 rpc_features = { get_logs_max_range = 5, simulate_v1 = true }
-[vendor.quicknode.rpc_urls]                   # multichain endpoint; ⚠ verify slugs (T1.E4)
-"eip155:1"      = "https://{endpoint_name}.quiknode.pro/{token_id}/"
+[vendor.quicknode.rpc_urls]                   # multichain endpoint; slugs from each chain's eth_blockNumber docs page (2026-09-23)
+"eip155:1"      = "https://{endpoint_name}.quiknode.pro/{token_id}/"      # ⚠ Ethereum: no chain slug (docs show only a demo host)
 "eip155:8453"   = "https://{endpoint_name}.base-mainnet.quiknode.pro/{token_id}/"
 "eip155:42161"  = "https://{endpoint_name}.arbitrum-mainnet.quiknode.pro/{token_id}/"
 "eip155:10"     = "https://{endpoint_name}.optimism.quiknode.pro/{token_id}/"
 "eip155:137"    = "https://{endpoint_name}.matic.quiknode.pro/{token_id}/"
 "eip155:43114"  = "https://{endpoint_name}.avalanche-mainnet.quiknode.pro/{token_id}/ext/bc/C/rpc"
 "eip155:56"     = "https://{endpoint_name}.bsc.quiknode.pro/{token_id}/"
+"eip155:4663"   = "https://{endpoint_name}.robinhood-mainnet.quiknode.pro/{token_id}/"   # quicknode.com/guides/robinhood/what-is-robinhood-chain
 "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp" = "https://{endpoint_name}.solana-mainnet.quiknode.pro/{token_id}/"
 
 [vendor.helius]
@@ -126,6 +130,8 @@ unit = "credits"
 reset = "daily_utc"
 limit = { daily = 40_000 }
 default_cost = 10                              # ⚠ compute units vary per endpoint
+costs = { wallet_tokens = 100, erc20_transfers = 50 }   # ⚠ estimates; keys = adapter endpoint labels
+note = "REST (X-API-Key). Not on Robinhood Chain (docs.moralis.com/supported-chains)."
 
 [vendor.ankr]
 display_name = "Ankr Advanced API"
@@ -135,8 +141,9 @@ signup_url = "https://www.ankr.com/rpc/"
 free_tier_verified = false
 unit = "credits"
 reset = "calendar_month"
-default_cost = 700
-note = "Not on Robinhood Chain. Free credit amount unverified."
+default_cost = 700                             # Advanced API: 700 credits per request (ankr.com/docs/advanced-api/overview/)
+costs = { ankr_getAccountBalance = 700 }
+note = "Not on Robinhood Chain. Freemium access to the Advanced API unconfirmed (Ankr docs disagree)."
 
 # ----------------------------------------------------------------------------- market
 [vendor.coingecko]
@@ -285,18 +292,20 @@ reset = "rolling"
 [vendor.flashbots]
 display_name = "Flashbots Protect"
 requires_key = false
+signup_url = "https://docs.flashbots.net/flashbots-protect/quick-start"
 free_tier_verified = true
 unit = "requests"
 reset = "rolling"
-note = "Ethereum mainnet only."
+note = "Ethereum mainnet only. Keyless private relay at https://rpc.flashbots.net/fast (eth_sendRawTransaction)."
 
 [vendor.mev_blocker]
 display_name = "MEV Blocker"
 requires_key = false
+signup_url = "https://docs.mevblocker.io/"
 free_tier_verified = true
 unit = "requests"
 reset = "rolling"
-note = "Ethereum mainnet only."
+note = "Ethereum mainnet only. Keyless private relay at https://rpc.mevblocker.io (eth_sendRawTransaction)."
 
 [vendor.jito]
 display_name = "Jito block engine"

@@ -1207,6 +1207,7 @@ dependencies = [
 name = "ems-adapters"
 version = "0.2.0-dev"
 dependencies = [
+ "alloy-primitives",
  "async-trait",
  "chrono",
  "ems-config",
