@@ -1,1 +1,9 @@
 /target
+.env
+config/config.toml
+config/secrets.toml
+config/admin_token
+*.db
+*.db-wal
+*.db-shm
+/data

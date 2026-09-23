@@ -1,0 +1,17 @@
+[package]
+name = "ems-testkit"
+description = "Test fakes: JSON-RPC servers, vendor fixtures, port conformance suites, mocks."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+ems-domain = { workspace = true }
+ems-ports = { workspace = true }
+async-trait = { workspace = true }
+axum = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+wiremock = { workspace = true }

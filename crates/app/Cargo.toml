@@ -1,0 +1,29 @@
+[package]
+name = "ems-app"
+description = "Use cases as Operations (Command pattern), the Catalog and tool profiles."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+ems-domain = { workspace = true }
+ems-ports = { workspace = true }
+ems-config = { workspace = true }
+ems-routing = { workspace = true }
+ems-protocols = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-rpc-types-eth = "1.0.41"
+async-trait = { workspace = true }
+chrono = { workspace = true }
+moka = { workspace = true }
+rust_decimal = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+ems-testkit = { workspace = true }

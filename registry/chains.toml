@@ -1,0 +1,113 @@
+# Built-in chain registry (data, not code). Override or extend in config.toml:
+#   [chain_overrides."eip155:56"] enabled = false
+#   [[extra_chains]] ... same schema as below
+# Public RPCs verified with eth_chainId / getGenesisHash on 2026-09-23. Public endpoints are
+# rate-limited and meant as the last fallback, not production primaries.
+# `name` / `native.symbol` for the 5 legacy chains must stay unchanged (legacy tool output).
+
+[[chain]]
+id = "eip155:1"
+name = "Ethereum"
+aliases = ["ethereum", "eth", "mainnet"]
+family = "evm"
+native = { symbol = "ETH", decimals = 18, slip44 = 60 }
+block_time_ms = 12000
+finality = { policy = "tags" }            # EVM block tags latest/safe/finalized
+multicall3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
+public_rpc = ["https://ethereum-rpc.publicnode.com"]
+explorer = "https://etherscan.io"
+
+[[chain]]
+id = "eip155:8453"
+name = "Base"
+aliases = ["base"]
+family = "evm"
+native = { symbol = "ETH", decimals = 18, slip44 = 60 }
+block_time_ms = 2000
+finality = { policy = "tags", note = "OP-stack: latest = sequencer, safe = batch on L1 (~5-10 min), finalized ~15-30 min" }
+multicall3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
+public_rpc = ["https://mainnet.base.org"]
+explorer = "https://basescan.org"
+
+[[chain]]
+id = "eip155:42161"
+name = "Arbitrum"
+aliases = ["arbitrum", "arb", "arbitrum-one"]
+family = "evm"
+native = { symbol = "ETH", decimals = 18, slip44 = 60 }
+block_time_ms = 250
+finality = { policy = "tags", note = "Arbitrum: latest = sequencer; safe/finalized follow L1" }
+multicall3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
+public_rpc = ["https://arb1.arbitrum.io/rpc"]
+explorer = "https://arbiscan.io"
+
+[[chain]]
+id = "eip155:10"
+name = "Optimism"
+aliases = ["optimism", "op"]
+family = "evm"
+native = { symbol = "ETH", decimals = 18, slip44 = 60 }
+block_time_ms = 2000
+finality = { policy = "tags", note = "OP-stack" }
+multicall3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
+public_rpc = ["https://mainnet.optimism.io"]
+explorer = "https://optimistic.etherscan.io"
+
+[[chain]]
+id = "eip155:137"
+name = "Polygon"
+aliases = ["polygon", "matic", "pol"]
+family = "evm"
+native = { symbol = "POL", decimals = 18, slip44 = 966 }
+block_time_ms = 2000
+finality = { policy = "tags", note = "Heimdall v2 (Jul 2025): finality in ~2-5 s" }
+multicall3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
+public_rpc = ["https://polygon-bor-rpc.publicnode.com", "https://polygon.drpc.org"]   # polygon-rpc.com is disabled (403)
+explorer = "https://polygonscan.com"
+
+[[chain]]
+id = "eip155:43114"
+name = "Avalanche"
+aliases = ["avalanche", "avax", "avalanche-c"]
+family = "evm"
+native = { symbol = "AVAX", decimals = 18, slip44 = 9000 }
+block_time_ms = 2000
+finality = { policy = "tags", note = "Snowman: sub-second finality" }
+multicall3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
+public_rpc = ["https://api.avax.network/ext/bc/C/rpc"]
+explorer = "https://snowtrace.io"
+
+[[chain]]
+id = "eip155:56"
+name = "Binance Smart Chain"
+aliases = ["bsc", "bnb", "binance"]
+family = "evm"
+native = { symbol = "BNB", decimals = 18, slip44 = 714 }
+block_time_ms = 450
+finality = { policy = "tags", note = "Fermi (Jan 2026): ~0.45 s blocks, ~1.1 s finality; BSC stablecoins are 18 decimals" }
+multicall3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
+public_rpc = ["https://bsc-dataseed.binance.org"]
+explorer = "https://bscscan.com"
+
+[[chain]]
+id = "eip155:4663"
+name = "Robinhood Chain"
+aliases = ["robinhood", "robinhood-chain"]
+family = "evm"
+native = { symbol = "ETH", decimals = 18, slip44 = 60 }
+block_time_ms = 100
+finality = { policy = "tags", note = "Arbitrum Orbit L2; sequencer filters sanctioned addresses" }
+multicall3 = "0xcA11bde05977b3631167028862bE2a173976CA11"
+public_rpc = ["https://rpc.mainnet.chain.robinhood.com"]
+explorer = "https://robinhoodchain.blockscout.com"
+
+[[chain]]
+id = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+name = "Solana"
+aliases = ["solana", "sol", "solana-mainnet"]
+family = "solana"
+native = { symbol = "SOL", decimals = 9, slip44 = 501 }
+block_time_ms = 400
+finality = { policy = "commitment", default = "finalized", note = "Alpenglow activation from 2026-09-28: confirmed ~ finalized ~150 ms" }
+public_rpc = ["https://api.mainnet-beta.solana.com"]
+explorer = "https://solscan.io"

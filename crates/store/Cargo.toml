@@ -1,0 +1,9 @@
+[package]
+name = "ems-store"
+description = "Persistence: quota usage counters, call log, client keys (sqlite)."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]

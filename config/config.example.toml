@@ -1,0 +1,75 @@
+# evm-mcp-server config. Copy to config/config.toml (the dashboard edits that file).
+# API keys belong in env vars or config/secrets.toml (0600, git-ignored), never here.
+# Precedence: built-in registry < this file < secrets.toml < env (EMS__<PATH>, "__" between segments).
+
+[server]
+mode         = "self_hosted"        # self_hosted | hosted
+http_bind    = "127.0.0.1:8787"     # self_hosted: REST + /mcp + /dashboard
+# public_bind = "0.0.0.0:8787"      # hosted: public MCP/REST (behind TLS proxy)
+# admin_bind  = "127.0.0.1:8788"    # hosted: dashboard + admin API, never public
+dashboard    = true
+tool_profile = "payments"           # payments | trading | neobank | defi | all | custom
+
+# ---------------------------------------------------------------------------- vendors
+# limit = the vendor's real quota (defaults: free tier from registry/vendors.toml)
+# cap   = your own budget (<= limit). effective = min(cap, limit * (1 - reserve_pct/100))
+[vendors.alchemy]
+enabled = true
+reserve_pct  = 10
+on_exhausted = "skip"               # skip | allow_overage
+# [vendors.alchemy.limit]
+# monthly_credits = 30_000_000
+# [vendors.alchemy.cap]
+# monthly_credits = 15_000_000
+# rps = 10
+
+[vendors.helius]
+enabled = true
+# [vendors.helius.cap]
+# rps = 5
+
+[vendors.quicknode]
+enabled = true
+
+[vendors.coingecko]
+enabled = true
+
+[vendors.ankr]                      # free tier unconfirmed, off by default
+enabled = false
+
+# ---------------------------------------------------------------------------- routing
+# Order = primary, then fallbacks. Most specific wins:
+# operations.<op>.order > routing.chains.<caip2>.<capability> > routing.defaults.<capability> > built-in
+[routing.defaults]
+evm_rpc    = ["alchemy", "quicknode", "public"]
+solana_rpc = ["helius", "quicknode", "public"]
+price      = ["coingecko", "defillama", "geckoterminal", "dexscreener"]
+token_risk = ["goplus", "honeypot_is", "rugcheck"]
+swap_quote = ["oneinch", "velora", "cow"]
+fx         = ["frankfurter", "openexchangerates"]
+
+[routing.chains."eip155:4663"]      # Robinhood Chain
+evm_rpc = ["alchemy", "quicknode", "public"]
+
+[routing.chains."solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"]   # Solana mainnet (alias: "solana")
+price = ["jupiter", "birdeye", "defillama"]
+
+# ---------------------------------------------------------------------------- operations
+[operations.payments_verify_transfer]
+strategy = "quorum"                 # failover | quorum | aggregate | fan_out | hedged
+quorum   = 2
+
+[operations.market_get_price]
+strategy       = "aggregate"        # median + spread across the first N available vendors
+fan_out        = 3
+cache_ttl_secs = 15
+
+[operations.tx_broadcast]
+strategy = "fan_out"
+
+# ---------------------------------------------------------------------------- hosted mode clients
+[clients.default]
+requests_per_minute = 30
+daily_requests      = 1000
+monthly_credits     = 200_000       # vendor credits spent on this client's behalf
+tool_profile        = "payments"

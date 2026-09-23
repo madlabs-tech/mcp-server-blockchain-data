@@ -1,0 +1,54 @@
+[package]
+name = "ems-adapters"
+description = "Vendor adapters, one module per vendor behind a cargo feature."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+# One feature per vendor module (each must build alone: CI runs `cargo hack --each-feature`).
+# Default = vendors with a verified free tier; unverified ones are opt-in.
+default = ["alchemy", "quicknode", "moralis", "flashbots", "mev_blocker", "helius", "jito", "jupiter", "quicknode_sol", "trm", "coingecko", "geckoterminal", "defillama", "dexscreener", "birdeye", "pyth", "goplus", "honeypot_is", "oneinch", "velora", "cow", "frankfurter", "openexchangerates"]
+alchemy = []
+quicknode = []
+moralis = []
+ankr = []
+flashbots = []
+mev_blocker = []
+helius = []
+jito = []
+jupiter = []
+quicknode_sol = []
+trm = []
+coingecko = []
+geckoterminal = []
+defillama = []
+dexscreener = []
+birdeye = []
+pyth = []
+goplus = []
+honeypot_is = []
+rugcheck = []
+oneinch = []
+velora = []
+cow = []
+zeroex = []
+uniswap_api = []
+okx_dex = []
+frankfurter = []
+openexchangerates = []
+
+[dependencies]
+ems-config = { workspace = true }
+ems-domain = { workspace = true }
+ems-ports = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+ems-testkit = { workspace = true }
+tokio = { workspace = true }

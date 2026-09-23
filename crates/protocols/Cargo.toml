@@ -1,0 +1,29 @@
+[package]
+name = "ems-protocols"
+description = "Contract and program readers (ERC-20, Multicall3, issuer controls, Chainlink, SPL...) over chain ports."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+ems-domain = { workspace = true }
+ems-ports = { workspace = true }
+ems-config = { workspace = true }
+ems-routing = { workspace = true }
+alloy-primitives = { workspace = true }
+alloy-sol-types = { workspace = true }
+async-trait = { workspace = true }
+bs58 = { workspace = true }
+chrono = { workspace = true }
+hex = { workspace = true }
+rust_decimal = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+toml = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+ems-testkit = { workspace = true }
+tokio = { workspace = true }
