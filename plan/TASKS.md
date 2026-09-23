@@ -157,28 +157,28 @@ Rules:
 Each teammate works in its own modules, tests against `testkit`, and implements `QuotaReporter` plus cost-table rows in `registry/vendors.toml` for its vendors.
 
 ### evm
-- [ ] **T1.E1** EVM chain ports on `evm_rpc`:
+- [~] **T1.E1** EVM chain ports on `evm_rpc`:
   - `NativeBalance`/`TokenBalances` via Multicall3 `aggregate3`, pinned to one block
   - `ChainHead` + finality tags (`safe`/`finalized`)
   - `TxLookup` (receipt + decoded ERC-20 `Transfer`s; drop 4-topic logs; handle `removed`)
   - `LogScan`: adaptive chunking from the vendor plan's `getLogs` limit, split on error, `toBlock` capped at the same node's head
 
   Accept: golden tests (spoofed token log, 4-topic log, removed log, BSC 18-decimal token).
-- [ ] **T1.E2** `FeeOracle` EVM:
+- [~] **T1.E2** `FeeOracle` EVM:
   - `eth_feeHistory` tiers
   - OP-stack L1 fee (`GasPriceOracle.getL1Fee` + operator fee)
   - Arbitrum `NodeInterface.gasEstimateL1Component`
   - USD conversion via the price port
 
   Accept: fixtures for Base, Arbitrum, Ethereum.
-- [ ] **T1.E3** `Simulator` (`eth_simulateV1` → `debug_traceCall` → `eth_call`), `TxBuilder` (EIP-1559 native/ERC-20), `Broadcaster` (fan-out; tx hash computed locally, so resends are safe), `PrivateRelay` (Flashbots Protect, MEV Blocker; Ethereum only; other chains flagged `no_private_mempool`).
-- [ ] **T1.E4** Vendor adapters `alchemy` (RPC, Portfolio/Token balances, `alchemy_getAssetTransfers`, Prices, `eth_simulateV1`), `quicknode` (RPC via `QN_*`), `moralis` (balances, transfers), `ankr` (disabled by default, flagged ⚠).
+- [~] **T1.E3** `Simulator` (`eth_simulateV1` → `debug_traceCall` → `eth_call`), `TxBuilder` (EIP-1559 native/ERC-20), `Broadcaster` (fan-out; tx hash computed locally, so resends are safe), `PrivateRelay` (Flashbots Protect, MEV Blocker; Ethereum only; other chains flagged `no_private_mempool`).
+- [~] **T1.E4** Vendor adapters `alchemy` (RPC, Portfolio/Token balances, `alchemy_getAssetTransfers`, Prices, `eth_simulateV1`), `quicknode` (RPC via `QN_*`), `moralis` (balances, transfers), `ankr` (disabled by default, flagged ⚠).
 
   Accept: conformance + fixtures; Alchemy Robinhood Chain URL mapping.
-- [ ] **T1.E5** `protocols` readers: `erc20`, `multicall3`, `erc8056` (UI multiplier), OP/Arbitrum fee oracles, Chainlink aggregator (`latestRoundData`, `getRoundData`).
+- [~] **T1.E5** `protocols` readers: `erc20`, `multicall3`, `erc8056` (UI multiplier), OP/Arbitrum fee oracles, Chainlink aggregator (`latestRoundData`, `getRoundData`).
 
 ### solana
-- [ ] **T1.S1** Solana chain ports on `solana_rpc`:
+- [~] **T1.S1** Solana chain ports on `solana_rpc`:
   - balances (`getBalance` + `getTokenAccountsByOwner` for BOTH token programs; sum non-ATA accounts)
   - ATA derivation with the program id
   - transfer history over the wallet and every token account (`getSignaturesForAddress` pagination, skip failed txs)
@@ -186,50 +186,50 @@ Each teammate works in its own modules, tests against `testkit`, and implements 
   - scaled-UI support
 
   Accept: golden tests for each case.
-- [ ] **T1.S2** `FeeOracle` (priority-fee percentiles over `getRecentPrioritizationFees` + Jito tip), `Simulator` (`simulateTransaction` with `replaceRecentBlockhash`, `innerInstructions`), `TxBuilder` (SOL/SPL/Token-2022 transfer: ATA create, memo, compute price, transfer-hook extra accounts), `Broadcaster` (send to all + resend until `lastValidBlockHeight`; signature computed locally), commitment/finality per `chains.toml` (Alpenglow-ready).
-- [ ] **T1.S3** `helius` adapter (RPC, DAS `getAssetsByOwner`, `getPriorityFeeEstimate`, Sender with tip checks, credits `QuotaReporter` if confirmed). Paid methods are **not** used by default.
-- [ ] **T1.S4** `jito` (bundle/tip endpoints) and `jupiter` (Price v3, Swap v2 quote/build) adapters.
+- [~] **T1.S2** `FeeOracle` (priority-fee percentiles over `getRecentPrioritizationFees` + Jito tip), `Simulator` (`simulateTransaction` with `replaceRecentBlockhash`, `innerInstructions`), `TxBuilder` (SOL/SPL/Token-2022 transfer: ATA create, memo, compute price, transfer-hook extra accounts), `Broadcaster` (send to all + resend until `lastValidBlockHeight`; signature computed locally), commitment/finality per `chains.toml` (Alpenglow-ready).
+- [~] **T1.S3** `helius` adapter (RPC, DAS `getAssetsByOwner`, `getPriorityFeeEstimate`, Sender with tip checks, credits `QuotaReporter` if confirmed). Paid methods are **not** used by default.
+- [~] **T1.S4** `jito` (bundle/tip endpoints) and `jupiter` (Price v3, Swap v2 quote/build) adapters.
 
 ### payments-stablecoin
-- [ ] **T1.P1** `registry/stablecoins.toml`, schema per PLAN.md: USDC, EURC, USDT, USDT0, PYUSD, USDG, RLUSD, DAI/USDS on our chains, **only from issuer docs with `source_url` + `verified_at`**. A CI check (test) rejects missing sources and non-checksummed addresses. Resolve the open items (USDC list, USDT0 freeze method, BSC decimals, Robinhood USDC).
-- [ ] **T1.P2** `protocols` issuer controls (`isBlacklisted`, `isBlackListed`/`getBlackListStatus`, `isFrozen`, `paused`, `deprecated`/`upgradedAddress`, Solana account `state` + permanent delegate), the Chainalysis sanctions oracle (per-chain address from docs), and the `trm` adapter.
-- [ ] **T1.P3** Operations `payments_verify_transfer` (recipient balance change, registry token match, min finality, quorum option, `underpaid|overpaid|wrong_token|unverifiable`, idempotency key), `payments_list_deposits` (cursor, canonical tokens only), `payments_build_request` (EIP-681, Solana Pay with a fresh reference, x402 `PaymentRequirements`).
-- [ ] **T1.P4** Operations `stablecoin_resolve`, `stablecoin_check_restrictions` (report the block used), `stablecoin_peg` (oracle vs DEX vs CoinGecko), `compliance_screen_address` (combined verdict that lists each source).
+- [~] **T1.P1** `registry/stablecoins.toml`, schema per PLAN.md: USDC, EURC, USDT, USDT0, PYUSD, USDG, RLUSD, DAI/USDS on our chains, **only from issuer docs with `source_url` + `verified_at`**. A CI check (test) rejects missing sources and non-checksummed addresses. Resolve the open items (USDC list, USDT0 freeze method, BSC decimals, Robinhood USDC).
+- [~] **T1.P2** `protocols` issuer controls (`isBlacklisted`, `isBlackListed`/`getBlackListStatus`, `isFrozen`, `paused`, `deprecated`/`upgradedAddress`, Solana account `state` + permanent delegate), the Chainalysis sanctions oracle (per-chain address from docs), and the `trm` adapter.
+- [~] **T1.P3** Operations `payments_verify_transfer` (recipient balance change, registry token match, min finality, quorum option, `underpaid|overpaid|wrong_token|unverifiable`, idempotency key), `payments_list_deposits` (cursor, canonical tokens only), `payments_build_request` (EIP-681, Solana Pay with a fresh reference, x402 `PaymentRequirements`).
+- [~] **T1.P4** Operations `stablecoin_resolve`, `stablecoin_check_restrictions` (report the block used), `stablecoin_peg` (oracle vs DEX vs CoinGecko), `compliance_screen_address` (combined verdict that lists each source).
 
 ### market-trading
-- [ ] **T1.M1** Price adapters `coingecko` (Demo header; `/key` `QuotaReporter` if confirmed), `geckoterminal`, `defillama`, `dexscreener`, `birdeye`, `pyth` (Hermes; Benchmarks with a key), and the Chainlink reader. Operations `market_get_price` (Aggregate: median + spread + `as_of` + liquidity; missing → `unknown`) and `market_get_price_at`.
-- [ ] **T1.M2** `token_get_metadata` (on-chain decimals first) and `token_check_risk` (`goplus`, `honeypot_is`, `rugcheck` ⚠ + on-chain authorities: mint/freeze authority, permanent delegate, Token-2022 extensions, proxy admin → merged verdict listing each source).
-- [ ] **T1.M3** Swap adapters `oneinch`, `velora`, `cow`, plus `jupiter` (from T1.S4); optional `zeroex`, `uniswap_api`, `okx_dex`, disabled until the free tier is confirmed. Operations `trade_get_swap_quote` (parallel, best + spread, TTL, minOut) and `trade_build_swap_tx` (re-quote, then unsigned tx + required approvals).
-- [ ] **T1.M4** `registry/rwa.toml` (Robinhood official list source, xStocks/Ondo/Dinari placeholders marked unverified), `rwa_token_info` (multiplier current/pending, `oraclePaused`, official-list check), `rwa_price` (Chainlink equity feed, market-session calendar incl. US holidays, staleness by session, sequencer uptime).
+- [~] **T1.M1** Price adapters `coingecko` (Demo header; `/key` `QuotaReporter` if confirmed), `geckoterminal`, `defillama`, `dexscreener`, `birdeye`, `pyth` (Hermes; Benchmarks with a key), and the Chainlink reader. Operations `market_get_price` (Aggregate: median + spread + `as_of` + liquidity; missing → `unknown`) and `market_get_price_at`.
+- [~] **T1.M2** `token_get_metadata` (on-chain decimals first) and `token_check_risk` (`goplus`, `honeypot_is`, `rugcheck` ⚠ + on-chain authorities: mint/freeze authority, permanent delegate, Token-2022 extensions, proxy admin → merged verdict listing each source).
+- [~] **T1.M3** Swap adapters `oneinch`, `velora`, `cow`, plus `jupiter` (from T1.S4); optional `zeroex`, `uniswap_api`, `okx_dex`, disabled until the free tier is confirmed. Operations `trade_get_swap_quote` (parallel, best + spread, TTL, minOut) and `trade_build_swap_tx` (re-quote, then unsigned tx + required approvals).
+- [~] **T1.M4** `registry/rwa.toml` (Robinhood official list source, xStocks/Ondo/Dinari placeholders marked unverified), `rwa_token_info` (multiplier current/pending, `oraclePaused`, official-list check), `rwa_price` (Chainlink equity feed, market-session calendar incl. US holidays, staleness by session, sequencer uptime).
 
 ### neobank-wallet
-- [ ] **T1.N1** Operations `chain_list`, `chain_finality`, `provider_health` (read-only), `wallet_get_balances` (cross-chain, stablecoin filter, share-equivalent for ERC-8056/scaled-UI), `wallet_get_transfers`.
-- [ ] **T1.N2** Operations `tx_get`, `tx_status`, `tx_estimate_fee`, `tx_simulate`, `tx_build_transfer`, `tx_broadcast`, all over the chain ports (EVM and Solana behind the same Operation).
-- [ ] **T1.N3** `address_validate` (checksum/base58, EOA/contract/smart account, Solana owner vs ATA, token exists on chain, native vs bridged via the registry).
-- [ ] **T1.N4** Adapters `frankfurter` and `openexchangerates`. Operations `fiat_get_fx_rate` (business date labeled), `neobank_card_funding_status` (min(balance, allowance / delegatedAmount) for the issuer spender + decline reason), `neobank_get_ledger` (credit/debit rows, block-time fiat valuation + source, par vs market).
+- [~] **T1.N1** Operations `chain_list`, `chain_finality`, `provider_health` (read-only), `wallet_get_balances` (cross-chain, stablecoin filter, share-equivalent for ERC-8056/scaled-UI), `wallet_get_transfers`.
+- [~] **T1.N2** Operations `tx_get`, `tx_status`, `tx_estimate_fee`, `tx_simulate`, `tx_build_transfer`, `tx_broadcast`, all over the chain ports (EVM and Solana behind the same Operation).
+- [~] **T1.N3** `address_validate` (checksum/base58, EOA/contract/smart account, Solana owner vs ATA, token exists on chain, native vs bridged via the registry).
+- [~] **T1.N4** Adapters `frankfurter` and `openexchangerates`. Operations `fiat_get_fx_rate` (business date labeled), `neobank_card_funding_status` (min(balance, allowance / delegatedAmount) for the issuer spender + decline reason), `neobank_get_ledger` (credit/debit rows, block-time fiat valuation + source, par vs market).
 
 ### platform-dashboard
-- [ ] **T1.D1** `store` (rusqlite bundled, WAL): usage counters (vendor × window × method × chain × tool × client), call log ring, client keys (SHA-256), migrations. Implements the routing counter-store trait so counters survive restarts.
-- [ ] **T1.D2** Quota engine:
+- [~] **T1.D1** `store` (rusqlite bundled, WAL): usage counters (vendor × window × method × chain × tool × client), call log ring, client keys (SHA-256), migrations. Implements the routing counter-store trait so counters survive restarts.
+- [~] **T1.D2** Quota engine:
   - rate-limit header parser in the shared HTTP client (`X-RateLimit-*`, IETF `RateLimit-*`, `Retry-After`)
   - local metering with the cost table
   - `QuotaReporter` polling scheduler (default 5 min)
   - aggregation (the most pessimistic source wins for the guard)
   - burn rate + run-out projection
   - alert thresholds
-- [ ] **T1.D3** Hosted mode:
+- [~] **T1.D3** Hosted mode:
   - `mode = hosted` → client bearer auth on `/mcp` and `/v1/*`
   - per-client limits (rpm, daily, monthly credits, allowed profile/tools) → `QUOTA_EXCEEDED` with a reset time
   - separate `admin_bind`
   - **fail closed** when there are no client keys
-- [ ] **T1.D4** Admin API `/admin/api/*`:
+- [~] **T1.D4** Admin API `/admin/api/*`:
   - config read (with provenance / locked-by-env), validate, write (atomic), reload (ArcSwap) + SIGHUP
   - vendor test
   - health, quota (incl. CSV export)
   - clients CRUD
   - SSE call stream
   - security: admin bearer token generated on first run (0600), required custom header (CSRF), redaction, body limits
-- [ ] **T1.D5** Dashboard UI (static HTML + vanilla JS, `include_str!`), pages:
+- [~] **T1.D5** Dashboard UI (static HTML + vanilla JS, `include_str!`), pages:
   - Overview
   - **Quota** (a card per vendor: limit / cap / effective budget, used/remaining per window, source badge, burn rate, run-out date, breakdown, 30-day chart, refresh, CSV)
   - Vendors (write-only keys, test)

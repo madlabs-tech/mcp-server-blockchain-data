@@ -18,7 +18,7 @@ mod metrics;
 mod op;
 pub mod ops;
 
-pub use app::{App, CallGuard, ClientAuth};
+pub use app::{App, CallGuard, CallObserver, ClientAuth};
 pub use catalog::{Catalog, ProfileSelection};
 pub use ctx::{Caller, Ctx};
 pub use metrics::{OpMetrics, OpStats};

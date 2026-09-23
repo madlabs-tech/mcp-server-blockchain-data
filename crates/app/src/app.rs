@@ -32,12 +32,25 @@ pub trait ClientAuth: Send + Sync {
     async fn authenticate(&self, bearer: Option<&str>) -> Result<Caller, DomainError>;
 }
 
+/// Post-call hook (call log / SSE stream). Runs for every call on every transport, including
+/// cache hits and rejections (unknown tool, guard). Must be cheap and non-blocking.
+pub trait CallObserver: Send + Sync {
+    fn on_call(
+        &self,
+        caller: &Caller,
+        op: &str,
+        result: &Result<Value, DomainError>,
+        latency: Duration,
+    );
+}
+
 /// Executes operations through the decorator chain shared by every transport.
 pub struct App {
     catalog: Arc<Catalog>,
     router: Arc<Router>,
     cache: moka::future::Cache<String, Value>,
     guard: Option<Arc<dyn CallGuard>>,
+    observer: Option<Arc<dyn CallObserver>>,
     metrics: Arc<OpMetrics>,
     seq: AtomicU64,
 }
@@ -53,9 +66,15 @@ impl App {
             router,
             cache,
             guard: None,
+            observer: None,
             metrics: Arc::new(OpMetrics::default()),
             seq: AtomicU64::new(0),
         }
+    }
+
+    pub fn with_observer(mut self, observer: Arc<dyn CallObserver>) -> Self {
+        self.observer = Some(observer);
+        self
     }
 
     pub fn with_guard(mut self, guard: Arc<dyn CallGuard>) -> Self {
@@ -91,6 +110,20 @@ impl App {
 
     /// Run one tool call. Returns the rendered JSON (`{data, meta}`, or bare data for legacy).
     pub async fn call(
+        &self,
+        name: &str,
+        input: Value,
+        caller: Caller,
+    ) -> Result<Value, DomainError> {
+        let started = Instant::now();
+        let result = self.call_inner(name, input, caller.clone()).await;
+        if let Some(o) = &self.observer {
+            o.on_call(&caller, name, &result, started.elapsed());
+        }
+        result
+    }
+
+    async fn call_inner(
         &self,
         name: &str,
         input: Value,

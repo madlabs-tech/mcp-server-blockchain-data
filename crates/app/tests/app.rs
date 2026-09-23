@@ -274,3 +274,33 @@ async fn legacy_balance_on_new_stack() {
         .unwrap_err();
     assert_eq!(err.code, ErrorCode::InvalidInput);
 }
+
+struct Recorder(std::sync::Mutex<Vec<(String, bool)>>);
+
+impl ems_app::CallObserver for Recorder {
+    fn on_call(&self, _c: &Caller, op: &str, r: &Result<Value, DomainError>, _l: Duration) {
+        self.0.lock().unwrap().push((op.to_owned(), r.is_ok()));
+    }
+}
+
+#[tokio::test]
+async fn observer_sees_every_call_including_cache_hits_and_rejections() {
+    let rec = Arc::new(Recorder(Default::default()));
+    let (a, _) = app("", vec![]);
+    let a = a.with_observer(rec.clone());
+    a.call("test_echo", json!({"msg": "x"}), Caller::local())
+        .await
+        .unwrap();
+    a.call("test_echo", json!({"msg": "x"}), Caller::local())
+        .await
+        .unwrap(); // cache hit
+    let _ = a.call("nope", json!({}), Caller::local()).await;
+    assert_eq!(
+        *rec.0.lock().unwrap(),
+        vec![
+            ("test_echo".to_string(), true),
+            ("test_echo".to_string(), true),
+            ("nope".to_string(), false)
+        ]
+    );
+}
