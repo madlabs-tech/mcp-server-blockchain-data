@@ -1,0 +1,22 @@
+{
+ "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+ "tokenType": "",
+ "risks": [
+  {
+   "name": "Freeze Authority still enabled",
+   "value": "",
+   "description": "Tokens can be frozen and prevented from trading",
+   "score": 7500,
+   "level": "danger"
+  },
+  {
+   "name": "Mutable metadata",
+   "value": "",
+   "description": "Token metadata can be changed by the owner",
+   "score": 100,
+   "level": "warn"
+  }
+ ],
+ "score": 7601,
+ "score_normalised": 60
+}

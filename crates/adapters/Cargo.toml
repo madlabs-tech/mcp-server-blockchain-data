@@ -27,7 +27,7 @@ defillama = []
 dexscreener = []
 birdeye = []
 pyth = []
-goplus = []
+goplus = ["dep:sha1"]
 honeypot_is = []
 rugcheck = []
 oneinch = []
@@ -35,7 +35,7 @@ velora = []
 cow = []
 zeroex = []
 uniswap_api = []
-okx_dex = []
+okx_dex = ["dep:hmac", "dep:sha2", "dep:base64"]
 frankfurter = []
 openexchangerates = []
 
@@ -43,11 +43,18 @@ openexchangerates = []
 ems-config = { workspace = true }
 ems-domain = { workspace = true }
 ems-ports = { workspace = true }
+alloy-primitives = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 reqwest = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
+rust_decimal = { workspace = true }
+# market-trading vendor auth (goplus: sha1 sign; okx_dex: HMAC-SHA256 + base64)
+sha1 = { version = "0.10", optional = true }
+hmac = { version = "0.12", optional = true }
+sha2 = { workspace = true, optional = true }
+base64 = { version = "0.22", optional = true }
 
 [dev-dependencies]
 ems-testkit = { workspace = true }

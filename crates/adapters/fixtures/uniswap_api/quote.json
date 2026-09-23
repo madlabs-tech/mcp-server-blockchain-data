@@ -1,0 +1,23 @@
+{
+ "requestId": "r-1",
+ "routing": "CLASSIC",
+ "quote": {
+  "chainId": 8453,
+  "swapper": "0x0000000000000000000000000000000000000000",
+  "tradeType": "EXACT_INPUT",
+  "input": {
+   "token": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+   "amount": "1000000000"
+  },
+  "output": {
+   "token": "0x0000000000000000000000000000000000000000",
+   "amount": "382100000000000000",
+   "recipient": "0x0000000000000000000000000000000000000000"
+  },
+  "slippage": 0.5,
+  "priceImpact": 0.12,
+  "gasFee": "1000000000000",
+  "route": []
+ },
+ "permitData": null
+}

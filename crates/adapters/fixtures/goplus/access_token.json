@@ -1,0 +1,8 @@
+{
+ "code": 1,
+ "message": "OK",
+ "result": {
+  "access_token": "tok-abc",
+  "expires_in": 7200
+ }
+}

@@ -1,0 +1,22 @@
+[
+ {
+  "id": "ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace",
+  "attributes": {
+   "asset_type": "Crypto",
+   "base": "ETH",
+   "description": "ETHEREUM / US DOLLAR",
+   "generic_symbol": "ETHUSD",
+   "quote_currency": "USD",
+   "symbol": "Crypto.ETH/USD"
+  }
+ },
+ {
+  "id": "0000000000000000000000000000000000000000000000000000000000000001",
+  "attributes": {
+   "asset_type": "Crypto",
+   "base": "ETH",
+   "quote_currency": "BTC",
+   "symbol": "Crypto.ETH/BTC"
+  }
+ }
+]

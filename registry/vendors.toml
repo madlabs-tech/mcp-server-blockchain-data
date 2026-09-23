@@ -149,6 +149,7 @@ unit = "requests"
 reset = "calendar_month"
 limit = { monthly = 10_000, per_minute = 30 }  # ⚠ 30 vs 100/min
 default_cost = 1
+note = "Demo plan: key in x-cg-demo-api-key. The /key usage endpoint is paid-plan only (docs, 2026-09-23), so quota is locally metered."
 
 [vendor.geckoterminal]
 display_name = "GeckoTerminal (public)"
@@ -157,6 +158,7 @@ free_tier_verified = true
 unit = "requests"
 reset = "rolling"
 limit = { per_minute = 10 }                    # ⚠ 10 vs 30/min
+note = "Keyless. Tokens only (no native coins); Robinhood Chain network slug unverified."
 
 [vendor.defillama]
 display_name = "DefiLlama"
@@ -173,6 +175,7 @@ free_tier_verified = true
 unit = "requests"
 reset = "rolling"
 limit = { per_minute = 300 }
+note = "Keyless. Price from the most liquid pair where the token is the base token."
 
 [vendor.birdeye]
 display_name = "Birdeye"
@@ -197,8 +200,10 @@ limit = { per_minute = 30 }                    # keyless; 60/min with a free key
 
 [vendor.pyth]
 display_name = "Pyth (Hermes / Benchmarks)"
-requires_key = false                           # Hermes keyless; Benchmarks needs PYTH_API_KEY
+requires_key = true                            # Hermes needs Authorization: Bearer since 2026-08-26 (docs.pyth.network)
 keys = { api_key = "PYTH_API_KEY" }
+signup_url = "https://docs.pyth.network/price-feeds/core/use-historical-price-data"
+note = "Native coins only (feeds keyed by symbol). Benchmarks auth header undocumented; the Hermes Bearer header is reused."
 free_tier_verified = true
 unit = "requests"
 reset = "rolling"
@@ -206,13 +211,14 @@ limit = { per_minute = 60 }                    # Benchmarks: 10 req / 10 s
 
 [vendor.goplus]
 display_name = "GoPlus Security"
-requires_key = true
+requires_key = false                           # access token optional per docs; keys raise limits
 keys = { app_key = "GOPLUS_APP_KEY", app_secret = "GOPLUS_APP_SECRET" }
 signup_url = "https://gopluslabs.io/security-api"
 free_tier_verified = true
 unit = "requests"
 reset = "rolling"
 limit = { per_minute = 30 }
+note = "With GOPLUS_APP_KEY + GOPLUS_APP_SECRET an access token is fetched (sign = sha1(key+time+secret)) and sent as Bearer."
 
 [vendor.honeypot_is]
 display_name = "honeypot.is"
@@ -230,6 +236,7 @@ free_tier_verified = false
 unit = "requests"
 reset = "rolling"
 limit = { per_minute = 60 }                    # ⚠ third-party report
+note = "Solana only. Auth unverified: an optional RUGCHECK_API_KEY is sent as X-API-KEY."
 
 # ----------------------------------------------------------------------------- swap / MEV
 [vendor.oneinch]
@@ -241,6 +248,7 @@ free_tier_verified = true
 unit = "requests"
 reset = "calendar_month"
 limit = { monthly = 100_000, rps = 1 }
+note = "api.1inch.com/swap/v6.1; Robinhood Chain (4663) supported per 1inch docs."
 
 [vendor.velora]
 display_name = "Velora (ParaSwap)"
@@ -249,6 +257,7 @@ free_tier_verified = true
 unit = "requests"
 reset = "rolling"
 limit = { per_minute = 60 }                    # anonymous use carries a 1 bps fee
+note = "api.velora.xyz, /prices version 6.2."
 
 [vendor.cow]
 display_name = "CoW Protocol"
@@ -257,6 +266,7 @@ free_tier_verified = true
 unit = "requests"
 reset = "rolling"
 limit = { per_minute = 60 }
+note = "Quotes only (orders are EIP-712 intents, no tx to build). No native sells."
 
 [vendor.zeroex]
 display_name = "0x Swap API"
@@ -265,6 +275,7 @@ keys = { api_key = "ZEROEX_API_KEY" }
 free_tier_verified = false
 unit = "requests"
 reset = "calendar_month"
+note = "No free tier: 0x.org/pricing lists Standard $1000/mo (checked 2026-09-23). Supports Robinhood Chain."
 
 [vendor.uniswap_api]
 display_name = "Uniswap Trading API"
@@ -272,7 +283,9 @@ requires_key = true
 keys = { api_key = "UNISWAP_API_KEY" }
 free_tier_verified = false
 unit = "requests"
-reset = "calendar_month"
+reset = "rolling"
+limit = { rps = 6 }
+note = "FAQ says free, 6 req/s per key (2026-09-23). Kept disabled until the /v1/swap shape is checked. Supports Robinhood Chain."
 
 [vendor.okx_dex]
 display_name = "OKX DEX"
@@ -281,6 +294,7 @@ keys = { api_key = "OKX_API_KEY", secret_key = "OKX_SECRET_KEY", passphrase = "O
 free_tier_verified = false
 unit = "requests"
 reset = "rolling"
+note = "API v6, HMAC-SHA256 signed. Free tier unverified."
 
 [vendor.flashbots]
 display_name = "Flashbots Protect"
