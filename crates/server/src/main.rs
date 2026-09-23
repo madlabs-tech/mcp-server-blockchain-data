@@ -48,6 +48,10 @@ fn parse_args() -> Result<Args> {
                         Command::ClientsCreate(it.next().context("clients create needs a <name>")?)
                     }
                     Some("list") => Command::ClientsList,
+                    Some("-h" | "--help") => {
+                        eprintln!("{USAGE}");
+                        std::process::exit(0);
+                    }
                     _ => bail!("{USAGE}"),
                 }
             }
