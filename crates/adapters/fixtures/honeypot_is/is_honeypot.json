@@ -1,0 +1,39 @@
+{
+ "token": {
+  "name": "Example",
+  "symbol": "EX",
+  "decimals": 18,
+  "address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+  "totalHolders": 1000
+ },
+ "summary": {
+  "risk": "honeypot",
+  "riskLevel": 100,
+  "flags": [
+   {
+    "flag": "closed_source",
+    "description": "The contract source is not verified",
+    "severity": "high",
+    "severityIndex": 3
+   }
+  ]
+ },
+ "simulationSuccess": true,
+ "honeypotResult": {
+  "isHoneypot": true,
+  "honeypotReason": "Sell fails"
+ },
+ "simulationResult": {
+  "buyTax": 5,
+  "sellTax": 100,
+  "transferTax": 0,
+  "buyGas": "150000",
+  "sellGas": "0"
+ },
+ "chain": {
+  "id": "8453",
+  "name": "Base",
+  "shortName": "BASE",
+  "currency": "ETH"
+ }
+}

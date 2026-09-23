@@ -1,0 +1,24 @@
+{
+ "code": "0",
+ "msg": "",
+ "data": [
+  {
+   "chainIndex": "501",
+   "fromTokenAmount": "1000000000",
+   "toTokenAmount": "145120000",
+   "fromToken": {
+    "tokenContractAddress": "11111111111111111111111111111111",
+    "tokenSymbol": "SOL",
+    "decimal": "9"
+   },
+   "toToken": {
+    "tokenContractAddress": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    "tokenSymbol": "USDC",
+    "decimal": "6"
+   },
+   "priceImpactPercentage": "-0.03",
+   "estimateGasFee": "5000",
+   "dexRouterList": []
+  }
+ ]
+}

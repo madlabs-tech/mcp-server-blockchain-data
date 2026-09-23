@@ -1,0 +1,21 @@
+{
+ "quote": {
+  "sellToken": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+  "buyToken": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "receiver": null,
+  "sellAmount": "998000000",
+  "buyAmount": "381000000000000000",
+  "validTo": 1790000460,
+  "appData": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "feeAmount": "2000000",
+  "kind": "sell",
+  "partiallyFillable": false,
+  "sellTokenBalance": "erc20",
+  "buyTokenBalance": "erc20",
+  "signingScheme": "eip712"
+ },
+ "from": "0x0000000000000000000000000000000000000000",
+ "expiration": "2026-09-23T12:01:00Z",
+ "id": 123456,
+ "verified": true
+}

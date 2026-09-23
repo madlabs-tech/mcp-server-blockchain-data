@@ -27,7 +27,7 @@ defillama = []
 dexscreener = []
 birdeye = []
 pyth = []
-goplus = []
+goplus = ["dep:sha1"]
 honeypot_is = []
 rugcheck = []
 oneinch = []
@@ -35,24 +35,28 @@ velora = []
 cow = []
 zeroex = []
 uniswap_api = []
-okx_dex = []
+okx_dex = ["dep:hmac", "dep:sha2", "dep:base64"]
 frankfurter = []
 openexchangerates = []
 
 [dependencies]
 ems-config = { workspace = true }
-alloy-primitives = { workspace = true }   # evm: U256 amounts + keccak tx hash (T1.E4)
 ems-domain = { workspace = true }
 ems-ports = { workspace = true }
 # solana vendors (T1.S3/S4): wire checks (signature, relay tips) live in ems-protocols
 ems-protocols = { workspace = true }
-rust_decimal = { workspace = true }
+alloy-primitives = { workspace = true }   # evm: U256 amounts + keccak tx hash (T1.E4)
 async-trait = { workspace = true }
-base64 = { version = "0.22", optional = true }
 chrono = { workspace = true }
 reqwest = { workspace = true }
+rust_decimal = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
+# optional: trm (base64), goplus (sha1 sign), okx_dex (HMAC-SHA256 + base64)
+base64 = { version = "0.22", optional = true }
+sha1 = { version = "0.10", optional = true }
+hmac = { version = "0.12", optional = true }
+sha2 = { workspace = true, optional = true }
 
 [dev-dependencies]
 ems-testkit = { workspace = true }

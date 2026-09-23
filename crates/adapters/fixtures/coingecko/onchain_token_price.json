@@ -1,0 +1,14 @@
+{
+ "data": {
+  "id": "a5c0a2a8-0000-0000-0000-000000000000",
+  "type": "simple_token_price",
+  "attributes": {
+   "token_prices": {
+    "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "0.9998"
+   },
+   "total_reserve_in_usd": {
+    "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": "12345678.9"
+   }
+  }
+ }
+}

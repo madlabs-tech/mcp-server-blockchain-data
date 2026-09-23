@@ -1,0 +1,93 @@
+# Tokenized-stock issuers (data, not code). Owner: market-trading (T1.M4).
+#
+# RULES: only addresses copied from the issuer's or the oracle's official docs, each with a
+# `source_url` and `verified_at`. Nothing invented. `verified = false` issuers are placeholders:
+# they list no tokens until someone checks the issuer docs. A token with a known ticker but an
+# address that is not listed here is reported as NOT on the official list (possible lookalike).
+# Parsed and validated by `ems_protocols::rwa::RwaRegistry` (EIP-55 checksums enforced).
+
+[[issuer]]
+id = "robinhood"
+name = "Robinhood Stock Tokens"
+legal_entity = "Robinhood Assets (Jersey) Ltd"
+chains = ["eip155:4663"]
+standard = "ERC-20 + ERC-8056 (UI multiplier)"
+decimals = 18
+corporate_actions = "ui_multiplier"
+official_list_url = "https://docs.robinhood.com/chain/contracts/"
+source_url = "https://docs.robinhood.com/chain/building-with-stock-tokens/"
+verified = true
+note = "The official list is the Token Contracts page, generated live from the on-chain asset registry (registry address not published). Only a subset is mirrored here. One Chainlink feed per token (8 decimals, multiplier already applied), updated 24/5; oraclePaused() is true during corporate actions. Not offered in the US, UK, Canada, Switzerland or UAE."
+
+# Token addresses: https://docs.robinhood.com/chain/contracts/ . Feed proxies: Chainlink's Robinhood
+# feed file (loaded by https://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood):
+# 8 decimals, 24h heartbeat, marketHours us_equities_24/5.
+
+[[issuer.tokens]]
+ticker = "AAPL"
+chain = "eip155:4663"
+address = "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9"
+feed = "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0"
+source_url = "https://docs.robinhood.com/chain/contracts/ ; feed: https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json"
+verified_at = "2026-09-23"
+
+[[issuer.tokens]]
+ticker = "AMZN"
+chain = "eip155:4663"
+address = "0x12f190a9F9d7D37a250758b26824B97CE941bF54"
+feed = "0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C"
+source_url = "https://docs.robinhood.com/chain/contracts/ ; feed: https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json"
+verified_at = "2026-09-23"
+
+[[issuer.tokens]]
+ticker = "NVDA"
+chain = "eip155:4663"
+address = "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC"
+feed = "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15"
+source_url = "https://docs.robinhood.com/chain/contracts/ ; feed: https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json"
+verified_at = "2026-09-23"
+
+[[issuer.tokens]]
+ticker = "SPY"
+chain = "eip155:4663"
+address = "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C"
+feed = "0x319724394D3A0e3669269846abE664Cd621f9f6A"
+source_url = "https://docs.robinhood.com/chain/contracts/ ; feed: https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json"
+verified_at = "2026-09-23"
+
+[[issuer.tokens]]
+ticker = "TSLA"
+chain = "eip155:4663"
+address = "0x322F0929c4625eD5bAd873c95208D54E1c003b2d"
+feed = "0x4A1166a659A55625345e9515b32adECea5547C38"
+source_url = "https://docs.robinhood.com/chain/contracts/ ; feed: https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json"
+verified_at = "2026-09-23"
+
+[[issuer]]
+id = "xstocks"
+name = "xStocks (Backed Finance)"
+chains = ["eip155:1", "eip155:42161", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"]
+standard = "ERC-20 / SPL"
+corporate_actions = "rebase"
+official_list_url = "https://docs.xstocks.fi/docs"
+source_url = "https://docs.xstocks.fi/docs"
+verified = false
+note = "Placeholder: token list and decimals not checked yet."
+
+[[issuer]]
+id = "ondo"
+name = "Ondo Global Markets"
+chains = ["eip155:1", "eip155:56", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"]
+standard = "ERC-20 / SPL (Solana transfer hooks)"
+source_url = "https://en.cryptonomist.ch/2026/09/22/tokenized-stocks-access-ondo/"
+verified = false
+note = "Placeholder: official list not located yet (secondary source only)."
+
+[[issuer]]
+id = "dinari"
+name = "Dinari dShares"
+chains = ["eip155:42161", "eip155:1", "eip155:8453", "eip155:43114"]
+standard = "ERC-20 (on-chain KYC allowlist)"
+source_url = "https://www.coindesk.com/business/2026/08/04/dinari-brings-tokenized-u-s-stocks-to-american-investors-as-equity-race-heats-up"
+verified = false
+note = "Placeholder: official list not located yet (secondary source only)."

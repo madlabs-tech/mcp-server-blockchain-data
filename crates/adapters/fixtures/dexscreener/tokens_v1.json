@@ -1,0 +1,64 @@
+[
+ {
+  "chainId": "base",
+  "dexId": "uniswap",
+  "pairAddress": "0x0000000000000000000000000000000000000001",
+  "baseToken": {
+   "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+   "name": "USD Coin",
+   "symbol": "USDC"
+  },
+  "quoteToken": {
+   "address": "0x4200000000000000000000000000000000000006",
+   "name": "Wrapped Ether",
+   "symbol": "WETH"
+  },
+  "priceNative": "0.000383",
+  "priceUsd": "1.0001",
+  "liquidity": {
+   "usd": 8500000,
+   "base": 4250000,
+   "quote": 1627
+  },
+  "fdv": 0,
+  "pairCreatedAt": 1700000000000
+ },
+ {
+  "chainId": "base",
+  "dexId": "aerodrome",
+  "pairAddress": "0x0000000000000000000000000000000000000002",
+  "baseToken": {
+   "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+   "name": "USD Coin",
+   "symbol": "USDC"
+  },
+  "quoteToken": {
+   "address": "0x0000000000000000000000000000000000000003",
+   "name": "Thin",
+   "symbol": "THIN"
+  },
+  "priceUsd": "1.2500",
+  "liquidity": {
+   "usd": 1200
+  }
+ },
+ {
+  "chainId": "base",
+  "dexId": "uniswap",
+  "pairAddress": "0x0000000000000000000000000000000000000004",
+  "baseToken": {
+   "address": "0x4200000000000000000000000000000000000006",
+   "name": "Wrapped Ether",
+   "symbol": "WETH"
+  },
+  "quoteToken": {
+   "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+   "name": "USD Coin",
+   "symbol": "USDC"
+  },
+  "priceUsd": "2612.10",
+  "liquidity": {
+   "usd": 90000000
+  }
+ }
+]
