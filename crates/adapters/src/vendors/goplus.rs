@@ -2,7 +2,7 @@
 //!
 //! The access token is optional per GoPlus docs. With `GOPLUS_APP_KEY` + `GOPLUS_APP_SECRET`,
 //! `POST /api/v1/token` with `sign = sha1(app_key + time + app_secret)` returns a token (cached
-//! until shortly before expiry), sent as `Authorization: Bearer <token>`; without keys, requests
+//! until shortly before expiry), sent as `Authorization: <token>` (no `Bearer` prefix); without keys, requests
 //! go out unauthenticated at the public limit.
 //! Port: `TokenRisk` for EVM (`/token_security/{chain_id}`) and Solana (`/solana/token_security`).
 
@@ -177,7 +177,8 @@ impl GoPlus {
             .as_str()
             .ok_or_else(|| ProviderError::Unsupported("goplus rejected app key/secret".into()))?
             .to_owned();
-        let bearer = format!("Bearer {token}");
+        // GoPlus expects the raw token, not `Bearer <token>` (verified live: Bearer → code 4012).
+        let bearer = token;
         let ttl = r["expires_in"].as_u64().unwrap_or(3600).saturating_sub(60);
         *self.token.lock().expect("token cache") =
             Some((bearer.clone(), Instant::now() + Duration::from_secs(ttl)));
@@ -270,7 +271,7 @@ mod tests {
                 "contract_addresses",
                 "0x55d398326f99059fF775485246999027B3197955",
             ))
-            .and(header("authorization", "Bearer tok-abc"))
+            .and(header("authorization", "tok-abc"))
             .respond_with(ResponseTemplate::new(200).set_body_json(fx("token_security_evm")))
             .mount(&server)
             .await;

@@ -1,7 +1,7 @@
 //! Transport conformance checks every chain RPC adapter must pass (T0.11, reused in Phase 1).
 //!
 //! Call from an adapter test with a constructor that builds the adapter for a URL:
-//! ```ignore
+//! ```text
 //! port_conformance::evm_rpc_transport(|url, chain| Arc::new(MyClient::new(url, chain, timeout)), timeout).await;
 //! ```
 //! The URL passed to the constructor embeds a fake secret in its path; errors must never echo it.
