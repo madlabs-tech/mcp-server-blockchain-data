@@ -8,3 +8,6 @@ config/admin_token
 *.db-shm
 /data
 /crates/*/data
+
+# local planning docs only (not shipped)
+/plan/
