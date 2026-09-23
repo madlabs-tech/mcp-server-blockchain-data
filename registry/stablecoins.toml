@@ -1,0 +1,491 @@
+# Canonical stablecoin registry. One row per (coin, chain). Owner: payments-stablecoin (T1.P1).
+#
+# Rules (enforced by `StablecoinRegistry::parse`, i.e. by `cargo test`):
+# - Addresses come ONLY from issuer docs (`source_url`), copied verbatim; EVM addresses EIP-55.
+# - `verified_at` is when the row was checked. Leave a coin/chain out rather than guess.
+# - Decimals, freeze/pause methods and Solana program/extensions were additionally confirmed
+#   on-chain via public RPC on 2026-09-23 (e.g. Avalanche USDT uses `isBlocked` and has no
+#   `paused()`; USDT0 has no `paused()`).
+#
+# Skipped as unverified (no issuer listing): USDC/EURC on BSC and Robinhood Chain (Circle lists
+# neither; BSC is "USYC only" for CCTP), Binance-Peg USDC/USDT on BSC, USDT/USDT0 on Base, BSC and
+# Robinhood, PYUSD/USDG/RLUSD on chains their issuers don't list, DAI/USDS on L2s other than
+# USDS on Base. Chainlink/Pyth feed ids and MiCA status: not verified from issuer sources yet.
+
+# ----------------------------------------------------------------------------- USDC (Circle)
+[[stablecoin]]
+symbol = "USDC"
+name = "USD Coin"
+issuer_entity = "Circle"
+peg = "USD"
+chain = "eip155:1"
+address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+decimals = 6
+issuance = "native"
+freeze_check = "is_blacklisted"
+pause_check = "paused"
+cctp_domain = 0
+source_url = "https://developers.circle.com/stablecoins/usdc-contract-addresses"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "USDC"
+name = "USD Coin"
+issuer_entity = "Circle"
+peg = "USD"
+chain = "eip155:8453"
+address = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+decimals = 6
+issuance = "native"
+freeze_check = "is_blacklisted"
+pause_check = "paused"
+cctp_domain = 6
+source_url = "https://developers.circle.com/stablecoins/usdc-contract-addresses"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "USDC"
+name = "USD Coin"
+issuer_entity = "Circle"
+peg = "USD"
+chain = "eip155:42161"
+address = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+decimals = 6
+issuance = "native"
+freeze_check = "is_blacklisted"
+pause_check = "paused"
+cctp_domain = 3
+source_url = "https://developers.circle.com/stablecoins/usdc-contract-addresses"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "USDC"
+name = "USD Coin"
+issuer_entity = "Circle"
+peg = "USD"
+chain = "eip155:10"
+address = "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
+decimals = 6
+issuance = "native"
+freeze_check = "is_blacklisted"
+pause_check = "paused"
+cctp_domain = 2
+source_url = "https://developers.circle.com/stablecoins/usdc-contract-addresses"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "USDC"
+name = "USD Coin"
+issuer_entity = "Circle"
+peg = "USD"
+chain = "eip155:137"
+address = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
+decimals = 6
+issuance = "native"
+freeze_check = "is_blacklisted"
+pause_check = "paused"
+cctp_domain = 7
+source_url = "https://developers.circle.com/stablecoins/usdc-contract-addresses"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "USDC"
+name = "USD Coin"
+issuer_entity = "Circle"
+peg = "USD"
+chain = "eip155:43114"
+address = "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E"
+decimals = 6
+issuance = "native"
+freeze_check = "is_blacklisted"
+pause_check = "paused"
+cctp_domain = 1
+source_url = "https://developers.circle.com/stablecoins/usdc-contract-addresses"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "USDC"
+name = "USD Coin"
+issuer_entity = "Circle"
+peg = "USD"
+chain = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+address = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+decimals = 6
+issuance = "native"
+freeze_check = "token_account_state"
+pause_check = "none"
+token_program = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+cctp_domain = 5
+source_url = "https://developers.circle.com/stablecoins/usdc-contract-addresses"
+verified_at = "2026-09-23"
+
+# ----------------------------------------------------------------------------- EURC (Circle)
+[[stablecoin]]
+symbol = "EURC"
+name = "Euro Coin"
+issuer_entity = "Circle"
+peg = "EUR"
+chain = "eip155:1"
+address = "0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c"
+decimals = 6
+issuance = "native"
+freeze_check = "is_blacklisted"
+pause_check = "paused"
+source_url = "https://developers.circle.com/stablecoins/eurc-contract-addresses"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "EURC"
+name = "Euro Coin"
+issuer_entity = "Circle"
+peg = "EUR"
+chain = "eip155:8453"
+address = "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42"
+decimals = 6
+issuance = "native"
+freeze_check = "is_blacklisted"
+pause_check = "paused"
+source_url = "https://developers.circle.com/stablecoins/eurc-contract-addresses"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "EURC"
+name = "Euro Coin"
+issuer_entity = "Circle"
+peg = "EUR"
+chain = "eip155:43114"
+address = "0xC891EB4cbdEFf6e073e859e987815Ed1505c2ACD"
+decimals = 6
+issuance = "native"
+freeze_check = "is_blacklisted"
+pause_check = "paused"
+source_url = "https://developers.circle.com/stablecoins/eurc-contract-addresses"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "EURC"
+name = "Euro Coin"
+issuer_entity = "Circle"
+peg = "EUR"
+chain = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+address = "HzwqbKZw8HxMN6bF2yFZNrht3c2iXXzpKcFu7uBEDKtr"
+decimals = 6
+issuance = "native"
+freeze_check = "token_account_state"
+pause_check = "none"
+token_program = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+source_url = "https://developers.circle.com/stablecoins/eurc-contract-addresses"
+verified_at = "2026-09-23"
+
+# ----------------------------------------------------------------------------- USDT (Tether)
+[[stablecoin]]
+symbol = "USDT"
+name = "Tether USD"
+issuer_entity = "Tether"
+peg = "USD"
+chain = "eip155:1"
+address = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+decimals = 6
+issuance = "native"
+freeze_check = "is_black_listed"
+pause_check = "paused"
+deprecated_check = true
+oft_adapter = "0x6C96dE32CEa08842dcc4058c14d3aaAD7Fa41dee"
+source_url = "https://tether.to/en/supported-protocols/"
+verified_at = "2026-09-23"
+note = "Legacy TetherToken: transfer() returns no bool; fee switch basisPointsRate/maximumFee (0 at verification). oft_adapter = USDT0 OFT adapter per https://docs.usdt0.to/technical-documentation/deployments"
+
+[[stablecoin]]
+symbol = "USDT"
+name = "Tether USD"
+issuer_entity = "Tether"
+peg = "USD"
+chain = "eip155:43114"
+address = "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7"
+decimals = 6
+issuance = "native"
+freeze_check = "is_blocked"
+pause_check = "none"
+source_url = "https://tether.to/en/supported-protocols/"
+verified_at = "2026-09-23"
+note = "Newer Tether contract: isBlocked(address); isBlackListed and paused() revert (checked on-chain)."
+
+[[stablecoin]]
+symbol = "USDT"
+name = "Tether USD"
+issuer_entity = "Tether"
+peg = "USD"
+chain = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+address = "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"
+decimals = 6
+issuance = "native"
+freeze_check = "token_account_state"
+pause_check = "none"
+token_program = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+source_url = "https://tether.to/en/supported-protocols/"
+verified_at = "2026-09-23"
+
+# ----------------------------------------------------------------------------- USDT0 (LayerZero OFT)
+[[stablecoin]]
+symbol = "USDT0"
+aliases = ["USDT"]
+name = "USDT0"
+issuer_entity = "USDT0 (Everdawn Labs)"
+peg = "USD"
+chain = "eip155:42161"
+address = "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9"
+decimals = 6
+issuance = "oft"
+freeze_check = "is_blocked"
+pause_check = "none"
+oft_adapter = "0x14E4A1B13bf7F943c8ff7C51fb60FA964A298D92"
+source_url = "https://docs.usdt0.to/technical-documentation/deployments"
+verified_at = "2026-09-23"
+note = "Blocklist per https://docs.usdt0.to/technical-documentation/token-features/additional-behavior (isBlocked); no paused()."
+
+[[stablecoin]]
+symbol = "USDT0"
+aliases = ["USDT"]
+name = "USDT0"
+issuer_entity = "USDT0 (Everdawn Labs)"
+peg = "USD"
+chain = "eip155:10"
+address = "0x01bFF41798a0BcF287b996046Ca68b395DbC1071"
+decimals = 6
+issuance = "oft"
+freeze_check = "is_blocked"
+pause_check = "none"
+oft_adapter = "0xF03b4d9AC1D5d1E7c4cEf54C2A313b9fe051A0aD"
+source_url = "https://docs.usdt0.to/technical-documentation/deployments"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "USDT0"
+aliases = ["USDT"]
+name = "USDT0"
+issuer_entity = "USDT0 (Everdawn Labs)"
+peg = "USD"
+chain = "eip155:137"
+address = "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
+decimals = 6
+issuance = "oft"
+freeze_check = "is_blocked"
+pause_check = "none"
+oft_adapter = "0x6BA10300f0DC58B7a1e4c0e41f5daBb7D7829e13"
+source_url = "https://docs.usdt0.to/technical-documentation/deployments"
+verified_at = "2026-09-23"
+note = "Upgraded in place from the canonical PoS USDT contract (same address)."
+
+# ----------------------------------------------------------------------------- PYUSD (Paxos)
+[[stablecoin]]
+symbol = "PYUSD"
+name = "PayPal USD"
+issuer_entity = "Paxos"
+peg = "USD"
+chain = "eip155:1"
+address = "0x6c3ea9036406852006290770BEdFcAbA0e23A0e8"
+decimals = 6
+issuance = "native"
+freeze_check = "is_frozen"
+pause_check = "paused"
+source_url = "https://docs.paxos.com/guides/stablecoin/pyusd/mainnet"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "PYUSD"
+name = "PayPal USD"
+issuer_entity = "Paxos"
+peg = "USD"
+chain = "eip155:42161"
+address = "0x46850aD61C2B7d64d08c9C754F45254596696984"
+decimals = 6
+issuance = "native"
+freeze_check = "is_frozen"
+pause_check = "paused"
+source_url = "https://docs.paxos.com/guides/stablecoin/pyusd/mainnet"
+verified_at = "2026-09-23"
+note = "Paxos-issued contract; Paxos does not state native vs OFT for this chain."
+
+[[stablecoin]]
+symbol = "PYUSD"
+name = "PayPal USD"
+issuer_entity = "Paxos"
+peg = "USD"
+chain = "eip155:137"
+address = "0x99aF3EeA856556646C98c8B9b2548Fe815240750"
+decimals = 6
+issuance = "native"
+freeze_check = "is_frozen"
+pause_check = "paused"
+source_url = "https://docs.paxos.com/guides/stablecoin/pyusd/mainnet"
+verified_at = "2026-09-23"
+note = "Paxos-issued contract; Paxos does not state native vs OFT for this chain."
+
+[[stablecoin]]
+symbol = "PYUSD"
+name = "PayPal USD"
+issuer_entity = "Paxos"
+peg = "USD"
+chain = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+address = "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo"
+decimals = 6
+issuance = "native"
+freeze_check = "token_account_state"
+pause_check = "none"
+token_program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+extensions = ["mint_close_authority", "permanent_delegate", "transfer_fee_config", "confidential_transfer_mint", "confidential_transfer_fee_config", "transfer_hook", "metadata_pointer", "token_metadata"]
+permanent_delegate = true
+source_url = "https://docs.paxos.com/guides/stablecoin/pyusd/mainnet"
+verified_at = "2026-09-23"
+note = "Token-2022; program/extensions read from the mint on-chain. Confidential transfers are unverifiable; transfer fee 0 bps at verification."
+
+# ----------------------------------------------------------------------------- USDG (Paxos, LayerZero OFT)
+[[stablecoin]]
+symbol = "USDG"
+name = "Global Dollar"
+issuer_entity = "Paxos"
+peg = "USD"
+chain = "eip155:1"
+address = "0xe343167631d89B6Ffc58B88d6b7fB0228795491D"
+decimals = 6
+issuance = "native"
+freeze_check = "is_frozen"
+pause_check = "paused"
+source_url = "https://docs.paxos.com/guides/stablecoin/usdg/mainnet"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "USDG"
+name = "Global Dollar"
+issuer_entity = "Paxos"
+peg = "USD"
+chain = "eip155:42161"
+address = "0x004B506865409877C9fA29bfb1ebA929984B9bbC"
+decimals = 6
+issuance = "oft"
+freeze_check = "is_frozen"
+pause_check = "paused"
+source_url = "https://docs.paxos.com/guides/stablecoin/usdg/mainnet"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "USDG"
+name = "Global Dollar"
+issuer_entity = "Paxos"
+peg = "USD"
+chain = "eip155:4663"
+address = "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168"
+decimals = 6
+issuance = "oft"
+freeze_check = "is_frozen"
+pause_check = "paused"
+oft_adapter = "0x0d54755f5106BfdB43f7a35f5D49a23F940628d1"
+source_url = "https://docs.paxos.com/guides/stablecoin/usdg/mainnet"
+verified_at = "2026-09-23"
+note = "Main stablecoin on Robinhood Chain (LayerZero EID 30416). oft_adapter = Paxos OFT wrapper."
+
+[[stablecoin]]
+symbol = "USDG"
+name = "Global Dollar"
+issuer_entity = "Paxos"
+peg = "USD"
+chain = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"
+address = "2u1tszSeqZ3qBWF3uNGPFc8TzMk2tdiwknnRMWGWjGWH"
+decimals = 6
+issuance = "native"
+freeze_check = "token_account_state"
+pause_check = "none"
+token_program = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+extensions = ["mint_close_authority", "permanent_delegate", "transfer_fee_config", "confidential_transfer_mint", "confidential_transfer_fee_config", "transfer_hook", "metadata_pointer", "token_metadata"]
+permanent_delegate = true
+source_url = "https://docs.paxos.com/guides/stablecoin/usdg/mainnet"
+verified_at = "2026-09-23"
+note = "Token-2022; program/extensions read from the mint on-chain."
+
+# ----------------------------------------------------------------------------- RLUSD (Ripple)
+[[stablecoin]]
+symbol = "RLUSD"
+name = "Ripple USD"
+issuer_entity = "Standard Custody & Trust (Ripple)"
+peg = "USD"
+chain = "eip155:1"
+address = "0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD"
+decimals = 18
+issuance = "native"
+freeze_check = "account_paused"
+pause_check = "paused"
+source_url = "https://docs.ripple.com/products/stablecoin/developer-resources/rlusd-on-ethereum"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "RLUSD"
+name = "Ripple USD"
+issuer_entity = "Standard Custody & Trust (Ripple)"
+peg = "USD"
+chain = "eip155:8453"
+address = "0x8d58C0C60B8D6b88Fa98B291a646dB34d0F98258"
+decimals = 18
+issuance = "native"
+freeze_check = "account_paused"
+pause_check = "paused"
+source_url = "https://docs.ripple.com/products/stablecoin/overview/token-addresses"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "RLUSD"
+name = "Ripple USD"
+issuer_entity = "Standard Custody & Trust (Ripple)"
+peg = "USD"
+chain = "eip155:10"
+address = "0x8d58C0C60B8D6b88Fa98B291a646dB34d0F98258"
+decimals = 18
+issuance = "native"
+freeze_check = "account_paused"
+pause_check = "paused"
+source_url = "https://docs.ripple.com/products/stablecoin/overview/token-addresses"
+verified_at = "2026-09-23"
+
+# ----------------------------------------------------------------------------- DAI / USDS (Sky)
+[[stablecoin]]
+symbol = "DAI"
+name = "Dai Stablecoin"
+issuer_entity = "Sky (MakerDAO)"
+peg = "USD"
+chain = "eip155:1"
+address = "0x6B175474E89094C44Da98b954EedeAC495271d0F"
+decimals = 18
+issuance = "native"
+freeze_check = "none"
+pause_check = "none"
+source_url = "https://chainlog.sky.money/api/mainnet/active.json"
+verified_at = "2026-09-23"
+note = "Crypto-collateralized; no issuer freeze or pause on the token."
+
+[[stablecoin]]
+symbol = "USDS"
+name = "USDS Stablecoin"
+issuer_entity = "Sky"
+peg = "USD"
+chain = "eip155:1"
+address = "0xdC035D45d973E3EC169d2276DDab16f1e407384F"
+decimals = 18
+issuance = "native"
+freeze_check = "none"
+pause_check = "none"
+source_url = "https://chainlog.sky.money/api/mainnet/active.json"
+verified_at = "2026-09-23"
+
+[[stablecoin]]
+symbol = "USDS"
+name = "USDS Stablecoin"
+issuer_entity = "Sky"
+peg = "USD"
+chain = "eip155:8453"
+address = "0x820C137fa70C8691f0e44Dc420a5e53c168921Dc"
+decimals = 18
+issuance = "bridged"
+freeze_check = "none"
+pause_check = "none"
+source_url = "https://developers.skyeco.com/guides/skylink/base-eth-native-bridge/"
+verified_at = "2026-09-23"
+note = "SkyLink Base native bridge representation."

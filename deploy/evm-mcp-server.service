@@ -1,0 +1,48 @@
+# /etc/systemd/system/evm-mcp-server.service
+# Env (mode, binds, vendor keys, limits) in /etc/evm-mcp-server/env (mode 0600).
+# Writable state: /var/lib/evm-mcp-server/{config,data}. Put a TLS reverse proxy in front of the
+# public bind; never proxy the admin bind (127.0.0.1:8788), reach it over an SSH tunnel.
+[Unit]
+Description=evm-mcp-server (blockchain data for agents: MCP + REST)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/evm-mcp-server/env
+Environment=EMS__SERVER__DATA_DIR=/var/lib/evm-mcp-server/data
+Environment=RUST_LOG=info
+ExecStart=/usr/local/bin/evm-mcp-server serve --config-dir /var/lib/evm-mcp-server/config
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+
+# sandbox
+DynamicUser=yes
+StateDirectory=evm-mcp-server
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

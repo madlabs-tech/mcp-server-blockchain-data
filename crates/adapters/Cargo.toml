@@ -1,0 +1,66 @@
+[package]
+name = "ems-adapters"
+description = "Vendor adapters, one module per vendor behind a cargo feature."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+# One feature per vendor module (each must build alone: CI runs `cargo hack --each-feature`).
+# Default = vendors with a verified free tier; unverified ones are opt-in.
+default = ["alchemy", "quicknode", "moralis", "flashbots", "mev_blocker", "helius", "jito", "jupiter", "quicknode_sol", "trm", "coingecko", "geckoterminal", "defillama", "dexscreener", "birdeye", "pyth", "goplus", "honeypot_is", "oneinch", "velora", "cow", "frankfurter", "openexchangerates"]
+alchemy = []
+quicknode = []
+moralis = []
+ankr = []
+flashbots = []
+mev_blocker = []
+helius = []
+jito = []
+jupiter = []
+quicknode_sol = []
+trm = ["dep:base64"]
+coingecko = []
+geckoterminal = []
+defillama = []
+dexscreener = []
+birdeye = []
+pyth = []
+goplus = ["dep:sha1"]
+honeypot_is = []
+rugcheck = []
+oneinch = []
+velora = []
+cow = []
+zeroex = []
+uniswap_api = []
+okx_dex = ["dep:hmac", "dep:sha2", "dep:base64"]
+frankfurter = []
+openexchangerates = []
+
+[dependencies]
+ems-config = { workspace = true }
+ems-domain = { workspace = true }
+ems-ports = { workspace = true }
+# solana vendors (T1.S3/S4): wire checks (signature, relay tips) live in ems-protocols
+ems-protocols = { workspace = true }
+alloy-primitives = { workspace = true }   # evm: U256 amounts + keccak tx hash (T1.E4)
+async-trait = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true }
+rust_decimal = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+# optional: trm (base64), goplus (sha1 sign), okx_dex (HMAC-SHA256 + base64)
+base64 = { version = "0.22", optional = true }
+sha1 = { version = "0.10", optional = true }
+hmac = { version = "0.12", optional = true }
+sha2 = { workspace = true, optional = true }
+
+[dev-dependencies]
+ems-testkit = { workspace = true }
+# solana vendor tests build signed wire transactions
+base64 = "0.22"
+bs58 = { workspace = true }
+tokio = { workspace = true }

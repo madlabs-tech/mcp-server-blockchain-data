@@ -1,0 +1,27 @@
+[package]
+name = "ems-store"
+description = "Persistence (sqlite: usage counters, call log, client keys), quota engine, hosted-mode client auth and limits."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+ems-app = { workspace = true }
+ems-config = { workspace = true }
+ems-domain = { workspace = true }
+ems-ports = { workspace = true }
+ems-routing = { workspace = true }
+async-trait = { workspace = true }
+chrono = { workspace = true }
+hex = { workspace = true }
+rand = { workspace = true }
+rusqlite = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

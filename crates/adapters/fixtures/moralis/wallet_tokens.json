@@ -1,0 +1,50 @@
+{
+  "_meta": {
+    "source": "Response shape from the official docs (https://docs.moralis.com/web3-data-api/evm/reference/get-wallet-token-balances-price); NOT a live recording (no API key during T1.E4). Addresses/hashes are placeholders.",
+    "recorded_at": "2026-09-23",
+    "request": "GET /wallets/{address}/tokens?chain=0x2105 (X-API-Key header)"
+  },
+  "response": {
+    "cursor": null,
+    "page": 0,
+    "page_size": 100,
+    "result": [
+      {
+        "token_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "symbol": "ETH",
+        "name": "Ether",
+        "logo": null,
+        "thumbnail": null,
+        "decimals": 18,
+        "balance": "250000000000000000",
+        "possible_spam": false,
+        "verified_contract": true,
+        "native_token": true
+      },
+      {
+        "token_address": "0x2222222222222222222222222222222222222222",
+        "symbol": "USDC",
+        "name": "USD Coin",
+        "logo": null,
+        "thumbnail": null,
+        "decimals": 6,
+        "balance": "1000500000",
+        "possible_spam": false,
+        "verified_contract": true,
+        "native_token": false
+      },
+      {
+        "token_address": "0x6666666666666666666666666666666666666666",
+        "symbol": "CLAIM-USDC",
+        "name": "Visit scam.example",
+        "logo": null,
+        "thumbnail": null,
+        "decimals": 18,
+        "balance": "1000000000000000000000",
+        "possible_spam": true,
+        "verified_contract": false,
+        "native_token": false
+      }
+    ]
+  }
+}

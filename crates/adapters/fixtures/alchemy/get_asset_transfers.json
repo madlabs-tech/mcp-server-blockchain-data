@@ -1,0 +1,97 @@
+{
+  "_meta": {
+    "source": "Response shape from the official docs example (https://www.alchemy.com/docs/reference/alchemy-getassettransfers); NOT a live recording (no API key during T1.E4). Addresses/hashes are placeholders.",
+    "recorded_at": "2026-09-23",
+    "request": {
+      "method": "alchemy_getAssetTransfers",
+      "params": [
+        {
+          "toAddress": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+          "category": [
+            "external",
+            "internal",
+            "erc20"
+          ],
+          "order": "desc"
+        }
+      ]
+    }
+  },
+  "response": {
+    "transfers": [
+      {
+        "blockNum": "0x1234567",
+        "uniqueId": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:log:47",
+        "hash": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "from": "0x1111111111111111111111111111111111111111",
+        "to": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+        "value": 250.5,
+        "erc721TokenId": null,
+        "erc1155Metadata": null,
+        "tokenId": null,
+        "asset": "USDC",
+        "category": "erc20",
+        "rawContract": {
+          "value": "0xeee53a0",
+          "address": "0x2222222222222222222222222222222222222222",
+          "decimal": "0x6"
+        }
+      },
+      {
+        "blockNum": "0x1234560",
+        "uniqueId": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:external",
+        "hash": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "from": "0x1111111111111111111111111111111111111111",
+        "to": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+        "value": 0.5,
+        "erc721TokenId": null,
+        "erc1155Metadata": null,
+        "tokenId": null,
+        "asset": "ETH",
+        "category": "external",
+        "rawContract": {
+          "value": "0x6f05b59d3b20000",
+          "address": null,
+          "decimal": "0x12"
+        }
+      },
+      {
+        "blockNum": "0x1234550",
+        "uniqueId": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:internal:0",
+        "hash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "from": "0x3333333333333333333333333333333333333333",
+        "to": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+        "value": 0.01,
+        "erc721TokenId": null,
+        "erc1155Metadata": null,
+        "tokenId": null,
+        "asset": "ETH",
+        "category": "internal",
+        "rawContract": {
+          "value": "0x2386f26fc10000",
+          "address": null,
+          "decimal": "0x12"
+        }
+      },
+      {
+        "blockNum": "0x1234540",
+        "uniqueId": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:log:3",
+        "hash": "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "from": "0x1111111111111111111111111111111111111111",
+        "to": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+        "value": null,
+        "erc721TokenId": "0x1",
+        "erc1155Metadata": null,
+        "tokenId": "0x1",
+        "asset": "NFT",
+        "category": "erc721",
+        "rawContract": {
+          "value": null,
+          "address": "0x4444444444444444444444444444444444444444",
+          "decimal": null
+        }
+      }
+    ],
+    "pageKey": "next-page-key"
+  }
+}

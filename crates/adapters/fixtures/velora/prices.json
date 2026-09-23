@@ -1,0 +1,21 @@
+{
+ "priceRoute": {
+  "blockNumber": 20000000,
+  "network": 1,
+  "srcToken": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+  "srcDecimals": 6,
+  "srcAmount": "1000000000",
+  "destToken": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+  "destDecimals": 6,
+  "destAmount": "999500000",
+  "bestRoute": [],
+  "gasCostUSD": "1.2",
+  "side": "SELL",
+  "version": "6.2",
+  "contractAddress": "0x6a000f20005980200259b80c5102003040001068",
+  "tokenTransferProxy": "0x6a000f20005980200259b80c5102003040001068",
+  "contractMethod": "swapExactAmountIn",
+  "srcUSD": "1000.0",
+  "destUSD": "999.5"
+ }
+}

@@ -1,0 +1,63 @@
+{
+  "_meta": {
+    "source": "Response shape from the official docs (https://www.ankr.com/docs/advanced-api/token-methods/); NOT a live recording (no API key during T1.E4). Addresses are placeholders.",
+    "recorded_at": "2026-09-23",
+    "request": {
+      "method": "ankr_getAccountBalance",
+      "params": {
+        "walletAddress": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+        "blockchain": [
+          "eth"
+        ],
+        "onlyWhitelisted": true
+      }
+    }
+  },
+  "response": {
+    "totalBalanceUsd": "0",
+    "assets": [
+      {
+        "blockchain": "eth",
+        "tokenName": "Ethereum",
+        "tokenSymbol": "ETH",
+        "tokenDecimals": 18,
+        "tokenType": "NATIVE",
+        "holderAddress": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+        "balance": "1.5",
+        "balanceRawInteger": "1500000000000000000",
+        "balanceUsd": "0",
+        "tokenPrice": "0",
+        "thumbnail": ""
+      },
+      {
+        "blockchain": "eth",
+        "tokenName": "USD Coin",
+        "tokenSymbol": "USDC",
+        "tokenDecimals": 6,
+        "tokenType": "ERC20",
+        "contractAddress": "0x2222222222222222222222222222222222222222",
+        "holderAddress": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+        "balance": "7.000001",
+        "balanceRawInteger": "7000001",
+        "balanceUsd": "0",
+        "tokenPrice": "0",
+        "thumbnail": ""
+      },
+      {
+        "blockchain": "eth",
+        "tokenName": "Some NFT",
+        "tokenSymbol": "NFT",
+        "tokenDecimals": 0,
+        "tokenType": "ERC721",
+        "contractAddress": "0x4444444444444444444444444444444444444444",
+        "holderAddress": "0xd8da6bf26964af9d7eed9e03e53415d37aa96045",
+        "balance": "1",
+        "balanceRawInteger": "1",
+        "balanceUsd": "0",
+        "tokenPrice": "0",
+        "thumbnail": ""
+      }
+    ],
+    "nextPageToken": ""
+  }
+}

@@ -1,0 +1,27 @@
+{
+ "allowanceTarget": "0x0000000000001ff3684f28c67538d4d072c22734",
+ "blockNumber": "1000",
+ "buyAmount": "100000000000000000",
+ "buyToken": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+ "issues": {
+  "allowance": {
+   "actual": "0",
+   "spender": "0x0000000000001ff3684f28c67538d4d072c22734"
+  },
+  "balance": null,
+  "simulationIncomplete": false,
+  "invalidSourcesPassed": []
+ },
+ "liquidityAvailable": true,
+ "minBuyAmount": "99000000000000000",
+ "sellAmount": "1000000000000000000",
+ "sellToken": "0x322f0929c4625ed5bad873c95208d54e1c003b2d",
+ "transaction": {
+  "to": "0x0000000000001ff3684f28c67538d4d072c22734",
+  "data": "0x2213bc0b",
+  "gas": "250000",
+  "gasPrice": "10000000",
+  "value": "0"
+ },
+ "zid": "0x1"
+}
