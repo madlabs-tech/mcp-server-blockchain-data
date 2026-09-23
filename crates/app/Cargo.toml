@@ -17,6 +17,7 @@ alloy-rpc-types-eth = "1.0.41"
 async-trait = { workspace = true }
 chrono = { workspace = true }
 moka = { workspace = true }
+rand = { workspace = true }
 rust_decimal = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }

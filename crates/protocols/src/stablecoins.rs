@@ -219,11 +219,9 @@ impl StablecoinRegistry {
             .find(|e| &e.asset.chain == chain && e.matches_symbol(symbol))
     }
 
-    pub fn for_chain<'a>(
-        &'a self,
-        chain: &'a ChainId,
-    ) -> impl Iterator<Item = &'a StablecoinEntry> {
-        self.entries.iter().filter(move |e| &e.asset.chain == chain)
+    pub fn for_chain<'a>(&'a self, chain: &ChainId) -> impl Iterator<Item = &'a StablecoinEntry> {
+        let chain = chain.clone();
+        self.entries.iter().filter(move |e| e.asset.chain == chain)
     }
 
     /// Resolve user input to a canonical entry: a CAIP-19 id, a bare contract/mint on `chain`,

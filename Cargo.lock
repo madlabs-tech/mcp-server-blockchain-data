@@ -1235,6 +1235,7 @@ dependencies = [
  "ems-routing",
  "ems-testkit",
  "moka",
+ "rand 0.9.2",
  "rust_decimal",
  "schemars 1.0.4",
  "serde",
