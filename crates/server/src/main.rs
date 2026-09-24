@@ -217,13 +217,13 @@ async fn run(loader: ConfigLoader, loaded: Loaded, serve: bool) -> Result<()> {
 
         let public_l = tokio::net::TcpListener::bind(&public_bind)
             .await
-            .with_context(|| format!("binding public_bind {public_bind}"))?;
+            .with_context(|| format!("binding public_bind {public_bind}: pick a free port with BDM__SERVER__PUBLIC_BIND=host:port or [server] public_bind in config.toml"))?;
         tracing::info!(bind = %public_bind, "hosted: public REST /v1 + MCP /mcp (client keys required)");
         let admin_task = match admin {
             Some(a) => {
                 let l = tokio::net::TcpListener::bind(&admin_bind)
                     .await
-                    .with_context(|| format!("binding admin_bind {admin_bind}"))?;
+                    .with_context(|| format!("binding admin_bind {admin_bind}: pick a free port with BDM__SERVER__ADMIN_BIND=host:port or [server] admin_bind in config.toml"))?;
                 if !l.local_addr()?.ip().is_loopback() {
                     tracing::warn!(bind = %admin_bind, "admin_bind is not loopback: restrict it with a firewall / IP allowlist");
                 }
@@ -256,7 +256,11 @@ async fn run(loader: ConfigLoader, loaded: Loaded, serve: bool) -> Result<()> {
                 tracing::warn!(bind = %bind, "HTTP not started ({e}); stdio only");
                 None
             }
-            Err(e) => return Err(e).with_context(|| format!("binding {bind}")),
+            Err(e) => {
+                return Err(e).with_context(|| {
+                    format!("binding {bind}: the port is in use; pick a free one with BDM__SERVER__HTTP_BIND=host:port or [server] http_bind in config.toml")
+                })
+            }
         }
     } else {
         None

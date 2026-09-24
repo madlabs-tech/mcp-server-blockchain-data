@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 (unreleased)
+## 0.2.0 (2026-09-24)
 
 The single-file EVM MCP server became **blockchain-data-mcp**: a chain- and provider-agnostic
 blockchain data aggregator (MCP + REST) for payment, stablecoin, neobank and trading agents.
