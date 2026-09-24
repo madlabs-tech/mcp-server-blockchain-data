@@ -64,3 +64,6 @@ bdm-testkit = { workspace = true }
 base64 = "0.22"
 bs58 = { workspace = true }
 tokio = { workspace = true }
+
+[lints]
+workspace = true

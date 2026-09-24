@@ -1,3 +1,12 @@
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        clippy::panic
+    )
+)]
 //! Layered configuration.
 //!
 //! Precedence (lowest → highest): built-in registry (`registry/*.toml`, embedded) →

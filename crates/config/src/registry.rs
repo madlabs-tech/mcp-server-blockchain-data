@@ -79,7 +79,7 @@ impl ChainRegistry {
         let entry = self
             .index
             .get(&s.trim().to_lowercase())
-            .map(|&i| &self.chains[i])
+            .and_then(|&i| self.chains.get(i))
             .ok_or_else(|| {
                 DomainError::new(ErrorCode::UnsupportedChain, format!("unknown chain '{s}'"))
                     .with_hint(format!("supported: {}", self.enabled_names().join(", ")))
@@ -97,7 +97,7 @@ impl ChainRegistry {
     pub fn find(&self, s: &str) -> Option<&ChainEntry> {
         self.index
             .get(&s.trim().to_lowercase())
-            .map(|&i| &self.chains[i])
+            .and_then(|&i| self.chains.get(i))
     }
 
     pub fn all(&self) -> &[ChainEntry] {

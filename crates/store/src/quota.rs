@@ -177,8 +177,8 @@ fn window_start(kind: WindowKind, now: DateTime<Utc>) -> DateTime<Utc> {
         _ => now
             .date_naive()
             .and_hms_opt(0, 0, 0)
-            .expect("midnight")
-            .and_utc(),
+            .map(|d| d.and_utc())
+            .unwrap_or(now),
     }
 }
 
@@ -251,7 +251,7 @@ impl QuotaEngine {
             }
             self.reported
                 .lock()
-                .expect("reported lock")
+                .unwrap_or_else(|e| e.into_inner())
                 .insert(vendor, entry);
         }
     }
@@ -311,7 +311,7 @@ impl QuotaEngine {
                 continue;
             };
             let (plan, reported_at, report_error, usage) = {
-                let r = self.reported.lock().expect("reported lock");
+                let r = self.reported.lock().unwrap_or_else(|e| e.into_inner());
                 match r.get(vendor) {
                     Some(r) => (
                         r.usage.as_ref().and_then(|u| u.plan.clone()),
@@ -559,7 +559,7 @@ impl QuotaEngine {
 
     /// Log each crossed alert threshold / reserve / exhaustion once per window.
     pub fn check_alerts(&self, report: &[VendorQuota]) {
-        let mut seen = self.alerted.lock().expect("alert lock");
+        let mut seen = self.alerted.lock().unwrap_or_else(|e| e.into_inner());
         for v in report {
             for w in &v.windows {
                 let window_id = w.resets_at.map(|t| t.to_rfc3339()).unwrap_or_default();

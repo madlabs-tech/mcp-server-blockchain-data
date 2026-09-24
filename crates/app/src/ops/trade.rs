@@ -258,13 +258,13 @@ impl Operation for TradeGetSwapQuote {
             false,
             Utc::now(),
         );
-        if quotes.is_empty() {
+        let Some(best) = quotes.first().cloned() else {
             return Err(no_valid_quote(&rejected));
-        }
+        };
         let spread = spread_bps(&quotes);
         Ok(OpOutput::new(
             QuoteOut {
-                best: quotes[0].clone(),
+                best,
                 warnings: warnings_for(spread),
                 quotes,
                 spread_bps: spread,

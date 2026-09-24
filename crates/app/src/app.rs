@@ -8,8 +8,10 @@ use async_trait::async_trait;
 use bdm_domain::{DomainError, ErrorCode};
 use bdm_ports::metering::{self, CallContext};
 use bdm_routing::Router;
+use futures::FutureExt;
 use serde_json::Value;
 use std::{
+    panic::AssertUnwindSafe,
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
@@ -116,7 +118,23 @@ impl App {
         caller: Caller,
     ) -> Result<Value, DomainError> {
         let started = Instant::now();
-        let result = self.call_inner(name, input, caller.clone()).await;
+        // Defense in depth: a panicking tool must not take the transport (or the process) down.
+        let result = match AssertUnwindSafe(self.call_inner(name, input, caller.clone()))
+            .catch_unwind()
+            .await
+        {
+            Ok(r) => r,
+            Err(payload) => {
+                let msg = panic_message(payload.as_ref());
+                tracing::error!(
+                    op = name,
+                    "operation panicked: {}",
+                    self.router.table().config.scrub(&msg)
+                );
+                self.metrics.record(name, false, false, started.elapsed());
+                Err(DomainError::internal("internal error; see server log"))
+            }
+        };
         if let Some(o) = &self.observer {
             o.on_call(&caller, name, &result, started.elapsed());
         }
@@ -191,6 +209,15 @@ impl App {
         }
         result.map(strip_ttl)
     }
+}
+
+/// Text of a panic payload (`panic!("..")` gives `&str` or `String`; anything else is opaque).
+pub fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+    payload
+        .downcast_ref::<&str>()
+        .map(|s| (*s).to_owned())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "non-string panic payload".to_owned())
 }
 
 // The cache stores the TTL alongside the value so each entry can expire on its own schedule.

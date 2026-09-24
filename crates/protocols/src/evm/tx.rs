@@ -18,6 +18,7 @@ use serde_json::{json, Value};
 /// recipient in this tx. EVM receipts carry no balances, so the delta is log-derived:
 /// `before = 0`, `after = total received` (`BalanceDelta::received()` is the amount). Assets are
 /// keyed by contract; callers match canonical tokens by contract via the stablecoin registry.
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 pub async fn get_tx(rpc: &dyn EvmRpc, chain: &ChainEntry, hash: &str) -> PortResult<Option<Tx>> {
     let t = rpc
         .request("eth_getTransactionByHash", json!([hash]))
@@ -136,6 +137,7 @@ pub async fn finality_of(rpc: &dyn EvmRpc, chain: &ChainEntry, block: u64) -> Po
 }
 
 /// Number of the block behind a tag, `None` if the node doesn't support the tag.
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 async fn tagged_block(rpc: &dyn EvmRpc, tag: &str) -> PortResult<Option<u64>> {
     match rpc
         .request("eth_getBlockByNumber", json!([tag, false]))

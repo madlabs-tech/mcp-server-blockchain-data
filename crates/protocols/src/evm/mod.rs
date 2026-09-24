@@ -93,7 +93,7 @@ pub(crate) fn decode_transfer_log(log: &Value) -> Option<RawTransfer> {
     if topics.len() != 3 {
         return None;
     }
-    let topic = |i: usize| -> Option<B256> { topics[i].as_str()?.parse().ok() };
+    let topic = |i: usize| -> Option<B256> { topics.get(i)?.as_str()?.parse().ok() };
     if topic(0)? != erc20::IERC20::Transfer::SIGNATURE_HASH {
         return None;
     }

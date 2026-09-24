@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 //! payments / stablecoin / compliance operations through the App (mock ports, no network).
 
 use async_trait::async_trait;

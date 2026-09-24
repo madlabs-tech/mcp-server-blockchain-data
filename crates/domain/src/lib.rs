@@ -1,3 +1,12 @@
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        clippy::panic
+    )
+)]
 //! Pure domain types shared by every layer. No I/O, no vendor types.
 //!
 //! Identifiers follow the CAIP standards so the API is chain-agnostic:

@@ -9,7 +9,7 @@ use crate::http::{HttpClient, DEFAULT_TIMEOUT};
 use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
 use bdm_ports::{FxRate, FxRates, PortHandle, PortResult, ProviderError, Registration, VendorMeta};
-use chrono::NaiveDate;
+use chrono::{NaiveDate, NaiveTime};
 use rust_decimal::Decimal;
 use serde_json::Value;
 use std::{str::FromStr, sync::Arc};
@@ -94,6 +94,7 @@ fn json_decimal(v: &Value) -> Option<Decimal> {
         .ok()
 }
 
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 fn parse(v: &Value, base: &str, quote: &str) -> PortResult<FxRate> {
     let business_date = v["date"]
         .as_str()
@@ -108,10 +109,7 @@ fn parse(v: &Value, base: &str, quote: &str) -> PortResult<FxRate> {
         rate,
         business_date,
         source: ID.into(),
-        as_of: business_date
-            .and_hms_opt(0, 0, 0)
-            .expect("midnight")
-            .and_utc(),
+        as_of: business_date.and_time(NaiveTime::MIN).and_utc(),
     })
 }
 

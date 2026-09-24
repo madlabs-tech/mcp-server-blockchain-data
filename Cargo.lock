@@ -834,6 +834,7 @@ dependencies = [
  "bdm-transport-http",
  "bdm-transport-mcp",
  "chrono",
+ "futures",
  "reqwest",
  "rmcp",
  "serde_json",

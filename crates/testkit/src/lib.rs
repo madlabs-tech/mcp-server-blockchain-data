@@ -5,6 +5,16 @@
 //! - [`CountingSink`]: metering sink that records usage for assertions.
 //! - [`port_conformance`]: shared transport checks reused by every RPC adapter.
 //! - [`vendor_fixture`]: load recorded vendor JSON (see `FIXTURES.md`).
+//!
+//! Test infrastructure only (a `dev-dependency` everywhere; never linked into the server
+//! binary): its panics are assertion helpers by design, so the panic lints are off crate-wide.
+
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 
 mod fake_rpc;
 pub mod mocks;

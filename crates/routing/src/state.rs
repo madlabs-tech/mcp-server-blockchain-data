@@ -136,7 +136,7 @@ impl RuntimeState {
     }
 
     fn with<R>(&self, vendor: &str, f: impl FnOnce(&mut VendorState) -> R) -> R {
-        let mut map = self.vendors.lock().expect("state lock");
+        let mut map = self.vendors.lock().unwrap_or_else(|e| e.into_inner());
         f(map.entry(vendor.to_owned()).or_default())
     }
 
@@ -196,7 +196,7 @@ impl RuntimeState {
             return true;
         }
         let lim = {
-            let mut map = self.limiters.lock().expect("limiter lock");
+            let mut map = self.limiters.lock().unwrap_or_else(|e| e.into_inner());
             let entry = map.entry(vendor.to_owned()).or_insert_with(|| {
                 Arc::new(Limiters {
                     params,

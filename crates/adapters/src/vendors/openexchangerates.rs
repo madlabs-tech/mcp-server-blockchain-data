@@ -84,6 +84,7 @@ impl FxRates for OpenExchangeRates {
 
 #[async_trait]
 impl QuotaReporter for OpenExchangeRates {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn usage(&self) -> PortResult<VendorUsage> {
         let v = self
             .http
@@ -116,6 +117,7 @@ fn json_decimal(v: &Value) -> Option<Decimal> {
 }
 
 /// Cross rate from a USD-based table.
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 fn parse(v: &Value, base: &str, quote: &str, date: Option<NaiveDate>) -> PortResult<FxRate> {
     if v["base"].as_str() != Some("USD") {
         return Err(ProviderError::Fatal(

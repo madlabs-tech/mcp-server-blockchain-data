@@ -9,6 +9,7 @@ http_bind    = "127.0.0.1:8787"     # self_hosted: REST + /mcp + /dashboard
 # admin_bind  = "127.0.0.1:8788"    # hosted: dashboard + admin API, never public
 dashboard    = true
 tool_profile = "payments"           # payments | trading | neobank | defi | all | custom
+# warmup     = true                 # background eth_chainId check of every active EVM RPC at startup
 
 # ---------------------------------------------------------------------------- vendors
 # limit = the vendor's real quota (defaults: free tier from registry/vendors.toml)

@@ -44,6 +44,7 @@ impl ZeroEx {
         }
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn call(
         &self,
         req: &SwapRequest,
@@ -99,6 +100,7 @@ impl SwapQuoter for ZeroEx {
         Self::to_quote(req, &v)
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn build(&self, req: &SwapRequest) -> PortResult<SwapQuote> {
         let taker = util::evm_taker(req)?;
         let v = self.call(req, "quote", Some(&taker)).await?;

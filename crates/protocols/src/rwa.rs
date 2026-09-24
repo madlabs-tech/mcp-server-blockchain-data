@@ -131,7 +131,8 @@ fn checksummed(a: &str) -> Result<Address, String> {
 
 /// Call a no-argument `view returns (bool)` function.
 async fn call_bool(rpc: &dyn EvmRpc, to: Address, signature: &str) -> PortResult<bool> {
-    let selector = &keccak256(signature.as_bytes())[..4];
+    let digest = keccak256(signature.as_bytes());
+    let (selector, _) = digest.0.split_at(4);
     let data = format!("0x{}", hex::encode(selector));
     let v = rpc
         .request(
@@ -145,7 +146,7 @@ async fn call_bool(rpc: &dyn EvmRpc, to: Address, signature: &str) -> PortResult
     let bytes = hex::decode(s.trim_start_matches("0x"))
         .map_err(|e| ProviderError::Transient(format!("bad eth_call hex: {e}")))?;
     match bytes.len() {
-        32 => Ok(bytes[31] != 0),
+        32 => Ok(bytes.last().is_some_and(|b| *b != 0)),
         // Empty return: no such function (or not a contract).
         0 => Err(ProviderError::Unsupported(format!(
             "{signature} not implemented by {to}"

@@ -14,8 +14,13 @@ use rand::Rng;
 use std::{future::Future, sync::Arc, time::Duration};
 use tokio::time::Instant;
 
+/// Keyless public RPCs are slow or dead more often than keyed vendors; a shorter attempt timeout
+/// keeps a cold zero-key call from taking `attempt_timeout × (retries + 1)`.
+pub const PUBLIC_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(6);
+
 #[derive(Debug, Clone)]
 pub struct RouterOptions {
+    /// Per attempt, for every vendor except `public` (see [`RouterOptions::attempt_timeout_for`]).
     pub attempt_timeout: Duration,
     /// Extra attempts on the same vendor for `Transient` errors.
     pub retries: u32,
@@ -23,6 +28,17 @@ pub struct RouterOptions {
     pub breaker_cooldown: Duration,
     /// Max time to wait for a local rate-limit token before skipping to the next vendor.
     pub max_rate_wait: Duration,
+}
+
+impl RouterOptions {
+    /// Attempt timeout for one vendor: the `public` pseudo-vendor gets at most
+    /// [`PUBLIC_ATTEMPT_TIMEOUT`]; everyone else `attempt_timeout`.
+    pub fn attempt_timeout_for(&self, vendor: &str) -> Duration {
+        match vendor {
+            "public" => self.attempt_timeout.min(PUBLIC_ATTEMPT_TIMEOUT),
+            _ => self.attempt_timeout,
+        }
+    }
 }
 
 impl Default for RouterOptions {
@@ -288,9 +304,10 @@ impl Router {
             );
         }
         let mut tries = 0;
+        let timeout = self.opts.attempt_timeout_for(&c.vendor);
         loop {
             let t0 = Instant::now();
-            let r = match tokio::time::timeout(self.opts.attempt_timeout, f(c.port.clone())).await {
+            let r = match tokio::time::timeout(timeout, f(c.port.clone())).await {
                 Ok(r) => r,
                 Err(_) => Err(ProviderError::Transient("timeout".into())),
             };
@@ -433,11 +450,11 @@ impl Router {
     {
         let (table, started) = (self.table(), Instant::now());
         let (oks, mut attempts, last_err, head) = self.collect_n(&table, &req, n.max(1), &f).await;
-        if oks.is_empty() {
-            return Err(route_error(&req, last_err, attempts));
-        }
         let keys: Vec<String> = oks.iter().map(|(_, v)| key(v)).collect();
-        if keys.iter().any(|k| k != &keys[0]) {
+        let Some((first_key, other_keys)) = keys.split_first() else {
+            return Err(route_error(&req, last_err, attempts));
+        };
+        if other_keys.iter().any(|k| k != first_key) {
             let detail: Vec<String> = oks
                 .iter()
                 .zip(&keys)
@@ -454,7 +471,9 @@ impl Router {
             });
         }
         let agreeing = oks.len();
-        let (vendor, value) = oks.into_iter().next().expect("non-empty");
+        let Some((vendor, value)) = oks.into_iter().next() else {
+            return Err(route_error(&req, last_err, attempts));
+        };
         let mut prov = provenance(&req, attempts, Some(&vendor), head.as_deref(), started);
         if agreeing > 1 {
             prov.source = SourceKind::Aggregate;
@@ -484,10 +503,9 @@ impl Router {
     {
         let (table, started) = (self.table(), Instant::now());
         let (oks, attempts, last_err, head) = self.collect_n(&table, &req, n.max(1), &f).await;
-        if oks.is_empty() {
+        let Some(first) = oks.first().map(|(v, _)| v.clone()) else {
             return Err(route_error(&req, last_err, attempts));
-        }
-        let first = oks[0].0.clone();
+        };
         let mut prov = provenance(&req, attempts, Some(&first), head.as_deref(), started);
         prov.source = SourceKind::Aggregate;
         prov.provider = Some("aggregate".into());

@@ -25,17 +25,20 @@ impl WindowKey {
     pub fn resets_at(&self, now: DateTime<Utc>) -> DateTime<Utc> {
         let date = now.date_naive();
         let next = match self {
-            Self::Day(_) => date.succ_opt().expect("date in range"),
+            Self::Day(_) => date.succ_opt(),
             Self::Month(_) => {
                 let (y, m) = if date.month() == 12 {
                     (date.year() + 1, 1)
                 } else {
                     (date.year(), date.month() + 1)
                 };
-                chrono::NaiveDate::from_ymd_opt(y, m, 1).expect("valid date")
+                chrono::NaiveDate::from_ymd_opt(y, m, 1)
             }
         };
-        next.and_hms_opt(0, 0, 0).expect("midnight").and_utc()
+        // Only fails at the edge of chrono's date range; `now` is the harmless fallback.
+        next.and_then(|d| d.and_hms_opt(0, 0, 0))
+            .map(|d| d.and_utc())
+            .unwrap_or(now)
     }
 }
 
@@ -66,13 +69,13 @@ impl CounterStore for InMemoryCounterStore {
         *self
             .totals
             .lock()
-            .expect("lock")
+            .unwrap_or_else(|e| e.into_inner())
             .entry((vendor.to_owned(), window.clone()))
             .or_default() += amount;
         *self
             .rows
             .lock()
-            .expect("lock")
+            .unwrap_or_else(|e| e.into_inner())
             .entry((vendor.to_owned(), window.clone(), dims.clone()))
             .or_default() += amount;
     }
@@ -80,7 +83,7 @@ impl CounterStore for InMemoryCounterStore {
     fn total(&self, vendor: &str, window: &WindowKey) -> u64 {
         self.totals
             .lock()
-            .expect("lock")
+            .unwrap_or_else(|e| e.into_inner())
             .get(&(vendor.to_owned(), window.clone()))
             .copied()
             .unwrap_or(0)
@@ -89,7 +92,7 @@ impl CounterStore for InMemoryCounterStore {
     fn breakdown(&self, vendor: &str, window: &WindowKey) -> Vec<(Dims, u64)> {
         self.rows
             .lock()
-            .expect("lock")
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
             .filter(|((v, w, _), _)| v == vendor && w == window)
             .map(|((_, _, d), n)| (d.clone(), *n))

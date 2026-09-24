@@ -1,3 +1,12 @@
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        clippy::panic
+    )
+)]
 //! Use cases. Each tool is one [`Operation`] (Command pattern): typed input/output with JSON
 //! schemas, metadata (domain, profiles, read-only), and `execute`. The [`Catalog`] type-erases
 //! operations so MCP, REST and OpenAPI are all generated from the same definitions, and
@@ -18,7 +27,7 @@ mod metrics;
 mod op;
 pub mod ops;
 
-pub use app::{App, CallGuard, CallObserver, ClientAuth};
+pub use app::{panic_message, App, CallGuard, CallObserver, ClientAuth};
 pub use catalog::{Catalog, ProfileSelection};
 pub use ctx::{Caller, Ctx};
 pub use metrics::{OpMetrics, OpStats};

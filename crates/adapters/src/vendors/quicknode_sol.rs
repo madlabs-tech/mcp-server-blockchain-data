@@ -79,6 +79,7 @@ impl QuickNodeFees {
 #[async_trait]
 impl FeeOracle for QuickNodeFees {
     /// Slow / Standard / Fast = `per_compute_unit.low / medium / high` (micro-lamports per CU).
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn fee_estimate(&self) -> PortResult<FeeEstimate> {
         let addon_missing =
             || ProviderError::Unsupported("QuickNode Priority Fee API add-on not enabled".into());

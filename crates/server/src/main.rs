@@ -1,3 +1,12 @@
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        clippy::panic
+    )
+)]
 //! `blockchain-data-mcp`: blockchain data aggregator.
 //!
 //! Usage:
@@ -184,6 +193,9 @@ async fn run(loader: ConfigLoader, loaded: Loaded, serve: bool) -> Result<()> {
         mode = ?settings.mode,
         "starting blockchain-data-mcp"
     );
+    if settings.warmup {
+        wiring::spawn_warmup(router.clone());
+    }
 
     if settings.mode == Mode::Hosted {
         let public_bind = settings
@@ -269,7 +281,9 @@ async fn run(loader: ConfigLoader, loaded: Loaded, serve: bool) -> Result<()> {
     spawn_sighup(admin);
 
     if serve {
-        let l = listener.expect("bound above");
+        let Some(l) = listener else {
+            bail!("HTTP listener not bound");
+        };
         tracing::info!(bind = %bind, "HTTP listening (REST /v1, MCP /mcp, dashboard /dashboard)");
         axum::serve(l, http).await?;
         return Ok(());

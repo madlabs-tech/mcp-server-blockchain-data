@@ -62,6 +62,7 @@ impl RugCheck {
 
 #[async_trait]
 impl TokenRisk for RugCheck {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn assess(&self, asset: &AssetId) -> PortResult<RiskAssessment> {
         let AssetRef::SplToken(mint) = &asset.asset else {
             return Err(ProviderError::Unsupported(

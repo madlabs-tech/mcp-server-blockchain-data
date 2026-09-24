@@ -3,7 +3,7 @@
 //! Source for the interface: https://docs.robinhood.com/chain/building-with-stock-tokens/
 //! (`uiMultiplier()`, `newUIMultiplier()`, `effectiveAt()`; 1e18 = 1.0).
 
-use super::multicall3::{aggregate3, Call};
+use super::multicall3::{aggregate3, word_at, Call};
 use alloy_primitives::{Address, U256};
 use alloy_sol_types::sol;
 use bdm_ports::{EvmRpc, PortResult, ProviderError};
@@ -33,10 +33,7 @@ pub async fn ui_multiplier(rpc: &dyn EvmRpc, token: Address) -> PortResult<UiMul
         Call::new(token, IERC8056::effectiveAtCall {}),
     ];
     let r = aggregate3(rpc, &calls, "latest").await?;
-    let word = |i: usize| -> Option<U256> {
-        let d = r.get(i)?.as_ref()?;
-        (d.len() >= 32).then(|| U256::from_be_slice(&d[..32]))
-    };
+    let word = |i: usize| word_at(&r, i);
     let current = word(0).ok_or_else(|| {
         ProviderError::Unsupported(format!("{token} does not implement ERC-8056"))
     })?;

@@ -1,3 +1,12 @@
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        clippy::panic
+    )
+)]
 //! HTTP transport: REST (`POST /v1/<domain>/<tool>`), OpenAPI, MCP streamable HTTP (`/mcp`),
 //! health and metrics on the public router; admin API + dashboard ([`admin_router`]) on a
 //! separate router that the server binds to `admin_bind` in hosted mode (localhost otherwise).
@@ -24,10 +33,39 @@ use bdm_domain::{DomainError, ErrorCode};
 use bdm_transport_mcp::McpServer;
 use serde_json::{json, Map, Value};
 use std::sync::Arc;
-use tower_http::{limit::RequestBodyLimitLayer, trace::TraceLayer};
+use tower_http::{
+    catch_panic::{CatchPanicLayer, ResponseForPanic},
+    limit::RequestBodyLimitLayer,
+    trace::TraceLayer,
+};
 
 /// Max request body for REST / MCP calls.
 pub const BODY_LIMIT: usize = 1024 * 1024;
+
+/// Last-resort net: a panic anywhere below (handler, middleware, MCP service) becomes the usual
+/// `{"error": {"code": "INTERNAL", ..}}` 500 instead of a dropped connection.
+#[derive(Clone, Copy, Debug)]
+pub struct PanicToJson;
+
+impl ResponseForPanic for PanicToJson {
+    type ResponseBody = axum::body::Body;
+
+    fn response_for_panic(
+        &mut self,
+        err: Box<dyn std::any::Any + Send + 'static>,
+    ) -> http::Response<Self::ResponseBody> {
+        tracing::error!(
+            "HTTP handler panicked: {}",
+            bdm_app::panic_message(err.as_ref())
+        );
+        error_response(DomainError::internal("internal error; see server log"))
+    }
+}
+
+/// The layer both routers install outermost.
+pub fn catch_panic_layer() -> CatchPanicLayer<PanicToJson> {
+    CatchPanicLayer::custom(PanicToJson)
+}
 
 #[derive(Clone)]
 pub struct HttpState {
@@ -50,6 +88,7 @@ pub fn public_router(state: HttpState) -> Router {
         .route("/metrics", get(metrics))
         .layer(RequestBodyLimitLayer::new(BODY_LIMIT))
         .layer(TraceLayer::new_for_http())
+        .layer(catch_panic_layer())
         .with_state(state)
 }
 

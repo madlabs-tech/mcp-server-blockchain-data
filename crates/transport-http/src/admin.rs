@@ -102,7 +102,7 @@ impl AdminState {
 
     /// Validate, write atomically and hot-swap the routing table. Returns the new warnings.
     pub fn apply(&self, edits: &[Edit]) -> Result<Vec<Issue>, Vec<Issue>> {
-        let _g = self.edit_lock.lock().expect("edit lock");
+        let _g = self.edit_lock.lock().unwrap_or_else(|e| e.into_inner());
         let current = self.router().table().config.clone();
         let next = apply_edits(&self.loader, &current, edits)?;
         Ok(self.install(next))
@@ -119,8 +119,8 @@ impl AdminState {
                 self.loader.dir.config_path(),
                 self.loader.dir.secrets_path(),
             ] {
-                if p.exists() {
-                    std::fs::copy(&p, tmp.join(p.file_name().expect("file name"))).map_err(io)?;
+                if let Some(name) = p.file_name().filter(|_| p.exists()) {
+                    std::fs::copy(&p, tmp.join(name)).map_err(io)?;
                 }
             }
             let loader =
@@ -133,7 +133,7 @@ impl AdminState {
 
     /// Re-read the config files (dashboard "reload" and SIGHUP).
     pub fn reload(&self) -> Result<Vec<Issue>, Vec<Issue>> {
-        let _g = self.edit_lock.lock().expect("edit lock");
+        let _g = self.edit_lock.lock().unwrap_or_else(|e| e.into_inner());
         let next = self.loader.load()?;
         Ok(self.install(next))
     }
@@ -201,6 +201,7 @@ pub fn admin_router(state: AdminState) -> Router {
             get(|| async { asset("text/css; charset=utf-8", APP_CSS) }),
         )
         .layer(RequestBodyLimitLayer::new(ADMIN_BODY_LIMIT))
+        .layer(crate::catch_panic_layer())
         .with_state(state)
 }
 
@@ -505,9 +506,12 @@ async fn config(State(s): State<AdminState>) -> Response {
             if fits && c.enabled {
                 let mut view = order_view(cfg, &table.registry, &health, *cap, Some(&c.id), true);
                 let id = c.id.to_string();
-                view["locked_by"] = json!(std::iter::once(&id)
+                let locked_by = std::iter::once(&id)
                     .chain(&c.aliases)
-                    .find_map(|k| lock_of(cfg, &["routing", "chains", k, cap.as_str()])));
+                    .find_map(|k| lock_of(cfg, &["routing", "chains", k, cap.as_str()]));
+                if let Some(m) = view.as_object_mut() {
+                    m.insert("locked_by".into(), json!(locked_by));
+                }
                 per_chain.insert(id, view);
             }
         }
@@ -892,11 +896,16 @@ async fn client_update(
     Json(body): Json<ClientPatch>,
 ) -> Response {
     match s.store.set_client_limits(&id, body.limits).await {
-        Ok(true) => {
-            let cfg = s.router().table().config.clone();
-            let rec = s.store.client(&id).expect("client exists");
-            Json(json!({ "client": client_view(&s, &cfg, &rec, vec![]) })).into_response()
-        }
+        Ok(true) => match s.store.client(&id) {
+            Some(rec) => {
+                let cfg = s.router().table().config.clone();
+                Json(json!({ "client": client_view(&s, &cfg, &rec, vec![]) })).into_response()
+            }
+            None => error_response(DomainError::new(
+                ErrorCode::NotFound,
+                format!("unknown client '{id}'"),
+            )),
+        },
         Ok(false) => error_response(DomainError::new(
             ErrorCode::NotFound,
             format!("unknown client '{id}'"),

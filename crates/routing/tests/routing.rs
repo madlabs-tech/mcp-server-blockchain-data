@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 //! Routing behavior tests (T0.8): order + filtering, failover per error kind, retries, breaker,
 //! quota guard, strategies, hot swap, metering, routed RPC.
 
@@ -322,6 +328,47 @@ async fn registered_but_not_for_this_chain_is_skipped() {
         .attempts
         .iter()
         .any(|a| a.vendor == "public" && a.reason.as_deref() == Some("not_available_for_chain")));
+}
+
+#[tokio::test(start_paused = true)]
+async fn public_vendor_gets_the_short_attempt_timeout() {
+    let cfg = "[routing.defaults]\nprice = [\"public\", \"defillama\"]\n";
+    let slow = Duration::from_secs(8);
+    let opts = RouterOptions {
+        retries: 0,
+        ..Default::default() // attempt_timeout 10 s
+    };
+
+    // public at 8 s: cut at 6 s, defillama answers
+    let a = ScriptedPrice::slow("public", d(1), slow);
+    let b = ScriptedPrice::new("defillama", Ok(d(2)));
+    let r = router_with(cfg, &[], vec![price_reg(&a), price_reg(&b)], opts.clone());
+    let t = tokio::time::Instant::now();
+    let out = price_of(&r, req()).await.unwrap();
+    assert_eq!(out.provenance.provider.as_deref(), Some("defillama"));
+    let elapsed = t.elapsed();
+    assert!(
+        elapsed >= Duration::from_secs(6) && elapsed < Duration::from_secs(7),
+        "{elapsed:?}"
+    );
+    assert_eq!(
+        out.provenance.providers_tried[0].reason.as_deref(),
+        Some("transient: timeout")
+    );
+
+    // the same delay on a keyed vendor is within the default 10 s
+    let a = ScriptedPrice::slow("defillama", d(1), slow);
+    let cfg = "[routing.defaults]\nprice = [\"defillama\", \"geckoterminal\"]\n";
+    let r = router_with(cfg, &[], vec![price_reg(&a)], opts);
+    assert_eq!(
+        price_of(&r, req())
+            .await
+            .unwrap()
+            .provenance
+            .provider
+            .as_deref(),
+        Some("defillama")
+    );
 }
 
 // ---------------------------------------------------------------- breaker

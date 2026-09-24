@@ -1,3 +1,12 @@
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        clippy::panic
+    )
+)]
 //! Platform crate for the hosted/dashboard side of the server.
 //!
 //! - [`Store`]: sqlite (WAL) on a dedicated thread. It holds usage counters (it implements

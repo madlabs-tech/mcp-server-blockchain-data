@@ -67,7 +67,7 @@ Anything set by env is shown as **locked by env** in the dashboard and cannot be
 
 **Env mapping.** `BDM__SERVER__HTTP_BIND=127.0.0.1:8787` sets `[server] http_bind`; `BDM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS=15000000` sets `[vendors.alchemy.cap] monthly_credits`; `BDM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public` sets an order. Vendor keys use their own names (`ALCHEMY_API_KEY`, `QN_ENDPOINT_NAME`, …; see the vendor table).
 
-**Server** (`[server]`): `mode` (`self_hosted` | `hosted`), `http_bind` (self-hosted, default `127.0.0.1:8787`), `public_bind` + `admin_bind` (hosted, admin defaults to `127.0.0.1:8788`), `dashboard` (bool), `tool_profile`, `enabled_tools` / `disabled_tools`, `data_dir` (default `./data`, holds `bdm.db`), `cache_max_entries`, `quota_poll_secs`.
+**Server** (`[server]`): `mode` (`self_hosted` | `hosted`), `http_bind` (self-hosted, default `127.0.0.1:8787`), `public_bind` + `admin_bind` (hosted, admin defaults to `127.0.0.1:8788`), `dashboard` (bool), `tool_profile`, `enabled_tools` / `disabled_tools`, `data_dir` (default `./data`, holds `bdm.db`), `cache_max_entries`, `quota_poll_secs`, `warmup` (default `true`: right after startup, a background task sends one `eth_chainId` to every active EVM RPC and logs endpoints that serve the wrong chain; never blocks startup).
 
 **Vendor budget** (`[vendors.<id>]`):
 

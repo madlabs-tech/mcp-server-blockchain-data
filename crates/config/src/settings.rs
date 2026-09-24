@@ -46,6 +46,8 @@ pub struct ServerSettings {
     pub data_dir: PathBuf,
     pub cache_max_entries: u64,
     pub quota_poll_secs: u64,
+    /// Check every active EVM RPC's chain id in the background right after startup.
+    pub warmup: bool,
 }
 
 impl Default for ServerSettings {
@@ -62,6 +64,7 @@ impl Default for ServerSettings {
             data_dir: PathBuf::from("./data"),
             cache_max_entries: 20_000,
             quota_poll_secs: 300,
+            warmup: true,
         }
     }
 }

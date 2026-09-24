@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 //! App executor tests (T0.9): envelope, cache, profiles, guard, metering, legacy aliases.
 
 use async_trait::async_trait;
@@ -74,6 +80,22 @@ impl Operation for TradingOnly {
     }
 }
 
+struct Panicking;
+
+#[async_trait]
+impl Operation for Panicking {
+    type Input = EchoIn;
+    type Output = EchoOut;
+    const NAME: &'static str = "test_panic";
+    const DOMAIN: Domain = Domain::Chain;
+    const DESCRIPTION: &'static str = "panics";
+    const PROFILES: &'static [Profile] = &[Profile::Payments];
+
+    async fn execute(&self, _ctx: &Ctx, _input: EchoIn) -> Result<OpOutput<EchoOut>, DomainError> {
+        panic!("deliberate test panic")
+    }
+}
+
 fn app(cfg: &str, regs: Vec<Registration>) -> (App, Arc<AtomicUsize>) {
     let loader = ConfigLoader::new(ConfigDir::new("/nonexistent"), EnvSource::default()).unwrap();
     let config = Arc::new(loader.load_texts(cfg, "").unwrap());
@@ -90,7 +112,30 @@ fn app(cfg: &str, regs: Vec<Registration>) -> (App, Arc<AtomicUsize>) {
     bdm_app::ops::register_all(&mut catalog);
     catalog.register(Echo(count.clone()));
     catalog.register(TradingOnly);
+    catalog.register(Panicking);
     (App::new(catalog, router, 1000), count)
+}
+
+#[tokio::test]
+async fn panicking_operation_is_an_internal_error_not_a_crash() {
+    let rec = Arc::new(Recorder(Default::default()));
+    let (a, _) = app("", vec![]);
+    let a = a.with_observer(rec.clone());
+    let err = a
+        .call("test_panic", json!({"msg": "x"}), Caller::local())
+        .await
+        .unwrap_err();
+    assert_eq!(err.code, ErrorCode::Internal);
+    assert_eq!(err.message, "internal error; see server log");
+    assert_eq!(a.metrics().snapshot()["test_panic"].errors, 1);
+    assert_eq!(
+        *rec.0.lock().unwrap(),
+        vec![("test_panic".to_string(), false)]
+    );
+    // The process and the App keep serving.
+    a.call("test_echo", json!({"msg": "x"}), Caller::local())
+        .await
+        .unwrap();
 }
 
 #[tokio::test]

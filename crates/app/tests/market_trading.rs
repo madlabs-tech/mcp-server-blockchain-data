@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 //! market / trade / rwa tools end to end through `App` with mock ports (T1.M1–T1.M4).
 
 use alloy_primitives::U256;

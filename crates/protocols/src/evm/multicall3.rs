@@ -4,7 +4,7 @@
 //! depend on the caller.
 
 use super::eth_call;
-use alloy_primitives::{address, Address, Bytes};
+use alloy_primitives::{address, Address, Bytes, U256};
 use alloy_sol_types::{sol, SolCall};
 use bdm_ports::{EvmRpc, PortResult};
 
@@ -72,4 +72,76 @@ pub async fn aggregate3(
         .into_iter()
         .map(|r| r.success.then(|| r.returnData.to_vec()))
         .collect())
+}
+
+/// Return data of sub-call `i`; `None` when it reverted or the node returned fewer results.
+pub(crate) fn data_at(r: &[Option<Vec<u8>>], i: usize) -> Option<&[u8]> {
+    r.get(i)?.as_deref()
+}
+
+/// First 32-byte word of sub-call `i`'s return data (`None` when shorter than a word).
+pub(crate) fn word_at(r: &[Option<Vec<u8>>], i: usize) -> Option<U256> {
+    first_word(data_at(r, i)?)
+}
+
+/// First 32-byte word of ABI return data (`None` when shorter than a word).
+pub(crate) fn first_word(d: &[u8]) -> Option<U256> {
+    d.get(..32).map(U256::from_be_slice)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::evm::{chainlink, fees};
+    use bdm_ports::ProviderError;
+    use bdm_testkit::mocks::MockEvmRpc;
+    use serde_json::json;
+
+    /// `MockEvmRpc` whose one `eth_call` answers with `results` (regardless of how many calls
+    /// were batched).
+    fn node(results: Vec<IMulticall3::Result>) -> MockEvmRpc {
+        let rpc = MockEvmRpc::default();
+        let out = IMulticall3::aggregate3Call::abi_encode_returns(&results);
+        rpc.script
+            .always(Ok(json!(format!("0x{}", hex::encode(out)))));
+        rpc
+    }
+
+    fn ok(data: &[u8]) -> IMulticall3::Result {
+        IMulticall3::Result {
+            success: true,
+            returnData: Bytes::copy_from_slice(data),
+        }
+    }
+
+    #[tokio::test]
+    async fn fewer_results_than_calls_is_transient() {
+        let rpc = node(vec![ok(&[0u8; 32])]);
+        let calls = [Call::eth_balance(Address::ZERO), Call::eth_balance(ADDRESS)];
+        assert!(matches!(
+            aggregate3(&rpc, &calls, "latest").await,
+            Err(ProviderError::Transient(_))
+        ));
+        assert!(matches!(
+            chainlink::latest_round(&rpc, ADDRESS).await,
+            Err(ProviderError::Transient(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn short_return_data_never_panics() {
+        let rpc = node(vec![ok(&[1, 2, 3, 4]), ok(&[1, 2, 3, 4])]);
+        assert!(matches!(
+            chainlink::latest_round(&rpc, ADDRESS).await,
+            Err(ProviderError::Unsupported(_))
+        ));
+        assert!(matches!(
+            fees::op_l1_fee(&rpc).await,
+            Err(ProviderError::Transient(_))
+        ));
+        assert_eq!(word_at(&[Some(vec![1, 2, 3, 4]), None], 0), None);
+        assert_eq!(word_at(&[Some(vec![1, 2, 3, 4]), None], 1), None);
+        assert_eq!(word_at(&[Some(vec![1, 2, 3, 4]), None], 2), None);
+        assert_eq!(word_at(&[Some(vec![0u8; 32])], 0), Some(U256::ZERO));
+    }
 }

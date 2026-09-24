@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 //! T1.D3 hosted mode, black-box against the real binary: fail-closed start, `clients create`,
 //! 401 without / with a bad key, per-client daily quota → 429 while another client is unaffected,
 //! admin API only on `admin_bind`. No network: every RPC endpoint is a closed local port.
@@ -19,6 +25,7 @@ fn bin(dir: &Path) -> Command {
     c.arg("--config-dir")
         .arg(dir)
         .env("RUST_LOG", "error")
+        .env("BDM__SERVER__WARMUP", "false")
         .env_remove("RPC_URL")
         .env_remove("ALCHEMY_API_KEY")
         .env_remove("QN_ENDPOINT_NAME")
