@@ -610,7 +610,7 @@ Caveats: amounts are transfer amounts and the block may not be final: call payme
                 next_cursor: r.value.next_cursor,
             });
         }
-        let mut meta = meta.expect("at least one address");
+        let mut meta = meta.ok_or_else(|| DomainError::invalid("addresses must not be empty"))?;
         meta.chain = Some(chain.id.clone());
         Ok(OpOutput::new(DepositsOut { pages }, meta))
     }
@@ -755,12 +755,12 @@ pub fn x402_payment_required(
         "payTo": to.to_string(),
         "maxTimeoutSeconds": max_timeout_seconds,
     });
-    if let Some(extra) = extra {
-        req["extra"] = extra;
+    if let (Some(extra), Some(m)) = (extra, req.as_object_mut()) {
+        m.insert("extra".into(), extra);
     }
     let mut resource = json!({ "url": resource_url });
-    if let Some(d) = description {
-        resource["description"] = json!(d);
+    if let (Some(d), Some(m)) = (description, resource.as_object_mut()) {
+        m.insert("description".into(), json!(d));
     }
     json!({ "x402Version": 2, "resource": resource, "accepts": [req] })
 }

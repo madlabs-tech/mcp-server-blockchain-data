@@ -89,11 +89,12 @@ pub(crate) fn rpc_meta(chain: &ChainId) -> Provenance {
 }
 
 /// Combine several routed answers into one `meta` (all attempts kept).
-pub(crate) fn merge_meta(chain: Option<ChainId>, metas: Vec<Provenance>) -> Provenance {
+pub(crate) fn merge_meta(chain: Option<ChainId>, mut metas: Vec<Provenance>) -> Provenance {
     if metas.len() == 1 {
-        let mut m = metas.into_iter().next().expect("one");
-        m.chain = chain.or(m.chain);
-        return m;
+        if let Some(mut m) = metas.pop() {
+            m.chain = chain.or(m.chain);
+            return m;
+        }
     }
     let mut p = Provenance::new(SourceKind::Aggregate);
     p.chain = chain;
@@ -292,9 +293,11 @@ async fn evm_block(rpc: &dyn EvmRpc, tag: &str) -> Option<BlockRef> {
         .await
         .ok()?;
     Some(BlockRef {
-        number: hex_u64(&b["number"])?,
-        hash: b["hash"].as_str().map(str::to_owned),
-        timestamp: hex_u64(&b["timestamp"])
+        number: hex_u64(b.get("number")?)?,
+        hash: b.get("hash").and_then(Value::as_str).map(str::to_owned),
+        timestamp: b
+            .get("timestamp")
+            .and_then(hex_u64)
             .and_then(|t| chrono::DateTime::from_timestamp(t as i64, 0)),
     })
 }
@@ -391,13 +394,13 @@ impl Operation for ChainFinality {
                     )
                 }
             };
-        if blocks[0].is_none() {
+        let Some(Some(head_block)) = blocks.first() else {
             return Err(DomainError::new(
                 bdm_domain::ErrorCode::AllProvidersFailed,
                 format!("could not read the head of {}", chain.id),
             ));
-        }
-        let head = blocks[0].as_ref().map(|b| b.number);
+        };
+        let head = Some(head_block.number);
         let levels = names
             .iter()
             .zip(blocks)

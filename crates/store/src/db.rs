@@ -206,8 +206,8 @@ struct Worker {
 
 impl Drop for Worker {
     fn drop(&mut self) {
-        drop(self.tx.lock().expect("worker lock").take());
-        if let Some(h) = self.handle.lock().expect("worker lock").take() {
+        drop(self.tx.lock().unwrap_or_else(|e| e.into_inner()).take());
+        if let Some(h) = self.handle.lock().unwrap_or_else(|e| e.into_inner()).take() {
             let _ = h.join();
         }
     }
@@ -279,7 +279,12 @@ impl Store {
     }
 
     fn send(&self, job: Job) -> bool {
-        let tx = self.inner.worker.tx.lock().expect("worker lock");
+        let tx = self
+            .inner
+            .worker
+            .tx
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         tx.as_ref().is_some_and(|tx| tx.send(job).is_ok())
     }
 
@@ -488,7 +493,7 @@ impl Store {
         self.inner
             .clients
             .lock()
-            .expect("clients lock")
+            .unwrap_or_else(|e| e.into_inner())
             .insert(rec.id.clone(), rec.clone());
         Ok((rec, key))
     }
@@ -500,7 +505,7 @@ impl Store {
         self.inner
             .clients
             .lock()
-            .expect("clients lock")
+            .unwrap_or_else(|e| e.into_inner())
             .values()
             .find(|c| c.key_hash == h)
             .cloned()
@@ -510,7 +515,7 @@ impl Store {
         self.inner
             .clients
             .lock()
-            .expect("clients lock")
+            .unwrap_or_else(|e| e.into_inner())
             .get(id)
             .cloned()
     }
@@ -521,7 +526,7 @@ impl Store {
             .inner
             .clients
             .lock()
-            .expect("clients lock")
+            .unwrap_or_else(|e| e.into_inner())
             .values()
             .cloned()
             .collect();
@@ -533,7 +538,7 @@ impl Store {
         self.inner
             .clients
             .lock()
-            .expect("clients lock")
+            .unwrap_or_else(|e| e.into_inner())
             .values()
             .filter(|c| c.active())
             .count()
@@ -558,7 +563,7 @@ impl Store {
         self.inner
             .clients
             .lock()
-            .expect("clients lock")
+            .unwrap_or_else(|e| e.into_inner())
             .insert(rec.id.clone(), rec);
         Ok(true)
     }
@@ -580,7 +585,7 @@ impl Store {
         self.inner
             .clients
             .lock()
-            .expect("clients lock")
+            .unwrap_or_else(|e| e.into_inner())
             .insert(rec.id.clone(), rec);
         Ok(true)
     }
@@ -591,7 +596,7 @@ impl Store {
         self.inner
             .client_usage
             .lock()
-            .expect("client usage lock")
+            .unwrap_or_else(|e| e.into_inner())
             .get(&(client.to_owned(), window.clone()))
             .copied()
             .unwrap_or_default()
@@ -608,7 +613,11 @@ impl Store {
     ) -> std::result::Result<(), Exceeded> {
         let (day, month) = (WindowKey::day(now), WindowKey::month(now));
         {
-            let mut m = self.inner.client_usage.lock().expect("client usage lock");
+            let mut m = self
+                .inner
+                .client_usage
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             let d = m
                 .get(&(client.to_owned(), day.clone()))
                 .copied()
@@ -637,7 +646,11 @@ impl Store {
     pub fn record_throttled(&self, client: &str, now: DateTime<Utc>) {
         let windows = [WindowKey::day(now), WindowKey::month(now)];
         {
-            let mut m = self.inner.client_usage.lock().expect("client usage lock");
+            let mut m = self
+                .inner
+                .client_usage
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
             for w in &windows {
                 m.entry((client.to_owned(), w.clone()))
                     .or_default()
@@ -697,14 +710,14 @@ impl CounterStore for Store {
             .inner
             .totals
             .lock()
-            .expect("totals lock")
+            .unwrap_or_else(|e| e.into_inner())
             .entry((vendor.to_owned(), window.clone()))
             .or_default() += amount;
         if let Some(client) = &dims.client {
             self.inner
                 .client_usage
                 .lock()
-                .expect("client usage lock")
+                .unwrap_or_else(|e| e.into_inner())
                 .entry((client.clone(), window.clone()))
                 .or_default()
                 .credits += amount;
@@ -733,7 +746,7 @@ impl CounterStore for Store {
         self.inner
             .totals
             .lock()
-            .expect("totals lock")
+            .unwrap_or_else(|e| e.into_inner())
             .get(&(vendor.to_owned(), window.clone()))
             .copied()
             .unwrap_or(0)

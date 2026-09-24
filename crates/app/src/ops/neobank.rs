@@ -399,15 +399,17 @@ async fn sol_funding(
 ) -> Result<FundingReads, DomainError> {
     let rpc = ctx.solana_rpc(chain)?;
     let m = sol_account(&rpc, &mint.to_string()).await?;
-    let program = m["owner"].as_str().unwrap_or_default();
-    if !is_token_program(program) || m["data"]["parsed"]["type"] != "mint" {
+    let program = m.get("owner").and_then(Value::as_str).unwrap_or_default();
+    let kind = m.pointer("/data/parsed/type").and_then(Value::as_str);
+    if !is_token_program(program) || kind != Some("mint") {
         return Err(DomainError::invalid(format!(
             "{mint} is not a token mint on {}",
             chain.id
         )));
     }
-    let decimals = m["data"]["parsed"]["info"]["decimals"]
-        .as_u64()
+    let decimals = m
+        .pointer("/data/parsed/info/decimals")
+        .and_then(Value::as_u64)
         .and_then(|d| u8::try_from(d).ok())
         .ok_or_else(|| DomainError::internal("mint has no decimals"))?;
     let ata = spl::associated_token_address(&owner, &mint, &program.parse()?)?;
@@ -421,7 +423,7 @@ async fn sol_funding(
         r.no_account = true;
         return Ok(r);
     }
-    let info = &acct["data"]["parsed"]["info"];
+    let info = acct.pointer("/data/parsed/info").unwrap_or(&Value::Null);
     r.balance = raw_amount(&info["tokenAmount"]);
     r.frozen = info["state"] == "frozen";
     r.delegate = info["delegate"].as_str().map(str::to_owned);

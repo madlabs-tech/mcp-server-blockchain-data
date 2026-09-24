@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 //! Characterization tests (T0.3): lock the observable behavior of the 4 legacy MCP tools.
 //! Black-box: spawns the real `blockchain-data-mcp` binary over stdio against a fake JSON-RPC node.
 //! These tests must pass unchanged after the workspace refactor (T0.13).
@@ -77,6 +83,7 @@ async fn start() -> RunningService<RoleClient, ()> {
     let cmd = Command::new(env!("CARGO_BIN_EXE_blockchain-data-mcp")).configure(|c| {
         c.env("RPC_URL", &url)
             .env("RUST_LOG", "error")
+            .env("BDM__SERVER__WARMUP", "false")
             .env_remove("QN_ENDPOINT_NAME")
             .env_remove("QN_TOKEN_ID");
     });

@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 //! neobank-wallet tools (T1.N1–T1.N4) through the App with mock ports. No network.
 
 use async_trait::async_trait;

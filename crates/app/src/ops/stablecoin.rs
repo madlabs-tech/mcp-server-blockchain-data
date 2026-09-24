@@ -95,7 +95,7 @@ pub(crate) async fn restrictions_for(
     let rpc = match (&evm, &sol) {
         (Some(e), _) => ChainRpc::Evm(e),
         (_, Some(s)) => ChainRpc::Solana(s),
-        _ => unreachable!("one transport per family"),
+        _ => return Err(DomainError::internal("no RPC transport for chain family")),
     };
     let (mut ok, mut errors) = (Vec::new(), Vec::new());
     // ponytail: tokens are checked sequentially (≤ 7 per chain today).
@@ -418,12 +418,9 @@ pub fn peg_verdict(
 ) -> PegOut {
     let mut values: Vec<Decimal> = sources.iter().map(|p| p.value).collect();
     values.sort();
-    let median = match values.len() {
-        0 => None,
-        n if n % 2 == 1 => Some(values[n / 2]),
-        n => Some((values[n / 2 - 1] + values[n / 2]) / Decimal::TWO),
-    };
-    let spread_bps = median.and_then(|m| bps(values[values.len() - 1] - values[0], m));
+    let stats = super::market::median_lo_hi(&values);
+    let median = stats.map(|(m, _, _)| m);
+    let spread_bps = stats.and_then(|(m, lo, hi)| bps(hi - lo, m));
     let deviation_bps = median.and_then(|m| bps((m - Decimal::ONE).abs(), Decimal::ONE));
     let status = match (median, spread_bps) {
         (None, _) => PriceStatus::Unknown,

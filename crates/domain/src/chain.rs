@@ -259,7 +259,7 @@ impl FromStr for AssetId {
             (Some(ChainFamily::Evm), "erc20") => {
                 match AccountAddress::parse(ChainFamily::Evm, reference)? {
                     AccountAddress::Evm(a) => AssetRef::Erc20(a),
-                    AccountAddress::Solana(_) => unreachable!(),
+                    AccountAddress::Solana(_) => return Err(bad()),
                 }
             }
             (Some(ChainFamily::Solana), "token") => AssetRef::SplToken(reference.parse()?),

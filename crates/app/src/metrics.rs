@@ -17,7 +17,7 @@ pub struct OpMetrics {
 
 impl OpMetrics {
     pub(crate) fn record(&self, op: &str, ok: bool, cached: bool, latency: Duration) {
-        let mut m = self.stats.lock().expect("metrics lock");
+        let mut m = self.stats.lock().unwrap_or_else(|e| e.into_inner());
         let s = m.entry(op.to_owned()).or_default();
         s.calls += 1;
         s.errors += u64::from(!ok);
@@ -26,7 +26,7 @@ impl OpMetrics {
     }
 
     pub fn snapshot(&self) -> BTreeMap<String, OpStats> {
-        self.stats.lock().expect("metrics lock").clone()
+        self.stats.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Prometheus exposition format.

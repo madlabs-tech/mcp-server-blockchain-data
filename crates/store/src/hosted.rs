@@ -99,7 +99,7 @@ impl ClientGuard {
         let cap = f64::from(rpm);
         let per_sec = cap / 60.0;
         let now = Instant::now();
-        let mut map = self.buckets.lock().expect("bucket lock");
+        let mut map = self.buckets.lock().unwrap_or_else(|e| e.into_inner());
         let b = map.entry(client.to_owned()).or_insert(Bucket {
             tokens: cap,
             last: now,

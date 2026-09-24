@@ -98,6 +98,18 @@ pub struct MarketGetPrice;
 
 pub(crate) const DEFAULT_MAX_SPREAD_BPS: u32 = 200;
 
+/// `(median, lowest, highest)` of an ascending-sorted list; `None` when empty.
+pub(crate) fn median_lo_hi(sorted: &[Decimal]) -> Option<(Decimal, Decimal, Decimal)> {
+    let (lo, hi) = (*sorted.first()?, *sorted.last()?);
+    let n = sorted.len();
+    let median = if n % 2 == 1 {
+        *sorted.get(n / 2)?
+    } else {
+        (*sorted.get(n / 2 - 1)? + *sorted.get(n / 2)?) / Decimal::TWO
+    };
+    Some((median, lo, hi))
+}
+
 /// Median + spread over the sources that are fresh enough. Pure; unit-tested.
 pub(crate) fn aggregate_prices(
     asset: &AssetId,
@@ -119,13 +131,9 @@ pub(crate) fn aggregate_prices(
         (fresh, false)
     };
     values.sort();
-    let median = match values.len() {
-        0 => None,
-        n if n % 2 == 1 => Some(values[n / 2]),
-        n => Some((values[n / 2 - 1] + values[n / 2]) / Decimal::TWO),
-    };
-    let spread_bps = median.map(|m| {
-        let (lo, hi) = (values[0], values[values.len() - 1]);
+    let stats = median_lo_hi(&values);
+    let median = stats.map(|(m, _, _)| m);
+    let spread_bps = stats.map(|(m, lo, hi)| {
         ((hi - lo) / m * Decimal::from(10_000))
             .round()
             .to_u32()
@@ -279,7 +287,11 @@ impl Operation for MarketGetPriceAt {
         match routed {
             Ok(r) => {
                 let mut meta = r.provenance;
-                let (vendor, price) = r.value.into_iter().next().expect("aggregate returns ≥1");
+                let (vendor, price) = r
+                    .value
+                    .into_iter()
+                    .next()
+                    .ok_or_else(|| DomainError::internal("aggregate returned no answers"))?;
                 meta.provider = Some(vendor);
                 let gap = (price.as_of - input.at).num_seconds();
                 out.status = if gap.abs() > max_gap {
@@ -371,8 +383,11 @@ pub(crate) async fn resolve_decimals(ctx: &Ctx, asset: &AssetId) -> Result<u8, D
     ctx.router()
         .aggregate::<dyn TokenMetadata, _, _, _>(req, 1, |p| async move { p.metadata(asset).await })
         .await
-        .map(|r| r.value[0].1.decimals)
-        .map_err(|e| e.error)
+        .map_err(|e| e.error)?
+        .value
+        .first()
+        .map(|(_, m)| m.decimals)
+        .ok_or_else(|| DomainError::internal("aggregate returned no answers"))
 }
 
 #[async_trait]
@@ -423,7 +438,8 @@ impl Operation for TokenGetMetadata {
             .aggregate::<dyn TokenMetadata, _, _, _>(req, n, |p| async move { p.metadata(a).await })
             .await
             .map_err(|e| e.error)?;
-        let out = merge_metadata(&asset, r.value).expect("aggregate returns ≥1");
+        let out = merge_metadata(&asset, r.value)
+            .ok_or_else(|| DomainError::internal("aggregate returned no answers"))?;
         Ok(OpOutput::new(out, r.provenance))
     }
 }
@@ -476,10 +492,9 @@ async fn evm_authority_flags(rpc: &dyn EvmRpc, token: &str) -> Result<Vec<RiskFl
 
 /// Mint authorities and Token-2022 extensions from the parsed mint account. Pure; unit-tested.
 pub(crate) fn solana_mint_flags(account: &Value) -> Option<Vec<RiskFlag>> {
-    let info = &account["value"]["data"]["parsed"]["info"];
-    if !info.is_object() {
-        return None;
-    }
+    let info = account
+        .pointer("/value/data/parsed/info")
+        .filter(|i| i.is_object())?;
     let mut flags = Vec::new();
     if let Some(a) = info["mintAuthority"].as_str() {
         flags.push(rpc_flag(
@@ -515,8 +530,9 @@ pub(crate) fn solana_mint_flags(account: &Value) -> Option<Vec<RiskFlag>> {
                 flags.push(rpc_flag("default_frozen", Severity::High, None))
             }
             Some("transferFeeConfig") => {
-                let bps = state["newerTransferFee"]["transferFeeBasisPoints"]
-                    .as_u64()
+                let bps = state
+                    .pointer("/newerTransferFee/transferFeeBasisPoints")
+                    .and_then(Value::as_u64)
                     .unwrap_or(0);
                 if bps > 0 {
                     flags.push(rpc_flag(

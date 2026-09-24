@@ -1,3 +1,12 @@
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        clippy::panic
+    )
+)]
 //! MCP transport. `list_tools` / `call_tool` are generated from the Operation catalog, so every
 //! tool added in `bdm-app` appears here (and in REST) without transport code.
 //!

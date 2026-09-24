@@ -254,10 +254,9 @@ impl ConfigLoader {
                 .ok_or_else(|| format!("chain_overrides: unknown chain '{key}'"))?
                 .id
                 .clone();
-            let c = chains
-                .iter_mut()
-                .find(|c| c.id == id)
-                .expect("indexed chain exists");
+            let Some(c) = chains.iter_mut().find(|c| c.id == id) else {
+                continue;
+            };
             if let Some(e) = ov.enabled {
                 c.enabled = e;
             }
@@ -289,7 +288,9 @@ fn insert(
     path: &[String],
     value: serde_json::Value,
 ) {
-    let (last, parents) = path.split_last().expect("non-empty path");
+    let Some((last, parents)) = path.split_last() else {
+        return;
+    };
     let mut cur = root;
     for seg in parents {
         let next = cur
@@ -298,7 +299,10 @@ fn insert(
         if !next.is_object() {
             *next = serde_json::Value::Object(Default::default());
         }
-        cur = next.as_object_mut().expect("object");
+        let serde_json::Value::Object(m) = next else {
+            return;
+        };
+        cur = m;
     }
     cur.insert(last.clone(), value);
 }

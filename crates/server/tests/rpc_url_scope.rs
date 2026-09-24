@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 //! T0.13: the legacy `RPC_URL` now applies to Ethereum only (it used to hijack every chain).
 
 use axum::{routing::post, Json, Router};
@@ -45,6 +51,7 @@ async fn rpc_url_is_ethereum_only() {
             .arg(dir.path())
             .env("RPC_URL", &url)
             .env("BDM__SERVER__DASHBOARD", "false")
+            .env("BDM__SERVER__WARMUP", "false")
             .env("RUST_LOG", "error")
             .env_remove("ALCHEMY_API_KEY")
             .env_remove("QN_ENDPOINT_NAME")

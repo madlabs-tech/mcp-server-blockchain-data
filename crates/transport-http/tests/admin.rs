@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 //! Admin API (T1.D4): auth + CSRF header, locked-by-env edits refused, secrets never echoed,
 //! reorder → router.swap → the next call uses the new primary, clients CRUD, quota, call log.
 //! No network: the "vendors" are in-process fake RPC ports.

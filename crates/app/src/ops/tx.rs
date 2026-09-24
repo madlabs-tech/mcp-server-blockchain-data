@@ -22,7 +22,7 @@ use bdm_ports::{
 use bdm_protocols::{evm, solana, solana::spl};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::time::Duration;
 
 pub fn register(c: &mut Catalog) {
@@ -653,7 +653,10 @@ async fn build_solana(
 ) -> Result<Built, DomainError> {
     let rpc = ctx.solana_rpc(chain)?;
     let recipient = sol_account(&rpc, &to.to_string()).await?;
-    let rowner = recipient["owner"].as_str().unwrap_or_default();
+    let rowner = recipient
+        .get("owner")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     if is_token_program(rowner) {
         return Err(DomainError::invalid(format!(
             "{to} is a token account or mint, not a wallet: pass the owner wallet"
@@ -699,9 +702,10 @@ async fn build_solana(
         }
         AssetRef::SplToken(mint) => {
             let m = sol_account(&rpc, &mint.to_string()).await?;
-            let program_s = m["owner"].as_str().unwrap_or_default();
-            let info = &m["data"]["parsed"]["info"];
-            if !is_token_program(program_s) || m["data"]["parsed"]["type"] != "mint" {
+            let program_s = m.get("owner").and_then(Value::as_str).unwrap_or_default();
+            let info = m.pointer("/data/parsed/info").unwrap_or(&Value::Null);
+            let kind = m.pointer("/data/parsed/type").and_then(Value::as_str);
+            if !is_token_program(program_s) || kind != Some("mint") {
                 return Err(DomainError::invalid(format!(
                     "{mint} is not a token mint on {}",
                     chain.id
@@ -773,13 +777,15 @@ async fn build_solana(
     let bh = rpc
         .request("getLatestBlockhash", json!([{ "commitment": "confirmed" }]))
         .await?;
-    let blockhash = bh["value"]["blockhash"]
-        .as_str()
+    let blockhash = bh
+        .pointer("/value/blockhash")
+        .and_then(Value::as_str)
         .ok_or_else(|| DomainError::internal("getLatestBlockhash: no blockhash"))?;
-    let last_valid_block_height = bh["value"]["lastValidBlockHeight"]
-        .as_u64()
+    let last_valid_block_height = bh
+        .pointer("/value/lastValidBlockHeight")
+        .and_then(Value::as_u64)
         .ok_or_else(|| DomainError::internal("getLatestBlockhash: no lastValidBlockHeight"))?;
-    let message = compile_message(from, &ixs, pubkey(blockhash)?.0);
+    let message = compile_message(from, &ixs, pubkey(blockhash)?.0)?;
     Ok(Built {
         tx: UnsignedTx::Solana {
             message_base64: B64.encode(message),
@@ -846,7 +852,11 @@ fn compact_u16(mut n: usize, out: &mut Vec<u8>) {
 }
 
 /// Serialize a legacy Solana message (header, account keys, blockhash, instructions).
-fn compile_message(payer: SolanaPubkey, ixs: &[SolIx], blockhash: [u8; 32]) -> Vec<u8> {
+fn compile_message(
+    payer: SolanaPubkey,
+    ixs: &[SolIx],
+    blockhash: [u8; 32],
+) -> Result<Vec<u8>, DomainError> {
     let mut keys = vec![AcctMeta::signer(payer)];
     let mut add = |m: AcctMeta| match keys.iter_mut().find(|k| k.key == m.key) {
         Some(k) => {
@@ -861,7 +871,12 @@ fn compile_message(payer: SolanaPubkey, ixs: &[SolIx], blockhash: [u8; 32]) -> V
     }
     // Stable sort keeps the fee payer first: writable signers, readonly signers, writable, readonly.
     keys.sort_by_key(|k| (!k.signer, !k.writable));
-    let idx = |key: &SolanaPubkey| keys.iter().position(|k| &k.key == key).expect("key") as u8;
+    let idx = |key: &SolanaPubkey| {
+        keys.iter()
+            .position(|k| &k.key == key)
+            .map(|p| p as u8)
+            .ok_or_else(|| DomainError::internal("compile_message: account key not collected"))
+    };
     let count = |s: bool, w: bool| {
         keys.iter()
             .filter(|k| k.signer == s && k.writable == w)
@@ -877,13 +892,15 @@ fn compile_message(payer: SolanaPubkey, ixs: &[SolIx], blockhash: [u8; 32]) -> V
     out.extend(blockhash);
     compact_u16(ixs.len(), &mut out);
     for ix in ixs {
-        out.push(idx(&ix.program));
+        out.push(idx(&ix.program)?);
         compact_u16(ix.accounts.len(), &mut out);
-        out.extend(ix.accounts.iter().map(|a| idx(&a.key)));
+        for a in &ix.accounts {
+            out.push(idx(&a.key)?);
+        }
         compact_u16(ix.data.len(), &mut out);
         out.extend(&ix.data);
     }
-    out
+    Ok(out)
 }
 
 // ------------------------------------------------------------------ tx_broadcast
@@ -957,10 +974,11 @@ pub(crate) fn local_tx_hash(family: ChainFamily, signed: &str) -> Result<String,
                 DomainError::invalid("signed_tx must be a base64 Solana transaction")
             })?;
             // compact-u16 signature count (< 128 signatures fits one byte), then 64-byte signatures
-            let sig = match bytes.as_slice() {
-                [n, rest @ ..] if *n > 0 && *n < 0x80 && rest.len() >= 64 => &rest[..64],
-                _ => return Err(DomainError::invalid("signed_tx has no signature")),
-            };
+            let sig = match bytes.split_first() {
+                Some((n, rest)) if (1..0x80).contains(n) => rest.get(..64),
+                _ => None,
+            }
+            .ok_or_else(|| DomainError::invalid("signed_tx has no signature"))?;
             if sig.iter().all(|b| *b == 0) {
                 return Err(DomainError::invalid(
                     "transaction is not signed (empty signature)",
@@ -1144,7 +1162,7 @@ mod tests {
             accounts: vec![AcctMeta::signer(from), AcctMeta::writable(to)],
             data,
         };
-        let m = compile_message(from, &[ix], [3; 32]);
+        let m = compile_message(from, &[ix], [3; 32]).unwrap();
         assert_eq!(&m[..4], &[1, 0, 1, 3], "header + 3 keys");
         assert_eq!(&m[4..36], &[1; 32], "fee payer first");
         assert_eq!(&m[36..68], &[2; 32]);

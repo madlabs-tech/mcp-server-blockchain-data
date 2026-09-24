@@ -174,7 +174,9 @@ impl Operation for WalletGetBalances {
         let (chains, mismatched): (Vec<&ChainEntry>, Vec<&ChainEntry>) =
             chains.into_iter().partition(|c| c.family == owner.family());
         if chains.is_empty() {
-            let c = mismatched.first().expect("at least one chain");
+            let Some(c) = mismatched.first() else {
+                return Err(DomainError::invalid("no chains to query"));
+            };
             return Err(DomainError::invalid(format!(
                 "{owner} is not a valid address on {} ({:?} chain)",
                 c.id, c.family
@@ -236,7 +238,10 @@ impl Operation for WalletGetBalances {
                 return Err(e);
             }
         }
-        let single = (chains.len() == 1).then(|| chains[0].id.clone());
+        let single = match chains.as_slice() {
+            [only] => Some(only.id.clone()),
+            _ => None,
+        };
         Ok(OpOutput::new(
             BalancesOut { owner, chains: out },
             merge_meta(single, metas),
@@ -718,7 +723,11 @@ async fn validate_evm(
             rep.smart_account = Some("safe".into());
         } else if call_word(&rpc, a, "0xb0d691fe")
             .await
-            .is_some_and(|w| w[..12].iter().all(|b| *b == 0) && w[12..].iter().any(|b| *b != 0))
+            .and_then(|w| {
+                w.split_at_checked(12)
+                    .map(|(pad, addr)| (pad.to_vec(), addr.to_vec()))
+            })
+            .is_some_and(|(pad, addr)| pad.iter().all(|b| *b == 0) && addr.iter().any(|b| *b != 0))
         {
             // entryPoint() returns an address → ERC-4337 account
             kind = AddressKind::SmartAccount;
@@ -786,11 +795,14 @@ async fn validate_solana(
     let rpc = ctx.solana_rpc(chain)?;
     let s = addr.to_string();
     let acct = sol_account(&rpc, &s).await?;
-    let owner = acct["owner"].as_str().unwrap_or_default();
-    let parsed = &acct["data"]["parsed"];
+    let owner = acct
+        .get("owner")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let parsed = acct.pointer("/data/parsed").unwrap_or(&Value::Null);
     rep.kind = if acct.is_null() {
         AddressKind::UnfundedWallet
-    } else if acct["executable"].as_bool() == Some(true) {
+    } else if acct.get("executable").and_then(Value::as_bool) == Some(true) {
         AddressKind::Program
     } else if owner == SYSTEM_PROGRAM {
         AddressKind::Wallet
@@ -910,8 +922,8 @@ async fn check_token(
             .await
             .ok()
             .map(|a| {
-                is_token_program(a["owner"].as_str().unwrap_or_default())
-                    && a["data"]["parsed"]["type"] == "mint"
+                is_token_program(a.get("owner").and_then(Value::as_str).unwrap_or_default())
+                    && a.pointer("/data/parsed/type").and_then(Value::as_str) == Some("mint")
             }),
     };
     if exists == Some(false) {

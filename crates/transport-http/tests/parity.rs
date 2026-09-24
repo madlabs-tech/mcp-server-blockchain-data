@@ -1,3 +1,9 @@
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
 //! Transport tests (T0.10): REST vs MCP (streamable HTTP) parity, hosted-mode auth, OpenAPI,
 //! error mapping.
 
@@ -52,6 +58,22 @@ impl Operation for Echo {
     }
 }
 
+struct Boom;
+
+#[async_trait]
+impl Operation for Boom {
+    type Input = EchoIn;
+    type Output = EchoOut;
+    const NAME: &'static str = "chain_boom";
+    const DOMAIN: Domain = Domain::Chain;
+    const DESCRIPTION: &'static str = "Panics.";
+    const PROFILES: &'static [Profile] = &[Profile::Payments];
+
+    async fn execute(&self, _ctx: &Ctx, _input: EchoIn) -> Result<OpOutput<EchoOut>, DomainError> {
+        panic!("deliberate test panic")
+    }
+}
+
 struct StaticAuth;
 
 #[async_trait]
@@ -84,6 +106,7 @@ async fn serve(auth: Option<Arc<dyn ClientAuth>>) -> String {
     let mut catalog = Catalog::new();
     bdm_app::ops::register_all(&mut catalog);
     catalog.register(Echo);
+    catalog.register(Boom);
     let state = HttpState {
         app: Arc::new(App::new(catalog, router, 100)),
         auth,
@@ -191,6 +214,65 @@ async fn errors_map_to_http_status_and_mcp_is_error() {
     assert_eq!(
         mcp.structured_content.unwrap()["error"]["code"],
         json!("ALL_PROVIDERS_FAILED")
+    );
+}
+
+#[tokio::test]
+async fn tool_panics_are_internal_errors_on_rest_and_mcp() {
+    let url = serve(None).await;
+    let r = reqwest::Client::new()
+        .post(format!("{url}/v1/chain/boom"))
+        .json(&json!({"msg": "x"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 500);
+    let body: Value = r.json().await.unwrap();
+    assert_eq!(body["error"]["code"], json!("INTERNAL"));
+
+    // MCP: caught at the App layer; the client gets `isError` and the session stays usable.
+    let cfg = StreamableHttpClientTransportConfig::with_uri(format!("{url}/mcp"));
+    let client = ().serve(StreamableHttpClientTransport::from_config(cfg)).await.unwrap();
+    let param = |name: &'static str, args: Value| CallToolRequestParam {
+        name: name.into(),
+        arguments: args.as_object().cloned(),
+    };
+    let r = client
+        .call_tool(param("chain_boom", json!({"msg": "x"})))
+        .await
+        .unwrap();
+    assert_eq!(r.is_error, Some(true));
+    assert_eq!(
+        r.structured_content.unwrap()["error"]["code"],
+        json!("INTERNAL")
+    );
+    let r = client
+        .call_tool(param("chain_echo", json!({"msg": "still alive"})))
+        .await
+        .unwrap();
+    assert_eq!(r.is_error, Some(false));
+    client.cancel().await.unwrap();
+}
+
+async fn boom_handler() -> &'static str {
+    panic!("deliberate handler panic")
+}
+
+#[tokio::test]
+async fn http_layer_turns_handler_panics_into_internal_json() {
+    let app = axum::Router::new()
+        .route("/boom", axum::routing::get(boom_handler))
+        .layer(bdm_transport_http::catch_panic_layer());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await });
+    let r = reqwest::get(format!("{url}/boom")).await.unwrap();
+    assert_eq!(r.status(), 500);
+    let body: Value = r.json().await.unwrap();
+    assert_eq!(body["error"]["code"], json!("INTERNAL"));
+    assert_eq!(
+        body["error"]["message"],
+        json!("internal error; see server log")
     );
 }
 

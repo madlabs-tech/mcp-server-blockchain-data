@@ -1,3 +1,12 @@
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        clippy::panic
+    )
+)]
 //! Capability ports: small traits (Interface Segregation) that vendor adapters implement.
 //!
 //! A vendor implements only what it supports and registers each port through a
