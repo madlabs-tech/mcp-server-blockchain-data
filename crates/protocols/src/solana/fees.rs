@@ -28,7 +28,7 @@ pub fn percentile(sorted: &[u64], p: u32) -> u64 {
         return 0;
     }
     let rank = (p.min(100) as usize * sorted.len()).div_ceil(100);
-    sorted[rank.saturating_sub(1)]
+    sorted.get(rank.saturating_sub(1)).copied().unwrap_or(0)
 }
 
 pub fn tier(speed: FeeSpeed, micro_lamports_per_cu: u64) -> FeeTier {

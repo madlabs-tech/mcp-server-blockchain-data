@@ -155,11 +155,13 @@ impl GoPlus {
     }
 
     /// `Authorization` header value, or `None` when running without keys.
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn authorization(&self) -> PortResult<Option<String>> {
         let Some((key, secret)) = &self.creds else {
             return Ok(None);
         };
-        if let Some((t, until)) = self.token.lock().expect("token cache").clone() {
+        let cached = self.token.lock().unwrap_or_else(|e| e.into_inner()).clone();
+        if let Some((t, until)) = cached {
             if Instant::now() < until {
                 return Ok(Some(t));
             }
@@ -180,7 +182,7 @@ impl GoPlus {
         // GoPlus expects the raw token, not `Bearer <token>` (verified live: Bearer → code 4012).
         let bearer = token;
         let ttl = r["expires_in"].as_u64().unwrap_or(3600).saturating_sub(60);
-        *self.token.lock().expect("token cache") =
+        *self.token.lock().unwrap_or_else(|e| e.into_inner()) =
             Some((bearer.clone(), Instant::now() + Duration::from_secs(ttl)));
         Ok(Some(bearer))
     }
@@ -188,6 +190,7 @@ impl GoPlus {
 
 #[async_trait]
 impl TokenRisk for GoPlus {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn assess(&self, asset: &AssetId) -> PortResult<RiskAssessment> {
         let unsupported = || ProviderError::Unsupported(format!("goplus does not cover {asset}"));
         let (path, solana) = match &asset.asset {

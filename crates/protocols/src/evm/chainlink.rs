@@ -2,7 +2,7 @@
 //!
 //! Interface: `AggregatorV3Interface` (https://docs.chain.link/data-feeds/api-reference).
 
-use super::multicall3::{aggregate3, Call};
+use super::multicall3::{aggregate3, data_at, Call};
 use alloy_primitives::{Address, I256};
 use alloy_sol_types::{sol, SolCall};
 use bdm_ports::{EvmRpc, PortResult, ProviderError};
@@ -34,12 +34,10 @@ pub async fn latest_round(rpc: &dyn EvmRpc, feed: Address) -> PortResult<RoundDa
     ];
     let r = aggregate3(rpc, &calls, "latest").await?;
     let not_feed = || ProviderError::Unsupported(format!("{feed} is not a Chainlink feed"));
-    let round = r[0]
-        .as_deref()
+    let round = data_at(&r, 0)
         .and_then(|d| IAggregatorV3::latestRoundDataCall::abi_decode_returns(d).ok())
         .ok_or_else(not_feed)?;
-    let decimals = r[1]
-        .as_deref()
+    let decimals = data_at(&r, 1)
         .and_then(super::erc20::decode_decimals)
         .ok_or_else(not_feed)?;
     Ok(RoundData {

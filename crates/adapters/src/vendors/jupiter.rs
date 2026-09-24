@@ -121,6 +121,7 @@ impl Jupiter {
         }
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn decimals_of(&self, asset: &AssetId, mint: &str) -> PortResult<u8> {
         if asset.is_native() {
             return Ok(self.chain.native.decimals);
@@ -131,6 +132,7 @@ impl Jupiter {
             .ok_or_else(|| ProviderError::Unsupported(format!("unknown decimals for {mint}")))
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn order(&self, req: &SwapRequest, taker: Option<String>) -> PortResult<SwapQuote> {
         if req.chain != self.chain.id {
             return Err(ProviderError::Unsupported(format!(
@@ -215,6 +217,7 @@ fn decimal(v: &Value) -> Option<Decimal> {
 
 #[async_trait]
 impl PriceFeed for Jupiter {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn price(&self, asset: &AssetId, currency: &str) -> PortResult<Price> {
         if !currency.eq_ignore_ascii_case("USD") {
             return Err(ProviderError::Unsupported(format!(

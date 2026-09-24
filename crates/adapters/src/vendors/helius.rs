@@ -17,7 +17,7 @@
 
 use crate::{
     http::{HttpClient, DEFAULT_TIMEOUT},
-    jsonrpc::JsonRpcClient,
+    jsonrpc::{array_field, JsonRpcClient},
 };
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
@@ -125,6 +125,7 @@ fn fee_level(v: &Value) -> Option<u64> {
 
 #[async_trait]
 impl TokenBalances for Helius {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn balances(
         &self,
         owner: &AccountAddress,
@@ -159,8 +160,8 @@ impl TokenBalances for Helius {
                     }
                 }
             }
-            let items = r["items"].as_array().cloned().unwrap_or_default();
-            for item in &items {
+            let items = array_field(&r, "items", "getAssetsByOwner")?;
+            for item in items {
                 let ti = &item["token_info"];
                 let (Some(balance), Some(decimals), Some(mint)) = (
                     ti["balance"].as_u64(),
@@ -207,6 +208,7 @@ impl TokenBalances for Helius {
 #[async_trait]
 impl FeeOracle for Helius {
     /// Global estimate (no account keys); Slow / Standard / Fast = low / medium / high.
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn fee_estimate(&self) -> PortResult<FeeEstimate> {
         let r = self
             .rpc
@@ -240,6 +242,7 @@ impl FeeOracle for Helius {
 
 #[async_trait]
 impl TokenMetadata for Helius {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn metadata(&self, asset: &AssetId) -> PortResult<TokenInfo> {
         let AssetRef::SplToken(mint) = asset.asset else {
             return Err(ProviderError::Unsupported(
@@ -385,6 +388,26 @@ mod tests {
             .calls()
             .iter()
             .any(|(m, _)| m == "getTransfersByAddress" || m == "getTransactionsForAddress"));
+    }
+
+    #[tokio::test]
+    async fn malformed_das_answers_are_errors_never_panics() {
+        let server = FakeJsonRpc::start().await;
+        server.on("getAssetsByOwner", json!({"total": 0, "items": {}}));
+        server.on(
+            "getAsset",
+            json!({"id": USDC, "token_info": {"decimals": "6", "symbol": "USDC"}}),
+        );
+        let h = Helius::new(client(&server, "helius"), chain());
+        assert!(matches!(
+            h.balances(&OWNER.parse().unwrap(), None).await,
+            Err(ProviderError::Transient(_))
+        ));
+        let asset: AssetId = format!("{SOLANA_MAINNET}/token:{USDC}").parse().unwrap();
+        assert!(matches!(
+            h.metadata(&asset).await,
+            Err(ProviderError::Unsupported(_))
+        ));
     }
 
     #[tokio::test]

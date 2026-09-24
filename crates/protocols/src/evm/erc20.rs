@@ -69,10 +69,7 @@ pub async fn symbol(rpc: &dyn EvmRpc, token: Address) -> PortResult<Option<Strin
 
 /// `uint8` decimals; some tokens return a wider word, so accept any value that fits.
 pub(crate) fn decode_decimals(out: &[u8]) -> Option<u8> {
-    if out.len() < 32 {
-        return None;
-    }
-    u8::try_from(U256::from_be_slice(&out[..32])).ok()
+    u8::try_from(U256::from_be_slice(out.get(..32)?)).ok()
 }
 
 pub(crate) fn decode_str(out: &[u8]) -> Option<String> {
@@ -81,10 +78,8 @@ pub(crate) fn decode_str(out: &[u8]) -> Option<String> {
     }
     if out.len() == 32 {
         let b = B256::from_slice(out);
-        let end = b.iter().position(|&c| c == 0).unwrap_or(32);
-        return String::from_utf8(b[..end].to_vec())
-            .ok()
-            .filter(|s| !s.is_empty());
+        let text: Vec<u8> = b.iter().copied().take_while(|&c| c != 0).collect();
+        return String::from_utf8(text).ok().filter(|s| !s.is_empty());
     }
     None
 }

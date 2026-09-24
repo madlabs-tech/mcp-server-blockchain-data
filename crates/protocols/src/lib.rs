@@ -12,6 +12,16 @@
 //! | `stablecoins`, `issuer`, `sanctions` | payments-stablecoin | T1.P1–P2 |
 //! | `rwa`, `market_hours` | market-trading | T1.M4 |
 
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        clippy::panic
+    )
+)]
+
 pub mod evm;
 pub mod issuer;
 pub mod market_hours;

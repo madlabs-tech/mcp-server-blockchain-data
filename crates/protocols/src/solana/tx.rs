@@ -44,6 +44,7 @@ pub fn get_transaction_config(commitment: &str) -> Value {
 
 /// Look up one transaction. `Ok(None)` if no node knows the signature. Finality comes from
 /// `getSignatureStatuses` mapped through the chain policy (see the `solana` module docs).
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 pub async fn get_tx(
     rpc: &dyn SolanaRpc,
     chain: &ChainEntry,
@@ -114,6 +115,7 @@ pub fn parse_tx(chain: &ChainEntry, tx: &Value) -> Result<Tx, DomainError> {
 }
 
 /// [`parse_tx`] with a known finality (e.g. from `getSignatureStatuses`).
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 pub fn parse_tx_with_finality(
     chain: &ChainEntry,
     tx: &Value,
@@ -219,6 +221,7 @@ fn instructions<'a>(msg: &'a Value, meta: &'a Value) -> Vec<(u64, bool, &'a Valu
 /// (`confidentialTransfer`, `depositConfidentialTransfer`, …); unparsed ones start with the
 /// `ConfidentialTransferExtension` (27) or `ConfidentialTransferFeeExtension` (37) tag.
 /// Source: spl-token-2022 `TokenInstruction` enum (program/src/instruction.rs).
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 fn is_confidential(ix: &Value) -> bool {
     if ix["programId"].as_str() != Some(TOKEN_2022_PROGRAM) {
         return false;
@@ -246,6 +249,7 @@ struct RawTransfer {
     decimals: Option<u8>,
 }
 
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 fn raw_transfer(ix: &Value, pos: u64, inner: bool) -> Option<RawTransfer> {
     let program = ix["programId"].as_str()?;
     let kind = ix["parsed"]["type"].as_str()?;
@@ -302,6 +306,7 @@ struct TokenAcct {
 }
 
 /// Token accounts keyed by address. A missing pre (or post) entry counts as 0.
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 fn token_accounts(keys: &[String], meta: &Value) -> BTreeMap<String, TokenAcct> {
     let mut out: BTreeMap<String, TokenAcct> = BTreeMap::new();
     for (field, post) in [("preTokenBalances", false), ("postTokenBalances", true)] {
@@ -464,6 +469,7 @@ fn balance_deltas(
 
 /// Balance changes from a `simulateTransaction` value (Agave returns `pre/postBalances`,
 /// `pre/postTokenBalances` and `loadedAddresses`). Empty if the node omits them.
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 pub(crate) fn simulated_deltas(
     chain: &ChainEntry,
     message: &[u8],
@@ -499,17 +505,21 @@ struct Reader<'a> {
 
 impl<'a> Reader<'a> {
     fn take(&mut self, n: usize) -> Result<&'a [u8], String> {
-        let end = self
-            .pos
-            .checked_add(n)
-            .filter(|&e| e <= self.b.len())
-            .ok_or("truncated transaction")?;
-        let s = &self.b[self.pos..end];
+        let end = self.pos.checked_add(n).ok_or("truncated transaction")?;
+        let s = self.b.get(self.pos..end).ok_or("truncated transaction")?;
         self.pos = end;
         Ok(s)
     }
     fn u8(&mut self) -> Result<u8, String> {
-        Ok(self.take(1)?[0])
+        self.take(1)?
+            .first()
+            .copied()
+            .ok_or_else(|| "truncated transaction".into())
+    }
+    fn array<const N: usize>(&mut self) -> Result<[u8; N], String> {
+        self.take(N)?
+            .try_into()
+            .map_err(|_| "truncated transaction".into())
     }
     /// compact-u16: 7 bits per byte, little-endian, high bit = continuation (max 3 bytes).
     fn compact(&mut self) -> Result<usize, String> {
@@ -564,9 +574,9 @@ pub(crate) fn decode_message(b: &[u8]) -> Result<WireMessage, String> {
     };
     r.take(2)?; // read-only signed / unsigned counts
     let keys = (0..r.compact()?)
-        .map(|_| r.take(32).map(|k| k.try_into().expect("32 bytes")))
+        .map(|_| r.array::<32>())
         .collect::<Result<Vec<[u8; 32]>, _>>()?;
-    let recent_blockhash = r.take(32)?.try_into().expect("32 bytes");
+    let recent_blockhash = r.array::<32>()?;
     let mut instructions = Vec::new();
     for _ in 0..r.compact()? {
         let program_index = r.u8()?;
@@ -592,9 +602,10 @@ pub(crate) fn decode_message(b: &[u8]) -> Result<WireMessage, String> {
 fn decode_tx(b: &[u8]) -> Result<(Vec<[u8; 64]>, &[u8]), String> {
     let mut r = Reader { b, pos: 0 };
     let sigs = (0..r.compact()?)
-        .map(|_| r.take(64).map(|s| s.try_into().expect("64 bytes")))
+        .map(|_| r.array::<64>())
         .collect::<Result<Vec<[u8; 64]>, _>>()?;
-    Ok((sigs, &b[r.pos..]))
+    let msg = b.get(r.pos..).ok_or("truncated transaction")?;
+    Ok((sigs, msg))
 }
 
 fn decode_signed(signed_base64: &str) -> Result<(Vec<[u8; 64]>, WireMessage), DomainError> {
@@ -617,10 +628,9 @@ fn decode_signed(signed_base64: &str) -> Result<(Vec<[u8; 64]>, WireMessage), Do
 /// locally, identical on every provider, so resends are safe. Rejects unsigned payloads.
 pub fn signature_of(signed_base64: &str) -> Result<String, DomainError> {
     let (sigs, _) = decode_signed(signed_base64)?;
-    if sigs[0] == [0u8; 64] {
-        return Err(DomainError::invalid("transaction is not signed"));
-    }
-    Ok(bs58::encode(sigs[0]).into_string())
+    let first = sigs.first().filter(|s| **s != [0u8; 64]);
+    let first = first.ok_or_else(|| DomainError::invalid("transaction is not signed"))?;
+    Ok(bs58::encode(first).into_string())
 }
 
 /// Relay precondition check (Helius Sender, Jito `bundleOnly`): the signed tx must contain a
@@ -643,11 +653,20 @@ pub fn check_tip(
     let (mut price, mut tip) = (false, 0u64);
     for ix in &msg.instructions {
         match key(ix.program_index).as_deref() {
-            Some(COMPUTE_BUDGET_PROGRAM) if ix.data.len() == 9 && ix.data[0] == 3 => price = true,
-            Some(SYSTEM_PROGRAM) if ix.data.len() == 12 && ix.data[..4] == [2, 0, 0, 0] => {
+            Some(COMPUTE_BUDGET_PROGRAM) if ix.data.len() == 9 && ix.data.first() == Some(&3) => {
+                price = true;
+            }
+            Some(SYSTEM_PROGRAM) if ix.data.len() == 12 && ix.data.starts_with(&[2, 0, 0, 0]) => {
                 let dest = ix.accounts.get(1).and_then(|&i| key(i));
-                if dest.is_some_and(|d| tip_accounts.contains(&d.as_str())) {
-                    let lamports = u64::from_le_bytes(ix.data[4..12].try_into().expect("8"));
+                let lamports = ix
+                    .data
+                    .get(4..12)
+                    .and_then(|b| <[u8; 8]>::try_from(b).ok())
+                    .map(u64::from_le_bytes);
+                if let (Some(lamports), true) = (
+                    lamports,
+                    dest.is_some_and(|d| tip_accounts.contains(&d.as_str())),
+                ) {
                     tip = tip.saturating_add(lamports);
                 }
             }
@@ -896,6 +915,80 @@ mod tests {
             get_tx(&missing, &mainnet(), "nope").await,
             Err(ProviderError::Invalid(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn malformed_get_transaction_is_an_error_never_a_panic() {
+        let full = fixture("usdc_transfer_to_new_ata");
+        let sig = full["transaction"]["signatures"][0]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let serve = |tx: Value| {
+            FnRpc::new(move |m, _| match m {
+                "getSignatureStatuses" => Some(json!({"context": {"slot": 1}, "value": [
+                    {"slot": 320000000, "confirmations": null, "err": null, "confirmationStatus": "finalized"}]})),
+                "getTransaction" => Some(tx.clone()),
+                _ => None,
+            })
+        };
+        // (1) no meta
+        let mut no_meta = full.clone();
+        no_meta.as_object_mut().unwrap().remove("meta");
+        assert!(matches!(
+            get_tx(&serve(no_meta), &mainnet(), &sig).await,
+            Err(ProviderError::Transient(_))
+        ));
+        // (2) meta without balances: parses, no deltas
+        let mut bare = full.clone();
+        let meta = bare["meta"].as_object_mut().unwrap();
+        for k in [
+            "preTokenBalances",
+            "postTokenBalances",
+            "preBalances",
+            "postBalances",
+        ] {
+            meta.remove(k);
+        }
+        let tx = get_tx(&serve(bare), &mainnet(), &sig)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(tx.balance_deltas.is_empty());
+        // (3) no signatures
+        let mut unsigned = full.clone();
+        unsigned["transaction"]["signatures"] = json!([]);
+        assert!(matches!(
+            get_tx(&serve(unsigned), &mainnet(), &sig).await,
+            Err(ProviderError::Transient(_))
+        ));
+        // (4) not even an object
+        assert!(get_tx(&serve(json!("garbage")), &mainnet(), &sig)
+            .await
+            .is_err());
+    }
+
+    #[test]
+    fn truncated_wire_bytes_are_errors_never_panics() {
+        let t = B64.decode(sign(&message(1, true), [5u8; 64])).unwrap();
+        for n in 0..t.len() {
+            let cut = B64.encode(&t[..n]);
+            assert!(signature_of(&cut).is_err(), "prefix of {n} bytes");
+            assert!(
+                check_tip(&cut, &[], 0, false).is_err(),
+                "prefix of {n} bytes"
+            );
+            assert!(
+                unsigned_message_of(&cut).is_err() || n == 0,
+                "prefix of {n} bytes"
+            );
+        }
+        let m = message(1, true);
+        for n in 0..m.len() {
+            assert!(decode_message(&m[..n]).is_err(), "prefix of {n} bytes");
+        }
+        // Compact-u16 claiming more items than there are bytes.
+        assert!(decode_message(&[1, 0, 0, 0xff, 0xff, 0x7f]).is_err());
     }
 
     // --- wire ---

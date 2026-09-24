@@ -98,8 +98,14 @@ impl Pyth {
 
     async fn feed_id(&self, sym: &str, cur: &str) -> PortResult<String> {
         let pair = format!("{sym}/{cur}");
-        if let Some(id) = self.feed_ids.lock().expect("feed id cache").get(&pair) {
-            return Ok(id.clone());
+        let cached = self
+            .feed_ids
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(&pair)
+            .cloned();
+        if let Some(id) = cached {
+            return Ok(id);
         }
         let url = Redacted::new(format!(
             "{}/v2/price_feeds?query={sym}&asset_type=crypto",
@@ -119,7 +125,7 @@ impl Pyth {
             .ok_or(ProviderError::NotFound)?;
         self.feed_ids
             .lock()
-            .expect("feed id cache")
+            .unwrap_or_else(|e| e.into_inner())
             .insert(pair, id.clone());
         Ok(id)
     }
@@ -130,6 +136,7 @@ impl Pyth {
             .await
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     fn parse(&self, asset: &AssetId, cur: &str, v: &Value) -> PortResult<Price> {
         let p = &v["parsed"][0]["price"];
         Ok(Price {

@@ -56,6 +56,7 @@ impl DexScreener {
 
 #[async_trait]
 impl PriceFeed for DexScreener {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn price(&self, asset: &AssetId, currency: &str) -> PortResult<Price> {
         let unsupported =
             || ProviderError::Unsupported(format!("dexscreener does not cover {asset}"));

@@ -73,6 +73,7 @@ impl DefiLlama {
         }
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn fetch(
         &self,
         asset: &AssetId,

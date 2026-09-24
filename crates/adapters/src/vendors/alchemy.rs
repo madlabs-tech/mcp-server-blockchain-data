@@ -11,7 +11,7 @@
 
 use crate::{
     http::{HttpClient, DEFAULT_TIMEOUT},
-    jsonrpc::JsonRpcClient,
+    jsonrpc::{array_field, JsonRpcClient},
 };
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
@@ -161,6 +161,7 @@ fn wanted(assets: Option<&[AssetId]>) -> Wanted {
 impl TokenBalances for Alchemy {
     /// Native balance + ERC-20 balances (one page, ≤100 tokens), decimals/symbol from
     /// `alchemy_getTokenMetadata` in one batch. Zero balances are dropped unless asked for.
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn balances(
         &self,
         owner: &AccountAddress,
@@ -191,19 +192,18 @@ impl TokenBalances for Alchemy {
         let res = self
             .enhanced("alchemy_getTokenBalances", json!([who, spec]))
             .await?;
-        let held: Vec<(Address, U256)> = res["tokenBalances"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter(|b| b["error"].is_null())
-            .filter_map(|b| {
-                Some((
-                    b["contractAddress"].as_str()?.parse().ok()?,
-                    hex_u256(&b["tokenBalance"])?,
-                ))
-            })
-            .filter(|(_, raw)| want.tokens.is_some() || !raw.is_zero())
-            .collect();
+        let held: Vec<(Address, U256)> =
+            array_field(&res, "tokenBalances", "alchemy_getTokenBalances")?
+                .iter()
+                .filter(|b| b["error"].is_null())
+                .filter_map(|b| {
+                    Some((
+                        b["contractAddress"].as_str()?.parse().ok()?,
+                        hex_u256(&b["tokenBalance"])?,
+                    ))
+                })
+                .filter(|(_, raw)| want.tokens.is_some() || !raw.is_zero())
+                .collect();
         if held.is_empty() {
             return Ok(out);
         }
@@ -234,6 +234,7 @@ impl TransferHistory for Alchemy {
     /// Native (`external`, plus `internal` where supported) and ERC-20 transfers, newest first.
     /// Alchemy filters by one side at a time, so `Both` runs an in- and an out-query; the cursor
     /// carries both page keys.
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn transfers(&self, q: &TransferQuery) -> PortResult<Page<Transfer>> {
         let who = evm(&q.owner)?;
         let want = wanted(q.assets.as_deref());
@@ -253,22 +254,24 @@ impl TransferHistory for Alchemy {
                 next_cursor: None,
             });
         }
-        let mut base = json!({
-            "category": categories,
-            "withMetadata": false,
-            "excludeZeroValue": true,
-            "maxCount": format!("0x{:x}", q.limit.clamp(1, MAX_PAGE)),
-            "order": "desc",
-        });
+        let mut base = Map::new();
+        base.insert("category".into(), json!(categories));
+        base.insert("withMetadata".into(), json!(false));
+        base.insert("excludeZeroValue".into(), json!(true));
+        base.insert(
+            "maxCount".into(),
+            json!(format!("0x{:x}", q.limit.clamp(1, MAX_PAGE))),
+        );
+        base.insert("order".into(), json!("desc"));
         if let Some(b) = q.from_block {
-            base["fromBlock"] = json!(format!("0x{b:x}"));
+            base.insert("fromBlock".into(), json!(format!("0x{b:x}")));
         }
         if let Some(b) = q.to_block {
-            base["toBlock"] = json!(format!("0x{b:x}"));
+            base.insert("toBlock".into(), json!(format!("0x{b:x}")));
         }
         // A contract filter would drop native rows, so only use it for token-only queries.
         if let (false, Some(t)) = (want.native, &want.tokens) {
-            base["contractAddresses"] = json!(t);
+            base.insert("contractAddresses".into(), json!(t));
         }
 
         let cursor: Map<String, Value> = match &q.cursor {
@@ -291,9 +294,9 @@ impl TransferHistory for Alchemy {
         let mut next = Map::new();
         for (side, field) in sides {
             let mut params = base.clone();
-            params[field] = json!(who);
+            params.insert(field.into(), json!(who));
             if let Some(k) = cursor.get(side) {
-                params["pageKey"] = k.clone();
+                params.insert("pageKey".into(), k.clone());
             }
             let res = self
                 .enhanced("alchemy_getAssetTransfers", json!([params]))
@@ -534,5 +537,30 @@ mod tests {
         assert_eq!(b[0].amount.format_units(), "1");
         assert_eq!(b[1].symbol.as_deref(), Some("USDC"));
         assert_eq!(b[1].amount.format_units(), "12.345678");
+    }
+
+    #[tokio::test]
+    async fn malformed_token_balances_fail_over_and_bad_decimals_skip() {
+        let server = FakeJsonRpc::start().await;
+        server.on("eth_getBalance", json!("0x0"));
+        server.on("alchemy_getTokenBalances", json!({"tokenBalances": "nope"}));
+        let api = Alchemy::new(server.url(), chain("ethereum"));
+        assert!(matches!(
+            api.balances(&owner(), None).await,
+            Err(ProviderError::Transient(_))
+        ));
+
+        server.on(
+            "alchemy_getTokenBalances",
+            json!({"tokenBalances": [{"contractAddress": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+                                       "tokenBalance": "0xbc614e"}]}),
+        );
+        server.on(
+            "alchemy_getTokenMetadata",
+            json!({"decimals": "18", "symbol": "USDC"}),
+        );
+        let b = api.balances(&owner(), None).await.unwrap();
+        assert_eq!(b.len(), 1, "string decimals: token skipped, native kept");
+        assert!(b[0].asset.is_native());
     }
 }

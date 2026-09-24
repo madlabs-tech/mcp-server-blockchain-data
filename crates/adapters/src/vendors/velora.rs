@@ -78,6 +78,7 @@ impl SwapQuoter for Velora {
         Self::to_quote(req, &route)
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn build(&self, req: &SwapRequest) -> PortResult<SwapQuote> {
         let taker = util::evm_taker(req)?;
         let (route, chain) = self.price_route(req).await?;

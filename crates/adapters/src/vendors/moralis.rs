@@ -186,6 +186,7 @@ impl TokenBalances for Moralis {
 impl TransferHistory for Moralis {
     /// ERC-20 transfers, newest first; direction and asset filters are applied locally, so a
     /// page may hold fewer than `limit` rows. Native-only queries are `Unsupported`.
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn transfers(&self, q: &TransferQuery) -> PortResult<Page<Transfer>> {
         let who = evm(&q.owner)?;
         if q.assets

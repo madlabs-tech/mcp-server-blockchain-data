@@ -6,6 +6,14 @@ use bdm_ports::{metering, PortResult, ProviderError};
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+/// `v[key]` as an array, or `Transient` when the vendor answered with a different shape (an
+/// empty list would silently stand for "nothing held"; a fail-over is the honest answer).
+pub(crate) fn array_field<'a>(v: &'a Value, key: &str, what: &str) -> PortResult<&'a Vec<Value>> {
+    v.get(key)
+        .and_then(Value::as_array)
+        .ok_or_else(|| ProviderError::Transient(format!("malformed {what}: {key} is not an array")))
+}
+
 pub struct JsonRpcClient {
     http: HttpClient,
     url: Redacted<String>,
@@ -34,6 +42,7 @@ impl JsonRpcClient {
     }
 
     /// Batch call; one result per request, in request order. Every method is metered.
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     pub async fn batch(&self, calls: &[(&str, Value)]) -> PortResult<Vec<PortResult<Value>>> {
         let Some((first, _)) = calls.first() else {
             return Ok(Vec::new());
@@ -46,7 +55,7 @@ impl JsonRpcClient {
             .enumerate()
             .map(|(i, (m, p))| json!({"jsonrpc": "2.0", "id": base + i as u64, "method": m, "params": p}))
             .collect();
-        for (m, _) in &calls[1..] {
+        for (m, _) in calls.iter().skip(1) {
             metering::record_request(self.vendor(), m);
         }
         let resp = self

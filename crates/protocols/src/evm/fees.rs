@@ -34,7 +34,9 @@ const DUMMY_TO: Address = Address::repeat_byte(0x11);
 /// Representative unsigned EIP-1559 ETH transfer (`0x02 || rlp([chainId=8453, nonce=1,
 /// maxPriority=1e6, maxFee=1e7, gas=21000, to=0x11…11, value=0.01 ETH, data=, accessList=[]])`),
 /// the `_data` the OP GasPriceOracle expects. Only its size/compressibility affects the fee.
-const REPRESENTATIVE_TX: &str = "02ee82210501830f424083989680825208941111111111111111111111111111111111111111872386f26fc1000080c0";
+const REPRESENTATIVE_TX: &[u8] = &alloy_primitives::hex!(
+    "02ee82210501830f424083989680825208941111111111111111111111111111111111111111872386f26fc1000080c0"
+);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Stack {
@@ -58,6 +60,7 @@ fn stack(chain_id: Option<u64>) -> Stack {
 /// (`eth_feeHistory`, median per percentile). `max_fee = 2 × next base fee + priority`.
 /// `estimated_total` is a 21k-gas native transfer at `base + priority`, plus the L1 data fee
 /// on L2s (`l1_data_fee`: OP `getL1Fee` + operator fee, or Arbitrum's L1 component).
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 pub async fn fee_estimate(rpc: &dyn EvmRpc, chain: &ChainEntry) -> PortResult<FeeEstimate> {
     let h = rpc
         .request(
@@ -119,8 +122,8 @@ fn median_reward(reward: &Value, i: usize) -> PortResult<U256> {
 
 /// `getL1Fee(tx) + getOperatorFee(21000)` in one Multicall3 call. The operator fee (Isthmus)
 /// counts as 0 on chains whose oracle doesn't have it yet.
-async fn op_l1_fee(rpc: &dyn EvmRpc) -> PortResult<U256> {
-    let tx = Bytes::from(hex::decode(REPRESENTATIVE_TX).expect("valid hex constant"));
+pub(crate) async fn op_l1_fee(rpc: &dyn EvmRpc) -> PortResult<U256> {
+    let tx = Bytes::from_static(REPRESENTATIVE_TX);
     let calls = [
         multicall3::Call::new(
             GAS_PRICE_ORACLE,
@@ -134,13 +137,8 @@ async fn op_l1_fee(rpc: &dyn EvmRpc) -> PortResult<U256> {
         ),
     ];
     let r = multicall3::aggregate3(rpc, &calls, "latest").await?;
-    let word = |d: &Option<Vec<u8>>| {
-        d.as_deref()
-            .filter(|d| d.len() >= 32)
-            .map(|d| U256::from_be_slice(&d[..32]))
-    };
-    let l1 = word(&r[0]).ok_or_else(|| malformed("GasPriceOracle.getL1Fee"))?;
-    Ok(l1.saturating_add(word(&r[1]).unwrap_or_default()))
+    let l1 = multicall3::word_at(&r, 0).ok_or_else(|| malformed("GasPriceOracle.getL1Fee"))?;
+    Ok(l1.saturating_add(multicall3::word_at(&r, 1).unwrap_or_default()))
 }
 
 /// `gasEstimateForL1 × baseFee`: the L1 component is expressed in L2 gas.
@@ -162,7 +160,7 @@ mod tests {
 
     #[test]
     fn representative_tx_is_well_formed_rlp() {
-        let b = hex::decode(REPRESENTATIVE_TX).unwrap();
+        let b = REPRESENTATIVE_TX;
         assert_eq!(b[0], 0x02, "EIP-1559 type byte");
         assert_eq!(b[1] as usize, 0xc0 + (b.len() - 2), "short list header");
     }

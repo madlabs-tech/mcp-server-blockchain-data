@@ -61,6 +61,7 @@ fn severity(s: &str) -> Severity {
     }
 }
 
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 fn flags(v: &Value) -> Vec<RiskFlag> {
     let mut out = Vec::new();
     if v["honeypotResult"]["isHoneypot"].as_bool() == Some(true) {
