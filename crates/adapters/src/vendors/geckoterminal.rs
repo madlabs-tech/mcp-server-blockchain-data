@@ -83,6 +83,7 @@ impl GeckoTerminal {
 
 #[async_trait]
 impl PriceFeed for GeckoTerminal {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn price(&self, asset: &AssetId, currency: &str) -> PortResult<Price> {
         if !currency.eq_ignore_ascii_case("usd") {
             return Err(ProviderError::Unsupported(
@@ -112,6 +113,7 @@ impl PriceFeed for GeckoTerminal {
 
 #[async_trait]
 impl TokenMetadata for GeckoTerminal {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn metadata(&self, asset: &AssetId) -> PortResult<TokenInfo> {
         let (net, addr) = target(asset)?;
         let v = self

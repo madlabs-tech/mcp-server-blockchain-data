@@ -25,7 +25,7 @@ use bdm_ports::{
     TransferHistory, TransferQuery, VendorMeta, RPC_VENDOR,
 };
 use bdm_routing::{RoutedEvmRpc, Router};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use std::sync::Arc;
 
 /// Emitter of native-value transfer logs in `eth_simulateV1` with `traceTransfers`.
@@ -129,9 +129,7 @@ fn evm_owner(owner: &AccountAddress) -> PortResult<Address> {
 }
 
 fn word(d: &Option<Vec<u8>>) -> Option<U256> {
-    d.as_deref()
-        .filter(|d| d.len() >= 32)
-        .map(|d| U256::from_be_slice(&d[..32]))
+    multicall3::first_word(d.as_deref()?)
 }
 
 #[async_trait]
@@ -173,7 +171,9 @@ impl TokenBalances for ChainRpc {
         let mut out = Vec::new();
         for a in list {
             if a.is_native() {
-                let raw = word(r.next().expect("one result per call"))
+                let raw = r
+                    .next()
+                    .and_then(word)
                     .ok_or_else(|| super::malformed("getEthBalance"))?;
                 out.push(TokenBalance {
                     asset: a,
@@ -248,9 +248,8 @@ impl TokenMetadata for ChainRpc {
             Call::new(token, erc20::IERC20::nameCall {}),
         ];
         let r = multicall3::aggregate3(&self.rpc, &calls, "latest").await?;
-        let text = |i: usize| r[i].as_deref().and_then(erc20::decode_str);
-        let decimals = r[0]
-            .as_deref()
+        let text = |i: usize| multicall3::data_at(&r, i).and_then(erc20::decode_str);
+        let decimals = multicall3::data_at(&r, 0)
             .and_then(erc20::decode_decimals)
             .ok_or(ProviderError::NotFound)?;
         Ok(TokenInfo {
@@ -294,11 +293,15 @@ impl Simulator for ChainRpc {
         }
         let value = U256::from_str_radix(value, 10)
             .map_err(|_| ProviderError::Invalid(format!("value '{value}' is not wei")))?;
-        let mut call =
-            json!({"from": from, "to": to, "data": data, "value": format!("{value:#x}")});
+        let mut call = Map::new();
+        call.insert("from".into(), json!(from));
+        call.insert("to".into(), json!(to));
+        call.insert("data".into(), json!(data));
+        call.insert("value".into(), json!(format!("{value:#x}")));
         if let Some(g) = gas_limit {
-            call["gas"] = json!(format!("0x{g:x}"));
+            call.insert("gas".into(), json!(format!("0x{g:x}")));
         }
+        let call = Value::Object(call);
         let block = block_tag(block_number(&self.rpc).await?);
 
         // `Transient` too: the routed RPC reports "unsupported by every vendor" as
@@ -338,6 +341,7 @@ fn sim(success: bool, error: Option<String>, units: Option<u64>) -> SimulationRe
 }
 
 impl ChainRpc {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn simulate_v1(&self, call: &Value, block: &str) -> PortResult<SimulationResult> {
         let params = json!([{
             "blockStateCalls": [{"calls": [call]}],
@@ -362,9 +366,9 @@ impl ChainRpc {
                 .flatten()
                 .filter_map(|l| {
                     // Simulated logs carry no tx hash; the decoder only needs a placeholder.
-                    let mut l = l.clone();
-                    l["transactionHash"] = json!("0x");
-                    decode_transfer_log(&l)
+                    let mut l = l.as_object()?.clone();
+                    l.insert("transactionHash".into(), json!("0x"));
+                    decode_transfer_log(&Value::Object(l))
                 })
                 .collect();
             out.balance_changes = self.balance_changes(raw, block).await?;
@@ -372,6 +376,7 @@ impl ChainRpc {
         Ok(out)
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn trace_call(&self, call: &Value, block: &str) -> PortResult<SimulationResult> {
         let v = self
             .rpc

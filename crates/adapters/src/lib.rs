@@ -7,6 +7,16 @@
 //!
 //! - [`vendors`]: one module per vendor with enhanced/REST APIs, each behind a cargo feature.
 
+#![cfg_attr(
+    test,
+    allow(
+        clippy::unwrap_used,
+        clippy::expect_used,
+        clippy::indexing_slicing,
+        clippy::panic
+    )
+)]
+
 pub mod chain_rpc;
 pub mod factory;
 pub mod http;

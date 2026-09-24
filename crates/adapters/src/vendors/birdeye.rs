@@ -77,6 +77,7 @@ impl Birdeye {
         }
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn get(&self, chain: &str, path: &str, label: &str) -> PortResult<Value> {
         let url = Redacted::new(format!("{}{path}", self.base));
         let v = self
@@ -96,6 +97,7 @@ impl Birdeye {
 
 #[async_trait]
 impl PriceFeed for Birdeye {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn price(&self, asset: &AssetId, currency: &str) -> PortResult<Price> {
         let (chain, addr) = target(asset, currency)?;
         let v = self
@@ -122,6 +124,7 @@ impl PriceFeed for Birdeye {
 
 #[async_trait]
 impl PriceHistory for Birdeye {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn price_at(
         &self,
         asset: &AssetId,

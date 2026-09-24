@@ -50,10 +50,11 @@ pub struct OkxDex {
     passphrase: Redacted<String>,
 }
 
-fn sign(secret: &str, prehash: &str) -> String {
-    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).expect("HMAC takes any key");
+fn sign(secret: &str, prehash: &str) -> PortResult<String> {
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes())
+        .map_err(|e| ProviderError::Fatal(format!("hmac init: {e}")))?;
     mac.update(prehash.as_bytes());
-    base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes())
+    Ok(base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes()))
 }
 
 /// (chainIndex, sell token, buy token)
@@ -91,12 +92,13 @@ impl OkxDex {
         }
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn get(&self, endpoint: &str, query: &str) -> PortResult<Value> {
         let path = format!("{PREFIX}/{endpoint}?{query}");
         let ts = chrono::Utc::now()
             .format("%Y-%m-%dT%H:%M:%S%.3fZ")
             .to_string();
-        let signature = sign(self.secret.expose(), &format!("{ts}GET{path}"));
+        let signature = sign(self.secret.expose(), &format!("{ts}GET{path}"))?;
         let url = Redacted::new(format!("{}{path}", self.base));
         let v = self
             .http
@@ -121,6 +123,7 @@ impl OkxDex {
         v["data"].get(0).cloned().ok_or(ProviderError::NotFound)
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     fn to_quote(req: &SwapRequest, d: &Value) -> PortResult<SwapQuote> {
         let r = if d["routerResult"].is_object() {
             &d["routerResult"]
@@ -154,6 +157,7 @@ impl SwapQuoter for OkxDex {
         Self::to_quote(req, &d)
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn build(&self, req: &SwapRequest) -> PortResult<SwapQuote> {
         if util::is_solana_mainnet(&req.chain) {
             return Err(ProviderError::Unsupported(
@@ -207,7 +211,7 @@ mod tests {
     fn hmac_base64() {
         // RFC 4231 test case 2: key "Jefe", data "what do ya want for nothing?"
         assert_eq!(
-            sign("Jefe", "what do ya want for nothing?"),
+            sign("Jefe", "what do ya want for nothing?").unwrap(),
             "W9zBRr9gdU5qBCQmCJV1x1oAPwidJzmDnexYuWTsOEM="
         );
     }

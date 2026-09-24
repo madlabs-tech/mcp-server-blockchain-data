@@ -55,6 +55,7 @@ impl Cow {
 
 #[async_trait]
 impl SwapQuoter for Cow {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn quote(&self, req: &SwapRequest) -> PortResult<SwapQuote> {
         let net = network(util::evm_chain_id(&req.chain)?).ok_or_else(|| {
             ProviderError::Unsupported(format!("cow does not cover {}", req.chain))

@@ -96,6 +96,7 @@ impl UniswapApi {
         Ok((chain, self.post("quote", &body).await?))
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     fn to_quote(req: &SwapRequest, v: &Value) -> PortResult<SwapQuote> {
         let q = &v["quote"];
         let buy = util::u256_field(&q["output"]["amount"], "quote.output.amount")?;
@@ -112,6 +113,7 @@ impl SwapQuoter for UniswapApi {
         Self::to_quote(req, &v)
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn build(&self, req: &SwapRequest) -> PortResult<SwapQuote> {
         let taker = util::evm_taker(req)?;
         let (chain, v) = self.raw_quote(req).await?;

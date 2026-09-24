@@ -140,6 +140,7 @@ impl CoinGecko {
         })
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn token_price(&self, asset: &AssetId, net: &str, addr: &str) -> PortResult<Price> {
         let v = self
             .get(
@@ -187,6 +188,7 @@ impl PriceFeed for CoinGecko {
 
 #[async_trait]
 impl PriceHistory for CoinGecko {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn price_at(
         &self,
         asset: &AssetId,
@@ -246,6 +248,7 @@ fn closest_point(
 
 #[async_trait]
 impl TokenMetadata for CoinGecko {
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn metadata(&self, asset: &AssetId) -> PortResult<TokenInfo> {
         let net = network(&asset.chain).ok_or_else(|| unsupported(asset))?;
         let addr = util::token_address(asset).ok_or_else(|| unsupported(asset))?;

@@ -81,6 +81,7 @@ struct Ankr {
 #[async_trait]
 impl TokenBalances for Ankr {
     /// Native + whitelisted ERC-20 balances (first page; `onlyWhitelisted` filters spam).
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn balances(
         &self,
         owner: &AccountAddress,

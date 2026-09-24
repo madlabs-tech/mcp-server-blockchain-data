@@ -23,6 +23,9 @@ pub struct HttpClient {
 }
 
 impl HttpClient {
+    // Only fails when the TLS backend cannot initialise, at startup (factory registration): a
+    // fail-fast abort there is the right outcome, and it never runs on a request path.
+    #[allow(clippy::expect_used)]
     pub fn new(vendor: impl Into<String>, timeout: Duration) -> Self {
         let client = reqwest::Client::builder()
             .timeout(timeout)

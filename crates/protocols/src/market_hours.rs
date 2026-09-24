@@ -78,7 +78,8 @@ pub fn is_trading_day(d: NaiveDate) -> bool {
 }
 
 fn hm(h: u32, m: u32) -> NaiveTime {
-    NaiveTime::from_hms_opt(h, m, 0).expect("valid time")
+    // Callers pass literal constants (covered by this module's tests); never panic on them.
+    NaiveTime::from_hms_opt(h, m, 0).unwrap_or(NaiveTime::MIN)
 }
 
 /// (regular close, post-market end) for a trading day.
@@ -91,7 +92,8 @@ fn closes(d: NaiveDate) -> (NaiveTime, NaiveTime) {
 }
 
 fn nth_sunday(year: i32, month: u32, n: u32) -> NaiveDate {
-    let first = NaiveDate::from_ymd_opt(year, month, 1).expect("valid date");
+    // Month is a literal constant (3 or 11); the 1st always exists.
+    let first = NaiveDate::from_ymd_opt(year, month, 1).unwrap_or_default();
     let offset = (7 - first.weekday().num_days_from_sunday()) % 7;
     first + Duration::days((offset + 7 * (n - 1)) as i64)
 }

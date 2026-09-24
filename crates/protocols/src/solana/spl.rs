@@ -15,8 +15,10 @@ pub const WRAPPED_SOL_MINT: &str = "So11111111111111111111111111111111111111112"
 /// Both token programs; balances and history must always query both.
 pub const TOKEN_PROGRAMS: [&str; 2] = [TOKEN_PROGRAM, TOKEN_2022_PROGRAM];
 
-fn pk(s: &str) -> SolanaPubkey {
-    s.parse().expect("hard-coded program id")
+/// Parse a hard-coded program id; `Fatal` (a bug, not a vendor fault) if it ever fails.
+fn pk(s: &str) -> PortResult<SolanaPubkey> {
+    s.parse()
+        .map_err(|e: DomainError| ProviderError::Fatal(format!("bad program id {s}: {e}")))
 }
 
 /// ATA address, derived with the mint's token program (Token-2022 mints differ from legacy).
@@ -34,7 +36,7 @@ pub fn associated_token_address(
     }
     find_program_address(
         &[&owner.0, &token_program.0, &mint.0],
-        &pk(ASSOCIATED_TOKEN_PROGRAM),
+        &ASSOCIATED_TOKEN_PROGRAM.parse()?,
     )
     .map(|(addr, _)| addr)
 }
@@ -80,6 +82,7 @@ pub struct TokenAccount {
 }
 
 /// Every token account of `owner` under BOTH token programs (ATAs and non-ATAs).
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 pub async fn token_accounts(
     rpc: &dyn SolanaRpc,
     owner: &SolanaPubkey,
@@ -101,6 +104,7 @@ pub async fn token_accounts(
     Ok(out)
 }
 
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 fn parse_token_account(item: &Value, program: &str) -> PortResult<TokenAccount> {
     let bad = |what: &str| ProviderError::Transient(format!("malformed token account: {what}"));
     let info = &item["account"]["data"]["parsed"]["info"];
@@ -113,7 +117,7 @@ fn parse_token_account(item: &Value, program: &str) -> PortResult<TokenAccount> 
         address: key(&item["pubkey"], "pubkey")?,
         mint: key(&info["mint"], "mint")?,
         owner: key(&info["owner"], "owner")?,
-        program: pk(program),
+        program: pk(program)?,
         amount: info["tokenAmount"]["amount"]
             .as_str()
             .and_then(|s| s.parse().ok())
@@ -140,6 +144,7 @@ pub struct MintInfo {
 }
 
 /// Read a mint. `NotFound` if the account does not exist; `Invalid` if it is not a mint.
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 pub async fn mint_info(rpc: &dyn SolanaRpc, mint: &SolanaPubkey) -> PortResult<MintInfo> {
     let v = rpc
         .request(
@@ -174,7 +179,7 @@ pub async fn mint_info(rpc: &dyn SolanaRpc, mint: &SolanaPubkey) -> PortResult<M
             .map(str::to_owned)
     };
     Ok(MintInfo {
-        program: pk(program),
+        program: pk(program)?,
         decimals,
         name: field("name"),
         symbol: field("symbol"),
@@ -196,6 +201,10 @@ mod tests {
     const OWNER: &str = "Go5EVXxV3ob4CJVaq6YiGGUKqPmEfDo32kSmbWsYevsF";
     const PYUSD: &str = "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo";
     const USDC: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+
+    fn pk(s: &str) -> SolanaPubkey {
+        super::pk(s).unwrap()
+    }
 
     #[test]
     fn ata_uses_the_mints_token_program() {

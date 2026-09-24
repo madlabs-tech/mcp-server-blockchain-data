@@ -66,6 +66,7 @@ impl OneInch {
             .await
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     fn to_quote(req: &SwapRequest, v: &Value) -> PortResult<SwapQuote> {
         let buy = util::u256_field(&v["dstAmount"], "dstAmount")?;
         let decimals = v["dstToken"]["decimals"]
@@ -82,6 +83,7 @@ impl SwapQuoter for OneInch {
         Self::to_quote(req, &v)
     }
 
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn build(&self, req: &SwapRequest) -> PortResult<SwapQuote> {
         let taker = util::evm_taker(req)?;
         let extra = format!(

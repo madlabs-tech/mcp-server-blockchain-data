@@ -7,7 +7,7 @@ use alloy_sol_types::SolEvent;
 use bdm_config::ChainEntry;
 use bdm_domain::{AccountAddress, AssetRef, Transfer};
 use bdm_ports::{Direction, EvmRpc, Page, PortResult, ProviderError, TransferQuery};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 /// Chunk size when the vendor plan has no known `getLogs` range limit.
 const DEFAULT_CHUNK: u64 = 2_000;
@@ -115,10 +115,12 @@ async fn get_logs(
 ) -> PortResult<Vec<Value>> {
     let mut out = Vec::new();
     for topics in topic_sets {
-        let mut filter =
-            json!({"fromBlock": block_tag(lo), "toBlock": block_tag(hi), "topics": topics});
+        let mut filter = Map::new();
+        filter.insert("fromBlock".into(), json!(block_tag(lo)));
+        filter.insert("toBlock".into(), json!(block_tag(hi)));
+        filter.insert("topics".into(), topics.clone());
         if !tokens.is_empty() {
-            filter["address"] = json!(tokens);
+            filter.insert("address".into(), json!(tokens));
         }
         *calls += 1;
         let logs = rpc.request("eth_getLogs", json!([filter])).await?;

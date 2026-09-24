@@ -22,7 +22,7 @@ use bdm_ports::{
     TransferHistory, TransferQuery, VendorMeta, RPC_VENDOR,
 };
 use bdm_routing::{RoutedSolanaRpc, Router};
-use serde_json::json;
+use serde_json::{json, Map};
 use std::{collections::BTreeMap, sync::Arc};
 
 /// Commitment for balance reads and history scans (`getSignaturesForAddress` has no
@@ -92,6 +92,7 @@ fn solana_owner(a: &AccountAddress) -> PortResult<SolanaPubkey> {
 impl TokenBalances for SolanaRpcVendor {
     /// SOL plus one row per mint, summed over every token account of the owner (ATA and
     /// non-ATA, both programs). `token_account` is the ATA when the owner has one.
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn balances(
         &self,
         owner: &AccountAddress,
@@ -129,17 +130,20 @@ impl TokenBalances for SolanaRpcVendor {
         for (mint, accts) in by_mint {
             let asset = token_asset(&self.chain, mint);
             let total: u128 = accts.iter().map(|a| a.amount as u128).sum();
+            let Some(first) = accts.first() else {
+                continue;
+            };
             if !wanted(&asset) || (total == 0 && assets.is_none()) {
                 continue;
             }
-            let ata = spl::associated_token_address(&owner, &mint, &accts[0].program).ok();
+            let ata = spl::associated_token_address(&owner, &mint, &first.program).ok();
             let holder = accts
                 .iter()
                 .find(|a| Some(a.address) == ata)
-                .unwrap_or(&accts[0]);
+                .unwrap_or(first);
             out.push(TokenBalance {
                 asset,
-                amount: Amount::from_u128(total, accts[0].decimals),
+                amount: Amount::from_u128(total, first.decimals),
                 symbol: None,
                 token_account: Some(AccountAddress::Solana(holder.address)),
             });
@@ -176,9 +180,11 @@ impl TransferHistory for SolanaRpcVendor {
         let mut seen = BTreeMap::new();
         let mut more = false;
         for addr in &addresses {
-            let mut cfg = json!({"limit": limit, "commitment": READ_COMMITMENT});
+            let mut cfg = Map::new();
+            cfg.insert("limit".into(), json!(limit));
+            cfg.insert("commitment".into(), json!(READ_COMMITMENT));
             if let Some(c) = &q.cursor {
-                cfg["before"] = json!(c);
+                cfg.insert("before".into(), json!(c));
             }
             let page = self
                 .rpc
@@ -246,6 +252,7 @@ impl FeeOracle for SolanaRpcVendor {
 impl Simulator for SolanaRpcVendor {
     /// `simulateTransaction` with `sigVerify: false`, `replaceRecentBlockhash: true`,
     /// `innerInstructions: true`. The fee payer is the message's first key (`from` unused).
+    #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn simulate(
         &self,
         _from: &AccountAddress,

@@ -1,6 +1,13 @@
 //! EVM protocol tests against an in-process fake node (no network). Golden cases from
 //! plan/PLAN.md "Pitfall golden tests": spoofed token log, 4-topic log, removed log, BSC 18 decimals.
 
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
+
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_sol_types::{SolCall, SolEvent, SolValue};
 use async_trait::async_trait;
