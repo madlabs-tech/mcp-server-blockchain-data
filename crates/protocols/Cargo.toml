@@ -30,3 +30,6 @@ curve25519-dalek = { version = "4", default-features = false }
 bdm-testkit = { workspace = true }
 bdm-adapters = { workspace = true }   # evm: live fixture recording (#[ignore] tests) only
 tokio = { workspace = true }
+
+[lints]
+workspace = true

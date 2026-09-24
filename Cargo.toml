@@ -67,3 +67,13 @@ wiremock = "0.6"
 lto = "thin"
 codegen-units = 1
 strip = true
+
+# Reliability rule: no panics on untrusted data in production code. Test code opts out with
+# `#![cfg_attr(test, allow(..))]` / `#![allow(..)]` headers. `serde_json::Value["k"]` reads are
+# panic-free and carry a scoped, justified allow where clippy flags them.
+[workspace.lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+indexing_slicing = "deny"
+panic = "deny"
+unreachable = "deny"
