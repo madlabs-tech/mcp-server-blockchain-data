@@ -36,6 +36,22 @@ use std::{
     path::{Path, PathBuf},
     sync::Arc,
 };
+use tracing::Level;
+use tracing_subscriber::{filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt};
+
+/// `RUST_LOG` as `level` / `target=level` lists (e.g. `info,rmcp=warn`). Unset or unparsable → info;
+/// empty → errors only.
+fn log_filter(spec: Option<String>) -> (Targets, Option<String>) {
+    let at = |l| Targets::new().with_default(l);
+    match spec {
+        None => (at(Level::INFO), None),
+        Some(s) if s.trim().is_empty() => (at(Level::ERROR), None),
+        Some(s) => match s.parse() {
+            Ok(t) => (t, None),
+            Err(e) => (at(Level::INFO), Some(e.to_string())),
+        },
+    }
+}
 
 const DEFAULT_CONFIG_DIR: &str = "config";
 /// Env var that sets the dashboard password (read through the config loader's env snapshot).
@@ -101,13 +117,14 @@ fn parse_args() -> Result<Args> {
 #[tokio::main]
 async fn main() -> Result<()> {
     // Logs go to stderr: stdout is the MCP stdio channel.
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
-        )
-        .with_writer(std::io::stderr)
-        .with_ansi(false)
+    let (filter, bad_filter) = log_filter(std::env::var("RUST_LOG").ok());
+    tracing_subscriber::registry()
+        .with(fmt::layer().with_writer(std::io::stderr).with_ansi(false))
+        .with(filter)
         .init();
+    if let Some(e) = bad_filter {
+        tracing::warn!("RUST_LOG not understood ({e}); logging at info");
+    }
 
     let args = parse_args()?;
     let (loader, loaded) = wiring::load_config(args.config_dir)?;
@@ -397,4 +414,27 @@ async fn run(loader: ConfigLoader, loaded: Loaded, serve: bool) -> Result<()> {
         .await
         .map_err(|e| anyhow::anyhow!(e))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rust_log_forms() {
+        let on = |spec: Option<&str>, target: &str, level: Level| {
+            log_filter(spec.map(Into::into))
+                .0
+                .would_enable(target, &level)
+        };
+        assert!(on(None, "x", Level::INFO) && !on(None, "x", Level::DEBUG));
+        let crate_debug = Some("onchain_data_mcp=debug");
+        assert!(on(crate_debug, "onchain_data_mcp::wiring", Level::DEBUG));
+        assert!(!on(crate_debug, "rmcp", Level::ERROR));
+        assert!(on(Some("info,rmcp=warn"), "x", Level::INFO));
+        assert!(!on(Some("info,rmcp=warn"), "rmcp", Level::INFO));
+        assert!(on(Some(""), "x", Level::ERROR) && !on(Some(""), "x", Level::WARN));
+        let (t, bad) = log_filter(Some("foo=nope".into()));
+        assert!(bad.is_some() && t.would_enable("x", &Level::INFO));
+    }
 }

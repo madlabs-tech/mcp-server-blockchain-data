@@ -85,6 +85,7 @@ built-in registry (registry/*.toml, compiled in)
 | `ODM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public` | `[routing.defaults] evm_rpc` |
 | `ALCHEMY_API_KEY`, `HELIUS_API_KEY`, … | vendor keys (names in [VENDORS.md](VENDORS.md)) |
 | `DASHBOARD_PASSWORD` | dashboard password (≥ 12 printable ASCII characters, no spaces; blank = unset) |
+| `RUST_LOG=info` | log level (logs go to stderr). A level (`error`, `warn`, `info`, `debug`, `trace`) and/or `target=level` pairs, comma-separated: `info,rmcp=warn`, `onchain_data_mcp=debug`. Unset or not understood = `info` (with a warning); empty = errors only. Span, field and regex filters are not supported. |
 
 **`[server]`:**
 
