@@ -43,13 +43,13 @@ fn check(pw: &str) -> Result<(), String> {
 }
 
 /// The password from `env` (the `DASHBOARD_PASSWORD` value) or the password file, creating the
-/// file if needed. `Err` is a plain-English message; the caller disables the dashboard.
+/// file if needed. A blank `env` counts as unset (the Claude Desktop bundle always passes it).
+/// `Err` is a plain-English message; the caller disables the dashboard.
 pub fn ensure_dashboard_password(
     dir: &Path,
     env: Option<&str>,
 ) -> Result<(String, Source), String> {
-    if let Some(v) = env {
-        let v = v.trim();
+    if let Some(v) = env.map(str::trim).filter(|v| !v.is_empty()) {
         check(v).map_err(|why| {
             format!("DASHBOARD_PASSWORD {why}. Fix it, or remove it to use a generated password")
         })?;
@@ -190,6 +190,14 @@ mod tests {
         let empty = tempfile::tempdir().unwrap();
         ensure_dashboard_password(empty.path(), Some("env-password-123")).unwrap();
         assert!(!path(empty.path()).exists(), "env must not create the file");
+        // Blank env (Claude Desktop bundle leaves it "") falls back to the file.
+        for blank in ["", "   "] {
+            let (pw, src) = ensure_dashboard_password(dir.path(), Some(blank)).unwrap();
+            assert_eq!(
+                (pw.as_str(), src),
+                ("file-password-123", file_src(false, false))
+            );
+        }
     }
 
     #[test]
