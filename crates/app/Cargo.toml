@@ -13,7 +13,6 @@ bdm-config = { workspace = true }
 bdm-routing = { workspace = true }
 bdm-protocols = { workspace = true }
 alloy-primitives = { workspace = true }
-alloy-rpc-types-eth = "1.0.41"
 async-trait = { workspace = true }
 base64 = "0.22"
 bs58 = { workspace = true }

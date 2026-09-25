@@ -1,5 +1,9 @@
 target
+**/target
 .git
+.claude/
+plan/
+docs/screenshots/
 .env
 data
 config/config.toml

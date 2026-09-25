@@ -39,6 +39,7 @@ chrono = { workspace = true }
 rmcp = { workspace = true, features = ["client", "transport-child-process"] }
 serde_json = { workspace = true }
 tempfile = "3"
+tokio = { workspace = true, features = ["process"] }
 reqwest = { workspace = true }
 
 [lints]

@@ -39,6 +39,8 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
+          # GitHub runners have 16 GB RAM; the Dockerfile default (2) is for laptops.
+          build-args: CARGO_BUILD_JOBS=4
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
