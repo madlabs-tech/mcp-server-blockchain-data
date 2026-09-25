@@ -12,10 +12,10 @@
 //! - [`ProviderRegistry`] holds every registered port per `(capability, chain)`.
 //! - [`Router`] resolves the user's order from config, filters vendors that are inactive
 //!   (disabled, missing key, unsupported chain, breaker open, quota reserve reached) and runs a
-//!   strategy: failover, hedged, quorum, aggregate or fan-out.
+//!   strategy: failover, quorum, aggregate or fan-out.
 //! - Every attempt goes through the resilience decorator: rate limiter → timeout → bounded retry
 //!   on `Transient` → circuit breaker + health + quota bookkeeping. The `public` pseudo-vendor
-//!   gets a shorter attempt timeout ([`PUBLIC_ATTEMPT_TIMEOUT`]) than keyed vendors.
+//!   gets a shorter attempt timeout (6 s) than keyed vendors.
 //! - The routing table (config + registry) is an `Arc` snapshot swapped on reload; runtime state
 //!   (breakers, counters, limiters) survives swaps. In-flight requests finish on their snapshot.
 
@@ -28,7 +28,7 @@ mod store;
 pub use registry::ProviderRegistry;
 pub use router::{
     Candidate, Candidates, QuorumOutcome, RouteError, RouteReq, Routed, Router, RouterOptions,
-    RoutingTable, PUBLIC_ATTEMPT_TIMEOUT,
+    RoutingTable,
 };
 pub use rpc::{RoutedEvmRpc, RoutedSolanaRpc};
 pub use state::{BreakerState, TokenBucket, UsageSnapshot, VendorHealth};

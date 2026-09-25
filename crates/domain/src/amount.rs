@@ -4,7 +4,6 @@ use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
 
 /// Exact token amount: integer base units plus decimals. Never a float.
 ///
@@ -114,11 +113,6 @@ impl Amount {
             raw,
             decimals: self.decimals,
         }))
-    }
-
-    pub fn cmp_same_scale(&self, other: &Self) -> Result<Ordering, DomainError> {
-        self.same_scale(other)?;
-        Ok(self.raw.cmp(&other.raw))
     }
 }
 

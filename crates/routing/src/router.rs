@@ -8,7 +8,6 @@ use bdm_domain::{
     Attempt, AttemptOutcome, ChainId, DomainError, ErrorCode, Provenance, SourceKind,
 };
 use bdm_ports::{metering::UsageSink, Capability, PortKind, ProviderError};
-use futures::{stream::FuturesUnordered, StreamExt};
 use rand::Rng;
 use std::{
     future::Future,
@@ -19,11 +18,11 @@ use tokio::time::Instant;
 
 /// Keyless public RPCs are slow or dead more often than keyed vendors; a shorter attempt timeout
 /// keeps a cold zero-key call from taking `attempt_timeout × (retries + 1)`.
-pub const PUBLIC_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(6);
+const PUBLIC_ATTEMPT_TIMEOUT: Duration = Duration::from_secs(6);
 
 #[derive(Debug, Clone)]
 pub struct RouterOptions {
-    /// Per attempt, for every vendor except `public` (see [`RouterOptions::attempt_timeout_for`]).
+    /// Per attempt, for every vendor except `public` (capped at 6 s).
     pub attempt_timeout: Duration,
     /// Extra attempts on the same vendor for `Transient` errors.
     pub retries: u32,
@@ -36,7 +35,7 @@ pub struct RouterOptions {
 impl RouterOptions {
     /// Attempt timeout for one vendor: the `public` pseudo-vendor gets at most
     /// [`PUBLIC_ATTEMPT_TIMEOUT`]; everyone else `attempt_timeout`.
-    pub fn attempt_timeout_for(&self, vendor: &str) -> Duration {
+    fn attempt_timeout_for(&self, vendor: &str) -> Duration {
         match vendor {
             "public" => self.attempt_timeout.min(PUBLIC_ATTEMPT_TIMEOUT),
             _ => self.attempt_timeout,
@@ -136,12 +135,6 @@ pub struct QuorumOutcome<T> {
     pub value: T,
     pub agreeing: usize,
     pub required: usize,
-}
-
-impl<T> QuorumOutcome<T> {
-    pub fn met(&self) -> bool {
-        self.agreeing >= self.required
-    }
 }
 
 pub struct Router {
@@ -384,57 +377,6 @@ impl Router {
         Err(route_error(&req, last_err, attempts))
     }
 
-    /// Hedged: start candidate `i` after `i × delay`; the first success wins, the rest are dropped.
-    pub async fn hedged<P, T, F, Fut>(
-        &self,
-        req: RouteReq,
-        delay: Duration,
-        f: F,
-    ) -> Result<Routed<T>, RouteError>
-    where
-        P: PortKind + ?Sized,
-        F: Fn(Arc<P>) -> Fut,
-        Fut: Future<Output = Result<T, ProviderError>>,
-    {
-        let table = self.table();
-        let started = Instant::now();
-        let cands = self.candidates::<P>(&table, &req);
-        let mut attempts = cands.skipped.clone();
-        let mut running: FuturesUnordered<_> = cands
-            .list
-            .iter()
-            .enumerate()
-            .map(|(i, c)| {
-                let (table, f) = (&table, &f);
-                async move {
-                    tokio::time::sleep(delay * i as u32).await;
-                    (c.vendor.clone(), self.attempt(table, c, f).await)
-                }
-            })
-            .collect();
-        let mut last_err = None;
-        while let Some((vendor, (r, row))) = running.next().await {
-            attempts.push(row);
-            match r {
-                Ok(v) => {
-                    let prov = provenance(
-                        &req,
-                        attempts,
-                        Some(&vendor),
-                        cands.order_head.as_deref(),
-                        started,
-                    );
-                    return Ok(Routed {
-                        value: v,
-                        provenance: prov,
-                    });
-                }
-                Err(e) => last_err = Some(e),
-            }
-        }
-        Err(route_error(&req, last_err, attempts))
-    }
-
     /// Ask up to `n` providers (backfilling past failures) and compare `key(answer)`, e.g. the
     /// block hash of a receipt. Disagreement is a `CONFLICT`; fewer than `n` answers returns the
     /// first answer with `agreeing < required` so the operation can report it.
@@ -549,14 +491,13 @@ impl Router {
             }
             out.push((vendor, r));
         }
-        if !out.iter().any(|(_, r)| r.is_ok()) {
+        let Some((first_ok, _)) = out.iter().find(|(_, r)| r.is_ok()) else {
             return Err(route_error(&req, last_err, attempts));
-        }
-        let first_ok = out.iter().find(|(_, r)| r.is_ok()).map(|(v, _)| v.clone());
+        };
         let mut prov = provenance(
             &req,
             attempts,
-            first_ok.as_deref(),
+            Some(first_ok.as_str()),
             cands.order_head.as_deref(),
             started,
         );

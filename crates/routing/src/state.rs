@@ -40,6 +40,12 @@ enum Breaker {
     HalfOpen { probing: bool },
 }
 
+impl Default for Breaker {
+    fn default() -> Self {
+        Self::Closed { consecutive: 0 }
+    }
+}
+
 impl Breaker {
     fn view(&self) -> BreakerState {
         match self {
@@ -50,7 +56,7 @@ impl Breaker {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct VendorState {
     breaker: Breaker,
     ok: u64,
@@ -59,20 +65,6 @@ struct VendorState {
     last_error: Option<String>,
     exhausted_until: Option<DateTime<Utc>>,
     last_rate_limit: Option<(RateLimitSnapshot, DateTime<Utc>)>,
-}
-
-impl Default for VendorState {
-    fn default() -> Self {
-        Self {
-            breaker: Breaker::Closed { consecutive: 0 },
-            ok: 0,
-            failed: 0,
-            latency_ewma_ms: None,
-            last_error: None,
-            exhausted_until: None,
-            last_rate_limit: None,
-        }
-    }
 }
 
 /// Usage of one vendor in the current windows vs its effective budget.

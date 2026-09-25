@@ -684,7 +684,7 @@ async fn quorum_agree_disagree_and_short() {
         .quorum::<dyn PriceFeed, _, _, _, _>(req(), 2, key, call)
         .await
         .unwrap();
-    assert!(out.value.met());
+    assert_eq!((out.value.agreeing, out.value.required), (2, 2));
     assert_eq!(out.provenance.source, SourceKind::Aggregate);
 
     let b2 = ScriptedPrice::new("geckoterminal", Ok(d(6)));
@@ -711,7 +711,6 @@ async fn quorum_agree_disagree_and_short() {
         .quorum::<dyn PriceFeed, _, _, _, _>(req(), 2, key, call)
         .await
         .unwrap();
-    assert!(!out.value.met());
     assert_eq!((out.value.agreeing, out.value.required), (1, 2));
 }
 
@@ -763,24 +762,6 @@ async fn fan_out_reports_every_vendor() {
         .unwrap();
     assert_eq!(out.value.len(), 3);
     assert_eq!(out.value.iter().filter(|(_, r)| r.is_ok()).count(), 2);
-}
-
-#[tokio::test]
-async fn hedged_takes_the_faster_provider() {
-    let a = ScriptedPrice::slow("defillama", d(1), Duration::from_millis(400));
-    let b = ScriptedPrice::new("geckoterminal", Ok(d(2)));
-    let r = router_with(ORDER3, &[], vec![price_reg(&a), price_reg(&b)], fast_opts());
-    let asset = eth_asset();
-    let t = std::time::Instant::now();
-    let out = r
-        .hedged::<dyn PriceFeed, _, _, _>(req(), Duration::from_millis(30), |p| {
-            let asset = asset.clone();
-            async move { p.price(&asset, "USD").await }
-        })
-        .await
-        .unwrap();
-    assert_eq!(out.provenance.provider.as_deref(), Some("geckoterminal"));
-    assert!(t.elapsed() < Duration::from_millis(300));
 }
 
 // ---------------------------------------------------------------- hot swap
