@@ -44,3 +44,31 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@cargo-hack
       - run: cargo hack check -p bdm-adapters --each-feature --no-dev-deps
+
+  # The image is otherwise only built at release time (publish-docker.yml); build it on every PR
+  # so Dockerfile / .dockerignore breakage shows up before a tag. Same platform, build-arg and gha
+  # cache as the release job, so the two share cached layers.
+  docker:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: true
+          build-args: CARGO_BUILD_JOBS=4
+          tags: onchain-data-mcp:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test
+        run: |
+          out="$(docker run --rm onchain-data-mcp:ci --version)"
+          echo "$out"
+          case "$out" in onchain-data-mcp*) ;; *) echo "unexpected --version output" >&2; exit 1 ;; esac
