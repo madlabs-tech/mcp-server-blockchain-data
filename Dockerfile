@@ -1,8 +1,19 @@
+# syntax=docker/dockerfile:1
 # ---- build ---------------------------------------------------------------------------------
 FROM rust:1.90-bookworm AS builder
+# Parallel rustc jobs: each one can take 1-2 GB, so 2 keeps a laptop build usable.
+# CI overrides it with --build-arg CARGO_BUILD_JOBS=4.
+ARG CARGO_BUILD_JOBS=2
+ENV CARGO_BUILD_JOBS=$CARGO_BUILD_JOBS
 WORKDIR /src
 COPY . .
-RUN cargo build --release -p onchain-data-mcp --locked
+# Cache mounts keep downloaded crates and build output between builds. The target dir is a cache
+# mount (not part of the image layer), so the binary is copied out in the same RUN.
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    --mount=type=cache,target=/src/target,sharing=locked \
+    cargo build --release -p onchain-data-mcp --locked \
+ && cp target/release/onchain-data-mcp /onchain-data-mcp
 
 # ---- runtime -------------------------------------------------------------------------------
 FROM debian:bookworm-slim
@@ -17,7 +28,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --system --uid 10001 --home-dir /data --shell /usr/sbin/nologin ems \
  && mkdir -p /data /config && chown ems:ems /data /config
-COPY --from=builder /src/target/release/onchain-data-mcp /usr/local/bin/onchain-data-mcp
+COPY --from=builder /onchain-data-mcp /usr/local/bin/onchain-data-mcp
 
 USER ems
 # /data: sqlite bdm.db (usage counters, client keys, call log)
