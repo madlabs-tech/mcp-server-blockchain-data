@@ -3,53 +3,52 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<title>Aggregator Dashboard</title>
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0a0a0f">
+<title>onchain-data-mcp</title>
+<link rel="preload" href="/dashboard/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/dashboard/fonts/orbitron.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/dashboard/app.css">
 <script src="/dashboard/app.js" defer></script>
 </head>
 <body>
-<a class="skip" href="#main">Skip to content</a>
-<header class="top">
-  <div class="brand">
-    <svg class="logo" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>
-    <span>onchain-data-mcp</span>
-    <span id="mode" class="badge" hidden></span>
+<section id="login" class="login" aria-labelledby="login-title" hidden>
+  <div class="cut hue term login-box">
+    <div class="term-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span>auth@onchain-data-mcp:~</span></div>
+    <div class="term-body">
+      <h1 id="login-title" class="glitch" data-text="ONCHAIN-DATA-MCP">ONCHAIN-DATA-MCP</h1>
+      <p class="kicker">// operator console · restricted access</p>
+      <form id="login-form" class="login-form">
+        <label for="token" class="prompt">&gt; ENTER DASHBOARD PASSWORD<span class="cursor" aria-hidden="true"></span></label>
+        <div class="cut in"><span class="in-pfx" aria-hidden="true">&gt;</span><input id="token" name="token" type="password" autocomplete="current-password" required spellcheck="false" aria-describedby="login-err login-hint"></div>
+        <p id="login-err" class="field-err" role="alert"></p>
+        <button type="submit" class="cut btn solid">Access</button>
+      </form>
+      <p id="login-hint" class="hint">Run <code>onchain-data-mcp password</code> in a terminal to see it.</p>
+      <p class="hint dim">Kept in this browser tab only (session storage).</p>
+    </div>
   </div>
-  <nav aria-label="Dashboard sections">
-    <ul id="nav">
-      <li><a href="#setup">Setup</a></li>
-      <li><a href="#overview">Overview</a></li>
-      <li><a href="#quota">Quota</a></li>
-      <li><a href="#vendors">Vendors</a></li>
-      <li><a href="#routing">Routing</a></li>
-      <li><a href="#tools">Tools</a></li>
-      <li><a href="#chains">Chains</a></li>
-      <li><a href="#clients">Clients</a></li>
-    </ul>
+</section>
+
+<div id="app" class="app" hidden>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="top">
+    <a class="logo glitch" data-text="ONCHAIN-DATA-MCP" href="#overview" aria-label="onchain-data-mcp overview">ONCHAIN-DATA-MCP</a>
+    <span id="mode" class="tag"></span>
+    <div class="top-actions">
+      <button type="button" id="reload" class="cut btn ghost small" title="Re-read config files from disk"></button>
+      <button type="button" id="logout" class="cut btn ghost small"></button>
+      <button type="button" id="menu" class="cut btn ghost icon menu-btn" aria-expanded="false" aria-controls="side" aria-label="Menu"></button>
+    </div>
+  </header>
+  <nav id="side" class="side" aria-label="Dashboard sections">
+    <ul id="nav"></ul>
+    <p class="side-foot">sys://onchain-data-mcp<span class="cursor" aria-hidden="true"></span></p>
   </nav>
-  <div class="top-actions">
-    <button type="button" id="theme" class="btn icon ghost" aria-label="Toggle dark mode"></button>
-    <button type="button" id="reload" class="btn icon ghost" aria-label="Reload config from disk" title="Reload config from disk" hidden></button>
-    <button type="button" id="logout" class="btn ghost" hidden>Sign out</button>
-  </div>
-</header>
+  <main id="main" tabindex="-1"><div id="view"></div></main>
+</div>
 
-<div id="status" class="status" role="status" aria-live="polite"></div>
-
-<main id="main" tabindex="-1">
-  <section id="login" class="panel narrow" hidden>
-    <h1>Sign in</h1>
-    <p>Paste the admin token. It is in <code>config/admin_token</code> (printed once on first start).</p>
-    <form id="login-form">
-      <label for="token">Admin token</label>
-      <input id="token" name="token" type="password" autocomplete="off" required spellcheck="false">
-      <button type="submit" class="btn primary">Sign in</button>
-    </form>
-    <p class="muted">The token is kept in this tab only (session storage).</p>
-  </section>
-  <div id="view"></div>
-</main>
-<noscript><p class="panel">This dashboard needs JavaScript (no external resources are loaded).</p></noscript>
+<div id="status" class="toasts" role="status" aria-live="polite"></div>
+<noscript><p class="noscript">This dashboard needs JavaScript (it loads no external resources).</p></noscript>
 </body>
 </html>
