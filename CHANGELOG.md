@@ -40,6 +40,7 @@ The first public release under the name **onchain-data-mcp**.
 - Velora's free plan is now 1 request a second and 5,000 a day.
 - Alchemy's cost per request was lowered to match its real prices, so your free credits go further.
 - RugCheck keys are now sent the right way.
+- RugCheck scam checks for Solana are now on by default (no key needed).
 
 ### Easy install
 

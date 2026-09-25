@@ -1,5 +1,5 @@
-//! `rugcheck` (Solana token reports). Disabled by default: the rate limit is unpublished
-//! (~60/min reported). The report endpoints are keyless; an optional `RUGCHECK_API_KEY` (JWT) is
+//! `rugcheck` (Solana token reports). On by default (keyless); the rate limit is unpublished, so we
+//! self-limit to 30/min. The report endpoints are keyless; an optional `RUGCHECK_API_KEY` (JWT) is
 //! sent raw in `Authorization` (api.rugcheck.xyz/swagger/doc.json `ApiKeyAuth`, checked 2026-09-25).
 //! Owner: `market-trading` (T1.M2). Port: `TokenRisk`.
 

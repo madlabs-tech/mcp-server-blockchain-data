@@ -158,13 +158,13 @@ display_name = "Ankr Advanced API"
 requires_key = true
 keys = { api_key = "ANKR_API_KEY" }
 signup_url = "https://www.ankr.com/rpc/"
-free_tier_verified = false                     # Freemium does include the Advanced API; enabling it awaits a decision
+free_tier_verified = false                     # free plan exists but needs a signup key; off by default
 tier = 4
 unit = "credits"
 reset = "calendar_month"
 default_cost = 700                             # Advanced API: 700 credits per request (ankr.com/docs/advanced-api/overview/)
 costs = { ankr_getAccountBalance = 700 }
-note = "Not on Robinhood Chain. Freemium: 200M credits/mo, Advanced API included at 50 req/min, 700 credits/req (verified 2026-09-25 https://www.ankr.com/docs/rpc-service/service-plans/)."
+note = "Free plan exists (200M credits/month, 50 requests/minute) but needs a signup key; off by default — turn it on in config if you add ANKR_API_KEY. Advanced API: 700 credits/req. Not on Robinhood Chain (verified 2026-09-25 https://www.ankr.com/docs/rpc-service/service-plans/)."
 
 # ----------------------------------------------------------------------------- market
 [vendor.coingecko]
@@ -274,11 +274,11 @@ limit = { per_minute = 30 }                    # self-limit (unpublished), keyle
 display_name = "RugCheck"
 requires_key = false
 keys = { api_key = "RUGCHECK_API_KEY" }
-free_tier_verified = false                     # report endpoint is keyless, limit unpublished; enabling it awaits a decision
-tier = 4
+free_tier_verified = true                      # report endpoint is keyless
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { per_minute = 60 }                    # ⚠ third-party report; no official limit published
+limit = { per_minute = 30 }                    # no official limit published; self-limit 30/min (2026-09-25) https://api.rugcheck.xyz/swagger/doc.json
 note = "Solana only. Report endpoints are keyless; an optional RUGCHECK_API_KEY (JWT) is sent in the Authorization header (verified 2026-09-25 https://api.rugcheck.xyz/swagger/doc.json)."
 
 # ----------------------------------------------------------------------------- swap / MEV

@@ -1,8 +1,8 @@
 //! `ankr` vendor adapter. Owner: `evm` (T1.E4).
 //!
 //! Advanced API `ankr_getAccountBalance` → `token_balances`
-//! (https://www.ankr.com/docs/advanced-api/token-methods/). Disabled by default: the free tier is
-//! unconfirmed (Ankr's pages disagree on Freemium access; 700 credits per call). Not on Robinhood.
+//! (https://www.ankr.com/docs/advanced-api/token-methods/). Off by default: the free plan
+//! (200M credits/month, 50 req/min) needs a signup key; 700 credits per call. Not on Robinhood.
 
 use crate::{
     http::{HttpClient, DEFAULT_TIMEOUT},
