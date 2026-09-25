@@ -728,6 +728,6 @@ reserve_pct = 150
         let (_d, l) = loader(&[]);
         let example = include_str!("../../../config/config.example.toml");
         let loaded = l.load_texts(example, "").unwrap();
-        assert_eq!(loaded.settings.server.tool_profile, "payments");
+        assert_eq!(loaded.settings.server.tool_profile, "all");
     }
 }

@@ -5,7 +5,7 @@
   "display_name": "Onchain Data MCP",
   "version": "0.2.0",
   "description": "Blockchain data for EVM chains and Solana: balances, tokens, prices, DeFi, safety checks and RPC.",
-  "long_description": "Self-hosted MCP server that routes each request across free-tier data vendors (public RPCs, Alchemy, Helius, CoinGecko, Moralis and more), tracks their quotas, and fails over automatically. Works with no API keys; add keys to unlock more data. A local dashboard runs at http://127.0.0.1:8787/dashboard while Claude is open.",
+  "long_description": "Self-hosted MCP server that routes each request across free-tier data vendors (public RPCs, Alchemy, Helius, CoinGecko and more), tracks their quotas, and fails over automatically. Works with no API keys; add keys to unlock more data. A local dashboard runs at http://127.0.0.1:8787/dashboard while Claude is open.",
   "author": {
     "name": "madlabs-tech",
     "url": "https://github.com/madlabs-tech"
@@ -18,20 +18,30 @@
   "documentation": "https://github.com/madlabs-tech/onchain-data-mcp#readme",
   "support": "https://github.com/madlabs-tech/onchain-data-mcp/issues",
   "license": "MIT",
-  "keywords": ["blockchain", "ethereum", "solana", "evm", "defi", "crypto", "rpc"],
+  "keywords": [
+    "blockchain",
+    "ethereum",
+    "solana",
+    "evm",
+    "defi",
+    "crypto",
+    "rpc"
+  ],
   "server": {
     "type": "binary",
     "entry_point": "server/onchain-data-mcp",
     "mcp_config": {
       "command": "${__dirname}/server/onchain-data-mcp",
-      "args": ["--config-dir", "${user_config.config_dir}"],
+      "args": [
+        "--config-dir",
+        "${user_config.config_dir}"
+      ],
       "env": {
         "ODM__SERVER__DATA_DIR": "${user_config.config_dir}/data",
         "DASHBOARD_PASSWORD": "${user_config.dashboard_password}",
         "ALCHEMY_API_KEY": "${user_config.alchemy_api_key}",
         "HELIUS_API_KEY": "${user_config.helius_api_key}",
-        "COINGECKO_API_KEY": "${user_config.coingecko_api_key}",
-        "MORALIS_API_KEY": "${user_config.moralis_api_key}"
+        "COINGECKO_API_KEY": "${user_config.coingecko_api_key}"
       },
       "platform_overrides": {
         "win32": {
@@ -42,7 +52,10 @@
   },
   "tools_generated": true,
   "compatibility": {
-    "platforms": ["darwin", "win32"]
+    "platforms": [
+      "darwin",
+      "win32"
+    ]
   },
   "user_config": {
     "config_dir": {
@@ -80,14 +93,6 @@
       "type": "string",
       "title": "CoinGecko API key",
       "description": "Optional. Token prices and market data.",
-      "sensitive": true,
-      "default": "",
-      "required": false
-    },
-    "moralis_api_key": {
-      "type": "string",
-      "title": "Moralis API key",
-      "description": "Optional. Wallet history and token data.",
       "sensitive": true,
       "default": "",
       "required": false

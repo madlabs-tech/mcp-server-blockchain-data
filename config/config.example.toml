@@ -8,7 +8,7 @@ http_bind    = "127.0.0.1:8787"     # self_hosted: REST + /mcp + /dashboard
 # public_bind = "0.0.0.0:8787"      # hosted: public MCP/REST (behind TLS proxy)
 # admin_bind  = "127.0.0.1:8788"    # hosted: dashboard + admin API, never public
 dashboard    = true
-tool_profile = "payments"           # payments | trading | neobank | defi | all | custom
+tool_profile = "all"                # payments | trading | neobank | defi | all | custom
 # warmup     = true                 # background eth_chainId check of every active EVM RPC at startup
 
 # ---------------------------------------------------------------------------- vendors

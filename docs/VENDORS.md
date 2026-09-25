@@ -88,8 +88,9 @@ turn them on. Turn one on only if you pay for it (or want to use its trial).
 2. Find the provider and paste your key.
 3. Click **Test** to check it works.
 
-**Or with a setting:** put the key in your `.env` file (or your server's environment) under its
-setting name, for example `ALCHEMY_API_KEY=your-key-here`. Then restart the server.
+**Or with a setting:** set it under its setting name, for example `ALCHEMY_API_KEY=your-key-here`.
+Put it in the `env` block of your AI app's config, in your Docker `.env` file, or in your server's
+environment file. The program does not read a `.env` file on its own. Then restart the server.
 
 **To turn on a Tier 4 provider:** switch it on in the dashboard, or add this to `config.toml`:
 
