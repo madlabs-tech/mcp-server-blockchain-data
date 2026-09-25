@@ -81,6 +81,7 @@ use bdm_ports::Registration;
 
 /// Registrations from every compiled-in vendor module (enhanced/REST APIs).
 pub fn registrations(loaded: &Loaded) -> Vec<Registration> {
+    #[allow(unused_mut)] // nothing is pushed when no vendor feature is compiled in
     let mut out = Vec::new();
     #[cfg(feature = "alchemy")]
     alchemy::register(loaded, &mut out);
