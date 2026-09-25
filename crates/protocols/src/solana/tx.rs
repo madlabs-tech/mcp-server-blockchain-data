@@ -1,4 +1,4 @@
-//! Normalized Solana transactions. Owner: `solana` (T1.S1). Used by `tx_get`, `payments_verify_transfer`.
+//! Normalized Solana transactions. Used by `tx_get`, `payments_verify_transfer`.
 //!
 //! Amounts come from `pre/postTokenBalances` deltas per owner (not instruction amounts): handles
 //! inner instructions, multiple transfers, Token-2022 transfer fees (net + `withheld_fee`);

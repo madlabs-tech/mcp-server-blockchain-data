@@ -1,5 +1,5 @@
 //! `rpc` pseudo-vendor for Solana: balances (both token programs), transfers (wallet + every token
-//! account), fee_estimate, simulate, token_metadata. Owner: `solana` (T1.S1–S2).
+//! account), fee_estimate, simulate, token_metadata.
 //!
 //! Everything runs on [`RoutedSolanaRpc`], so it inherits the user's `solana_rpc` order,
 //! breakers and quota guard.

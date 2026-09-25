@@ -1,4 +1,4 @@
-//! `moralis` vendor adapter. Owner: `evm` (T1.E4).
+//! `moralis` vendor adapter.
 //!
 //! Web3 Data API v2.2 (REST, `X-API-Key` header):
 //! - `token_balances`: `GET /wallets/{address}/tokens`

@@ -1,5 +1,4 @@
 //! Tokenized-stock issuer registry (`registry/rwa.toml`) and small RWA contract reads.
-//! Owner: `market-trading` (T1.M4).
 //!
 //! Only addresses copied from issuer or oracle docs are listed, each with a `source_url`.
 //! A token whose ticker matches but whose address is not on the issuer's list is a lookalike.

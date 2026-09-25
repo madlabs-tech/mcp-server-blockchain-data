@@ -1,4 +1,4 @@
-//! `alchemy` vendor adapter. Owner: `evm` (T1.E4).
+//! `alchemy` vendor adapter.
 //!
 //! Enhanced JSON-RPC on the vendor's per-chain RPC URL (`loaded.rpc_url("alchemy", chain)`); the
 //! base `evm_rpc`/`broadcast` ports come from `factory::base_registrations`.

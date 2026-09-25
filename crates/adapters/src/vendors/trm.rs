@@ -1,5 +1,4 @@
 //! `trm` vendor adapter: TRM Labs free sanctions screening API → `SanctionsScreener`.
-//! Owner: `payments-stablecoin` (T1.P2).
 //!
 //! API per <https://docs.sanctions.trmlabs.com/> (verified 2026-09-23):
 //! `POST https://api.trmlabs.com/public/v1/sanctions/screening`, body `[{"address": "…"}]`,

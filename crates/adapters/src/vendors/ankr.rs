@@ -1,4 +1,4 @@
-//! `ankr` vendor adapter. Owner: `evm` (T1.E4).
+//! `ankr` vendor adapter.
 //!
 //! Advanced API `ankr_getAccountBalance` → `token_balances`
 //! (https://www.ankr.com/docs/advanced-api/token-methods/). Off by default: the free plan

@@ -1,5 +1,5 @@
 //! Chainalysis on-chain sanctions oracle as the `chainalysis_oracle` vendor (`sanctions` port,
-//! EVM only). Owner: `payments-stablecoin` (T1.P2).
+//! EVM only).
 //!
 //! Addresses from <https://go.chainalysis.com/chainalysis-oracle-docs.html> (verified
 //! 2026-09-23). Base uses a different address; Robinhood Chain and Solana are not listed, so the

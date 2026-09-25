@@ -1,4 +1,4 @@
-//! `oneinch` Swap API (key, 1 req/s, 100k/month). Owner: `market-trading` (T1.M3).
+//! `oneinch` Swap API (key, 1 req/s, 100k/month).
 //! `quote` → `/quote`; `build` → `/swap` (needs `taker`) + ERC-20 approval to the router
 //! (the swap tx's `to`). Robinhood Chain (4663) is supported per 1inch docs.
 

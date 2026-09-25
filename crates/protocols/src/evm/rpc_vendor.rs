@@ -1,6 +1,6 @@
 //! `rpc` pseudo-vendor for EVM chains: `token_balances` (Multicall3), `transfer_history` (logs),
 //! `fee_estimate`, `simulate` (`eth_simulateV1` → `debug_traceCall` → `eth_call`), `token_metadata`.
-//! Owner: `evm` (T1.E1–E3). Every port sits on `bdm_routing::RoutedEvmRpc`, so it inherits the
+//! Every port sits on `bdm_routing::RoutedEvmRpc`, so it inherits the
 //! user's `evm_rpc` order, failover, breakers and quota guard.
 //!
 //! Private relays (Flashbots Protect, MEV Blocker; Ethereum mainnet only) need HTTP, so they live

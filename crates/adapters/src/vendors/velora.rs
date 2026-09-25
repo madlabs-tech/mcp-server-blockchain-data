@@ -1,5 +1,5 @@
 //! `velora` (ParaSwap) Market API, keyless (anonymous use carries a 1 bps fee).
-//! Owner: `market-trading` (T1.M3). `quote` → `GET /prices` (v6.2); `build` → `/prices` then
+//! `quote` → `GET /prices` (v6.2); `build` → `/prices` then
 //! `POST /transactions/{network}` + ERC-20 approval to the route's token-transfer proxy.
 
 use super::util;

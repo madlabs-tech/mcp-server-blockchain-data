@@ -1,4 +1,4 @@
-//! `coingecko` (Demo plan). Owner: `market-trading` (T1.M1).
+//! `coingecko` (Demo plan).
 //!
 //! Key goes in the `x-cg-demo-api-key` header. Tokens use the on-chain endpoints (CAIP-19 →
 //! GeckoTerminal network + contract), native coins use `/simple/price` with the coin id.

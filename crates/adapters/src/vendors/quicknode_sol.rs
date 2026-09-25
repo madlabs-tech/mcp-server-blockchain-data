@@ -1,4 +1,4 @@
-//! `quicknode_sol` vendor adapter. Owner: `solana` (T1.S4).
+//! `quicknode_sol` vendor adapter.
 //!
 //! `qn_estimatePriorityFees` → `fee_estimate`, registered under the vendor id `quicknode` (the
 //! id used in routing orders; chain RPC for QuickNode comes from `factory::base_registrations`).

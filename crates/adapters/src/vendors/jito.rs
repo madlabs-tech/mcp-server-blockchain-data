@@ -1,4 +1,4 @@
-//! `jito` vendor adapter. Owner: `solana` (T1.S4).
+//! `jito` vendor adapter.
 //!
 //! Jito block engine `sendTransaction` with `bundleOnly=true` → `private_relay`: the tx travels
 //! only as a single-tx bundle (revert protection, never the public TPU path). A bundle is only

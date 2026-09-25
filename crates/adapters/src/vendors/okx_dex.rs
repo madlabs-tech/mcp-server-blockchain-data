@@ -1,5 +1,5 @@
-//! `okx_dex` aggregator API v6 (key + secret + passphrase, HMAC-SHA256). Owner: `market-trading`
-//! (T1.M3). Disabled by default: free tier unverified.
+//! `okx_dex` aggregator API v6 (key + secret + passphrase, HMAC-SHA256).
+//! Disabled by default: free tier unverified.
 //!
 //! Signing: `OK-ACCESS-SIGN = base64(HMAC_SHA256(secret, timestamp + "GET" + path?query))` with
 //! `OK-ACCESS-KEY`, `OK-ACCESS-TIMESTAMP` (ISO-8601 ms) and `OK-ACCESS-PASSPHRASE`.

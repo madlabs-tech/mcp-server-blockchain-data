@@ -1,4 +1,4 @@
-//! EVM readers. Owner: `evm` (Phase 1). Block tags are strings: "latest" | "safe" | "finalized" | "0x…".
+//! EVM readers. Block tags are strings: "latest" | "safe" | "finalized" | "0x…".
 
 pub mod chainlink;
 pub mod erc20;

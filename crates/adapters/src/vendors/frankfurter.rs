@@ -1,4 +1,4 @@
-//! `frankfurter` vendor adapter (ECB reference rates, keyless). Owner: `neobank-wallet`.
+//! `frankfurter` vendor adapter (ECB reference rates, keyless).
 //!
 //! `GET {base}/{YYYY-MM-DD|latest}?base=EUR&symbols=USD` →
 //! `{"amount":1.0,"base":"EUR","date":"2026-09-18","rates":{"USD":1.0956}}`.

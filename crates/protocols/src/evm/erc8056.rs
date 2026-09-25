@@ -1,4 +1,4 @@
-//! ERC-8056 UI multiplier (Robinhood stock tokens: splits/dividends). Owner: `evm` (T1.E5). Used by rwa, wallet.
+//! ERC-8056 UI multiplier (Robinhood stock tokens: splits/dividends). Used by rwa, wallet.
 //!
 //! Source for the interface: https://docs.robinhood.com/chain/building-with-stock-tokens/
 //! (`uiMultiplier()`, `newUIMultiplier()`, `effectiveAt()`; 1e18 = 1.0).

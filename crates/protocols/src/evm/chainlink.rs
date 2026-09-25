@@ -1,4 +1,4 @@
-//! Chainlink aggregator reads (price + equity feeds). Owner: `evm` (T1.E5). Used by market, rwa, stablecoin_peg.
+//! Chainlink aggregator reads (price + equity feeds). Used by market, rwa, stablecoin_peg.
 //!
 //! Interface: `AggregatorV3Interface` (https://docs.chain.link/data-feeds/api-reference).
 

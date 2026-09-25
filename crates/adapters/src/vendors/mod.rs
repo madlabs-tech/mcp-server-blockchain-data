@@ -1,4 +1,4 @@
-//! Vendor modules (one per vendor, each behind its cargo feature). Owners per module doc.
+//! Vendor modules (one per vendor, each behind its cargo feature).
 
 #[cfg(feature = "alchemy")]
 pub mod alchemy;

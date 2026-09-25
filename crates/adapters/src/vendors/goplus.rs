@@ -1,4 +1,4 @@
-//! `goplus` token security (30 req/min). Owner: `market-trading` (T1.M2).
+//! `goplus` token security (30 req/min).
 //!
 //! The access token is optional per GoPlus docs. With `GOPLUS_APP_KEY` + `GOPLUS_APP_SECRET`,
 //! `POST /api/v1/token` with `sign = sha1(app_key + time + app_secret)` returns a token (cached

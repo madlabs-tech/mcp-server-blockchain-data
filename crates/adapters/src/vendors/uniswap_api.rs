@@ -1,5 +1,5 @@
 //! `uniswap_api` Trading API (key via `x-api-key`; FAQ says free, 6 req/s per key).
-//! Owner: `market-trading` (T1.M3). Disabled by default until the `/v1/swap` request/response
+//! Disabled by default until the `/v1/swap` request/response
 //! shape is checked against the live spec. Supports Robinhood Chain (4663).
 //!
 //! `quote` → `POST /v1/quote` (CLASSIC routing); `build` → `/v1/check_approval` (approval to

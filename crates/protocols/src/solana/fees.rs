@@ -1,4 +1,4 @@
-//! Priority-fee percentiles + Jito tip. Owner: `solana` (T1.S2).
+//! Priority-fee percentiles + Jito tip.
 //!
 //! `getRecentPrioritizationFees` returns, per recent slot (≤150), the *minimum* fee paid by a
 //! landed tx that locked the given accounts: often 0, so these percentiles are a floor, not a

@@ -1,4 +1,4 @@
-//! Multicall3 `aggregate3` batching pinned to one block. Owner: `evm` (T1.E5).
+//! Multicall3 `aggregate3` batching pinned to one block.
 //!
 //! Caveat: inside a multicall `msg.sender` is the Multicall3 contract, so never batch reads that
 //! depend on the caller.

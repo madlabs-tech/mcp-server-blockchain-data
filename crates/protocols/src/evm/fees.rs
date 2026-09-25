@@ -1,4 +1,4 @@
-//! EIP-1559 tiers + L2 L1-data fee (OP GasPriceOracle, Arbitrum NodeInterface). Owner: `evm` (T1.E2).
+//! EIP-1559 tiers + L2 L1-data fee (OP GasPriceOracle, Arbitrum NodeInterface).
 
 use super::{eth_call, hex_u256, malformed, multicall3};
 use alloy_primitives::{address, Address, Bytes, U256};

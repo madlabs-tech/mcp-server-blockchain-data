@@ -1,4 +1,4 @@
-//! SPL Token / Token-2022 helpers. Owner: `solana` (T1.S1). Used by payments, neobank, wallet.
+//! SPL Token / Token-2022 helpers. Used by payments, neobank, wallet.
 //!
 //! Program ids: <https://solana.com/docs/tokens> (Token, Token-2022, Associated Token Account).
 

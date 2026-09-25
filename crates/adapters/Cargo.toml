@@ -45,9 +45,9 @@ openexchangerates = []
 bdm-config = { workspace = true }
 bdm-domain = { workspace = true }
 bdm-ports = { workspace = true }
-# solana vendors (T1.S3/S4): wire checks (signature, relay tips) live in bdm-protocols
+# solana vendors: wire checks (signature, relay tips) live in bdm-protocols
 bdm-protocols = { workspace = true }
-alloy-primitives = { workspace = true }   # evm: U256 amounts + keccak tx hash (T1.E4)
+alloy-primitives = { workspace = true }   # evm: U256 amounts + keccak tx hash
 async-trait = { workspace = true }
 chrono = { workspace = true }
 reqwest = { workspace = true }

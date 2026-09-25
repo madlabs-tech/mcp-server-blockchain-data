@@ -1,4 +1,4 @@
-//! `openexchangerates` vendor adapter. Owner: `neobank-wallet`.
+//! `openexchangerates` vendor adapter.
 //!
 //! Free plan: USD base only, hourly updates, 1,000 requests/month, `app_id` query parameter
 //! (`OPENEXCHANGERATES_APP_ID`). `GET /latest.json` or `/historical/YYYY-MM-DD.json` →

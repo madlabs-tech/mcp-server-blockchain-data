@@ -2,15 +2,7 @@
 //!
 //! Everything here takes `&dyn EvmRpc` / `&dyn SolanaRpc`, so passing a *routed* RPC
 //! (`bdm_routing::RoutedEvmRpc`) gives every reader the user's vendor order, breakers and quota
-//! guard for free. Functions shared across Phase 1 teams have their signatures fixed here;
-//! stubs return `ProviderError::Unsupported("not implemented yet (<task>)")` until filled in.
-//!
-//! | Module | Owner | Task |
-//! |---|---|---|
-//! | `evm::{erc20, multicall3, erc8056, chainlink, fees, logs, tx, rpc_vendor}` | evm | T1.E1–E5 |
-//! | `solana::{spl, tx, fees, rpc_vendor}` | solana | T1.S1–S2 |
-//! | `stablecoins`, `issuer`, `sanctions` | payments-stablecoin | T1.P1–P2 |
-//! | `rwa`, `market_hours` | market-trading | T1.M4 |
+//! guard for free.
 
 #![cfg_attr(
     test,

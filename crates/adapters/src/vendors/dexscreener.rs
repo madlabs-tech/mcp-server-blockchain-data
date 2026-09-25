@@ -1,4 +1,4 @@
-//! `dexscreener` (keyless, 300 req/min on token/pair endpoints). Owner: `market-trading` (T1.M1).
+//! `dexscreener` (keyless, 300 req/min on token/pair endpoints).
 //! Port: `PriceFeed` (USD) from the most liquid pair where the token is the base token.
 //! Note: DexScreener "boosts" are paid ads; we never rank by them.
 

@@ -1,5 +1,5 @@
 //! `defillama` coins API (`coins.llama.fi`, keyless, non-Pro endpoints only).
-//! Owner: `market-trading` (T1.M1). Ports: `PriceFeed`, `PriceHistory` (USD).
+//! Ports: `PriceFeed`, `PriceHistory` (USD).
 
 use super::util;
 

@@ -1,4 +1,4 @@
-//! Issuer controls (blacklist / freeze / pause / deprecated). Owner: `payments-stablecoin` (T1.P2).
+//! Issuer controls (blacklist / freeze / pause / deprecated).
 //!
 //! EVM reads are pinned to one block (`eth_getBlockByNumber("latest")`) and the block is reported,
 //! because an address can be frozen between the check and the payment landing. Solana checks the

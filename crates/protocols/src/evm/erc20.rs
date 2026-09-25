@@ -1,4 +1,4 @@
-//! ERC-20 reads. Owner: `evm` (T1.E5). Used by payments, neobank (allowance), wallet.
+//! ERC-20 reads. Used by payments, neobank (allowance), wallet.
 
 use super::{eth_call, malformed};
 use alloy_primitives::{Address, B256, U256};

@@ -1,4 +1,4 @@
-//! `jupiter` vendor adapter. Owner: `solana` (T1.S4).
+//! `jupiter` vendor adapter.
 //!
 //! - `price`: Price API v3 `GET /price/v3?ids=<mint>`. Tokens without a reliable price are
 //!   omitted from the response → `NotFound`, never 0.

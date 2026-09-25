@@ -1,4 +1,4 @@
-//! Solana readers. Owner: `solana` (Phase 1).
+//! Solana readers.
 //!
 //! ## Commitment and finality (Alpenglow-ready)
 //! The settled commitment comes from `registry/chains.toml` (`finality.default`, overridable

@@ -1,4 +1,4 @@
-//! `helius` vendor adapter. Owner: `solana` (T1.S3).
+//! `helius` vendor adapter.
 //!
 //! - `helius` (key): DAS `getAssetsByOwner` → `token_balances`, DAS `getAsset` →
 //!   `token_metadata`, `getPriorityFeeEstimate` → `fee_estimate`, all on the key-bearing RPC URL.

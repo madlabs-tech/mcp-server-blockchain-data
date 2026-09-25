@@ -1,5 +1,5 @@
 //! EVM private relays (`private_relay`), Ethereum mainnet only; other chains get no private
-//! relay. Keyless; both accept plain `eth_sendRawTransaction`. Owner: `evm` (T1.E3).
+//! relay. Keyless; both accept plain `eth_sendRawTransaction`.
 //! - `flashbots`: Flashbots Protect. Source: https://docs.flashbots.net/flashbots-protect/quick-start
 //! - `mev_blocker`: MEV Blocker. Source: https://docs.mevblocker.io/reference/api/transaction-endpoints
 

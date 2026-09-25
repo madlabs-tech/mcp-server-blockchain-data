@@ -1,4 +1,4 @@
-//! `pyth`: Hermes (live prices) and Benchmarks (historical). Owner: `market-trading` (T1.M1).
+//! `pyth`: Hermes (live prices) and Benchmarks (historical).
 //! Since 2026-08-26 Pyth docs require `Authorization: Bearer $PYTH_API_KEY` on Hermes requests;
 //! Benchmarks also answers 401 without a key (its header is undocumented ⚠, we send the same).
 //!

@@ -1,4 +1,4 @@
-//! `birdeye` (key, 30K CU/month, 1 req/s). Owner: `market-trading` (T1.M1).
+//! `birdeye` (key, 30K CU/month, 1 req/s).
 //! Ports: `PriceFeed` (USD, with liquidity), `PriceHistory` (1-minute candles). Headers:
 //! `X-API-KEY` and `x-chain`. Native SOL is priced through the wrapped-SOL mint.
 

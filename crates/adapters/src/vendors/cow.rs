@@ -1,4 +1,4 @@
-//! `cow` Protocol orderbook API (keyless). Owner: `market-trading` (T1.M3).
+//! `cow` Protocol orderbook API (keyless).
 //!
 //! Quotes only: CoW orders are EIP-712 intents signed off-chain and settled by solvers
 //! (MEV-protected, useful on L2s without private mempools). There is no transaction to build,

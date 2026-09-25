@@ -1,5 +1,5 @@
 //! `honeypot_is` (keyless). Buy/sell simulation for Ethereum, BSC and Base only.
-//! Owner: `market-trading` (T1.M2). Port: `TokenRisk`.
+//! Port: `TokenRisk`.
 
 use super::util;
 

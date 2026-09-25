@@ -1,4 +1,4 @@
-//! `geckoterminal` public API (keyless, ~10–30 req/min ⚠). Owner: `market-trading` (T1.M1).
+//! `geckoterminal` public API (keyless, ~10–30 req/min ⚠).
 //! Ports: `PriceFeed` (USD, tokens only, with pool reserve as liquidity), `TokenMetadata`.
 
 use super::util;
