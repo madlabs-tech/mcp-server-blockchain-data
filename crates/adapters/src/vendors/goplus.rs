@@ -68,11 +68,9 @@ fn tax_flag(code: &str, v: &Value) -> Option<RiskFlag> {
     } else {
         Severity::Low
     };
-    Some(flag(
-        code,
-        sev,
-        Some(format!("{}%", (t * Decimal::from(100)).normalize())),
-    ))
+    // A tax too large to express in percent still raises the flag, just without the detail.
+    let pct = t.checked_mul(Decimal::ONE_HUNDRED);
+    Some(flag(code, sev, pct.map(|p| format!("{}%", p.normalize()))))
 }
 
 fn evm_flags(r: &Value) -> Vec<RiskFlag> {
@@ -180,11 +178,12 @@ impl GoPlus {
             .ok_or_else(|| ProviderError::Unsupported("goplus rejected app key/secret".into()))?
             .to_owned();
         // GoPlus expects the raw token, not `Bearer <token>` (verified live: Bearer → code 4012).
-        let bearer = token;
         let ttl = r["expires_in"].as_u64().unwrap_or(3600).saturating_sub(60);
-        *self.token.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some((bearer.clone(), Instant::now() + Duration::from_secs(ttl)));
-        Ok(Some(bearer))
+        // An absurd vendor `expires_in` would overflow `Instant + Duration` (a panic): don't cache.
+        if let Some(until) = Instant::now().checked_add(Duration::from_secs(ttl)) {
+            *self.token.lock().unwrap_or_else(|e| e.into_inner()) = Some((token.clone(), until));
+        }
+        Ok(Some(token))
     }
 }
 
@@ -256,6 +255,35 @@ mod tests {
     fn sign_is_sha1_hex() {
         // sha1("0") and sha1("abc"): app_key + time + secret concatenated.
         assert_eq!(sign("", 0, ""), "b6589fc6ab0dc82cf12099d1c2d40ab994e8410c");
+    }
+
+    #[test]
+    fn huge_tax_flags_without_panicking() {
+        let f = tax_flag("sell_tax", &Value::from(Decimal::MAX.to_string())).unwrap();
+        assert_eq!((f.severity, f.detail), (Severity::High, None));
+        let f = tax_flag("buy_tax", &"0.05".into()).unwrap();
+        assert_eq!(f.detail.as_deref(), Some("5%"));
+    }
+
+    #[tokio::test]
+    async fn absurd_token_expiry_is_not_cached_and_does_not_panic() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/v1/token"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                json!({"code": 1, "result": {"access_token": "tok", "expires_in": u64::MAX}}),
+            ))
+            .expect(2)
+            .mount(&server)
+            .await;
+        let g = GoPlus::new(
+            HttpClient::new(ID, DEFAULT_TIMEOUT),
+            &server.uri(),
+            Some(("k", "s")),
+        );
+        for _ in 0..2 {
+            assert_eq!(g.authorization().await.unwrap().as_deref(), Some("tok"));
+        }
     }
 
     #[tokio::test]

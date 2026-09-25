@@ -232,5 +232,20 @@ pub fn sell_approval(req: &bdm_ports::SwapRequest, spender: &str) -> PortResult<
 /// Percent (e.g. "-0.35" or 0.35) → basis points, rounded toward zero.
 pub fn percent_to_bps(v: &Value) -> Option<i32> {
     use rust_decimal::prelude::ToPrimitive;
-    (dec(v)? * Decimal::from(100)).trunc().to_i32()
+    dec(v)?.checked_mul(Decimal::ONE_HUNDRED)?.trunc().to_i32()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn percent_to_bps_never_panics_on_vendor_data() {
+        assert_eq!(percent_to_bps(&json!("-0.35")), Some(-35));
+        assert_eq!(percent_to_bps(&json!(0.35)), Some(35));
+        assert_eq!(percent_to_bps(&json!(Decimal::MAX.to_string())), None);
+        assert_eq!(percent_to_bps(&json!("1e27")), None);
+        assert_eq!(percent_to_bps(&json!("1e99999999999")), None);
+    }
 }
