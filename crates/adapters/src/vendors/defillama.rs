@@ -35,14 +35,7 @@ pub struct DefiLlama {
 fn coin_key(asset: &AssetId) -> PortResult<String> {
     let unsupported = || ProviderError::Unsupported(format!("defillama does not cover {asset}"));
     if let AssetRef::Native { slip44 } = asset.asset {
-        let id = match slip44 {
-            60 => "ethereum",
-            501 => "solana",
-            714 => "binancecoin",
-            966 => "polygon-ecosystem-token",
-            9000 => "avalanche-2",
-            _ => return Err(unsupported()),
-        };
+        let id = util::coingecko_native_id(slip44).ok_or_else(unsupported)?;
         return Ok(format!("coingecko:{id}"));
     }
     let chain = if util::is_solana_mainnet(&asset.chain) {
@@ -87,11 +80,7 @@ impl DefiLlama {
         let key = coin_key(asset)?;
         let url = Redacted::new(format!("{}{path}/{key}", self.base));
         let v = self.http.get_json(&url, label, &[]).await?;
-        let row = v["coins"]
-            .as_object()
-            .and_then(|m| m.iter().find(|(k, _)| k.eq_ignore_ascii_case(&key)))
-            .map(|(_, v)| v)
-            .ok_or(ProviderError::NotFound)?;
+        let row = util::get_ci(&v["coins"], &key).ok_or(ProviderError::NotFound)?;
         Ok(Price {
             asset: asset.clone(),
             currency: "USD".into(),

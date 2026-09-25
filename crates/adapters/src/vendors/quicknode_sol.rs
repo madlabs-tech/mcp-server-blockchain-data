@@ -15,7 +15,7 @@ use super::util;
 use crate::jsonrpc::JsonRpcClient;
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, VendorStatus};
-use bdm_domain::{FeeEstimate, FeeSpeed};
+use bdm_domain::FeeEstimate;
 use bdm_ports::{FeeOracle, PortHandle, PortResult, ProviderError, Registration};
 use bdm_protocols::solana::fees;
 use serde_json::json;
@@ -87,26 +87,7 @@ impl FeeOracle for QuickNodeFees {
             other => other?,
         };
         let pcu = &r["per_compute_unit"];
-        let tiers = [
-            (FeeSpeed::Slow, "low"),
-            (FeeSpeed::Standard, "medium"),
-            (FeeSpeed::Fast, "high"),
-        ]
-        .into_iter()
-        .map(|(s, k)| {
-            pcu[k]
-                .as_u64()
-                .map(|p| fees::tier(s, p))
-                .ok_or_else(|| ProviderError::Transient(format!("per_compute_unit.{k} missing")))
-        })
-        .collect::<PortResult<Vec<_>>>()?;
-        Ok(FeeEstimate {
-            chain: self.chain.id.clone(),
-            tiers,
-            l1_data_fee: None,
-            tip: Some(fees::suggested_tip(&self.chain)),
-            as_of: chrono::Utc::now(),
-        })
+        fees::estimate_from_levels(&self.chain, "per_compute_unit", |k| pcu[k].as_u64())
     }
 }
 

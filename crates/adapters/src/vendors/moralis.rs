@@ -83,12 +83,11 @@ impl Moralis {
     /// `GET {base}{path}?chain=0x…&{query}`; `label` is the metering / cost-table key.
     async fn get(&self, path: &str, query: &[(&str, String)], label: &str) -> PortResult<Value> {
         let chain = format!("0x{:x}", self.chain.id.evm_chain_id().unwrap_or(0));
-        let qs: String = std::iter::once(("chain", chain))
-            .chain(query.iter().map(|(k, v)| (*k, v.clone())))
-            .map(|(k, v)| format!("{k}={}", encode(&v)))
-            .collect::<Vec<_>>()
-            .join("&");
-        let url = Redacted::new(format!("{}{path}?{qs}", self.base));
+        let pairs = std::iter::once(("chain", chain.as_str()))
+            .chain(query.iter().map(|(k, v)| (*k, v.as_str())));
+        let url = reqwest::Url::parse_with_params(&format!("{}{path}", self.base), pairs)
+            .map_err(|e| ProviderError::Fatal(format!("moralis url: {e}")))?;
+        let url = Redacted::new(url.to_string());
         self.http
             .get_json(&url, label, &[("X-API-Key", self.key.expose())])
             .await
@@ -103,25 +102,6 @@ impl Moralis {
             chain: self.chain.id.clone(),
             asset: AssetRef::Erc20(a),
         }
-    }
-}
-
-/// Percent-encode a query value (addresses, numbers and opaque cursors).
-fn encode(v: &str) -> String {
-    v.bytes()
-        .map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                (b as char).to_string()
-            }
-            _ => format!("%{b:02X}"),
-        })
-        .collect()
-}
-
-fn evm(owner: &AccountAddress) -> PortResult<Address> {
-    match owner {
-        AccountAddress::Evm(a) => Ok(*a),
-        AccountAddress::Solana(_) => Err(ProviderError::Invalid("expected an EVM address".into())),
     }
 }
 
@@ -149,7 +129,7 @@ impl TokenBalances for Moralis {
         owner: &AccountAddress,
         assets: Option<&[AssetId]>,
     ) -> PortResult<Vec<TokenBalance>> {
-        let who = evm(owner)?;
+        let who = bdm_protocols::evm::evm_owner(owner)?;
         let v = self
             .get(&format!("/wallets/{who:#x}/tokens"), &[], "wallet_tokens")
             .await?;
@@ -181,7 +161,7 @@ impl TransferHistory for Moralis {
     /// page may hold fewer than `limit` rows. Native-only queries are `Unsupported`.
     #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn transfers(&self, q: &TransferQuery) -> PortResult<Page<Transfer>> {
-        let who = evm(&q.owner)?;
+        let who = bdm_protocols::evm::evm_owner(&q.owner)?;
         if q.assets
             .as_ref()
             .is_some_and(|a| a.iter().all(AssetId::is_native))

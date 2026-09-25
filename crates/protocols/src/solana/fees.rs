@@ -58,6 +58,34 @@ pub fn suggested_tip(chain: &ChainEntry) -> Amount {
     Amount::from_u128(SUGGESTED_TIP_LAMPORTS.into(), chain.native.decimals)
 }
 
+/// Fee estimate from a vendor oracle's low / medium / high levels (Slow / Standard / Fast).
+/// `level(k)` reads one level; a missing one is `Transient("{what}.{k} missing")`.
+pub fn estimate_from_levels(
+    chain: &ChainEntry,
+    what: &str,
+    level: impl Fn(&str) -> Option<u64>,
+) -> PortResult<FeeEstimate> {
+    let tiers = [
+        (FeeSpeed::Slow, "low"),
+        (FeeSpeed::Standard, "medium"),
+        (FeeSpeed::Fast, "high"),
+    ]
+    .into_iter()
+    .map(|(s, k)| {
+        level(k)
+            .map(|p| tier(s, p))
+            .ok_or_else(|| ProviderError::Transient(format!("{what}.{k} missing")))
+    })
+    .collect::<PortResult<Vec<_>>>()?;
+    Ok(FeeEstimate {
+        chain: chain.id.clone(),
+        tiers,
+        l1_data_fee: None,
+        tip: Some(suggested_tip(chain)),
+        as_of: chrono::Utc::now(),
+    })
+}
+
 /// Fee estimate from `getRecentPrioritizationFees` over `accounts` (empty = global).
 pub async fn fee_estimate(
     rpc: &dyn SolanaRpc,

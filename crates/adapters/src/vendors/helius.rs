@@ -20,7 +20,7 @@ use super::util;
 use crate::jsonrpc::{array_field, JsonRpcClient};
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
-use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef, FeeEstimate, FeeSpeed, SolanaPubkey};
+use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef, FeeEstimate, SolanaPubkey};
 use bdm_ports::{
     BroadcastReceipt, Broadcaster, FeeOracle, PortHandle, PortResult, ProviderError, Registration,
     TokenBalance, TokenBalances, TokenInfo, TokenMetadata,
@@ -196,25 +196,7 @@ impl FeeOracle for Helius {
             )
             .await?;
         let levels = &r["priorityFeeLevels"];
-        let tiers = [
-            (FeeSpeed::Slow, "low"),
-            (FeeSpeed::Standard, "medium"),
-            (FeeSpeed::Fast, "high"),
-        ]
-        .into_iter()
-        .map(|(s, k)| {
-            fee_level(&levels[k])
-                .map(|p| fees::tier(s, p))
-                .ok_or_else(|| ProviderError::Transient(format!("priorityFeeLevels.{k} missing")))
-        })
-        .collect::<PortResult<Vec<_>>>()?;
-        Ok(FeeEstimate {
-            chain: self.chain.id.clone(),
-            tiers,
-            l1_data_fee: None,
-            tip: Some(fees::suggested_tip(&self.chain)),
-            as_of: chrono::Utc::now(),
-        })
+        fees::estimate_from_levels(&self.chain, "priorityFeeLevels", |k| fee_level(&levels[k]))
     }
 }
 

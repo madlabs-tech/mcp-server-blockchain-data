@@ -7,7 +7,7 @@ use super::util;
 use crate::http::HttpClient;
 use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
-use bdm_domain::{AssetId, ChainId, Price};
+use bdm_domain::{AssetId, Price};
 use bdm_ports::{PortHandle, PortResult, PriceFeed, ProviderError, Registration};
 use chrono::Utc;
 use serde_json::Value;
@@ -29,22 +29,6 @@ pub struct DexScreener {
     base: String,
 }
 
-fn chain_slug(chain: &ChainId) -> Option<&'static str> {
-    if util::is_solana_mainnet(chain) {
-        return Some("solana");
-    }
-    Some(match chain.evm_chain_id()? {
-        1 => "ethereum",
-        8453 => "base",
-        42161 => "arbitrum",
-        10 => "optimism",
-        137 => "polygon",
-        43114 => "avalanche",
-        56 => "bsc",
-        _ => return None, // Robinhood Chain coverage unverified
-    })
-}
-
 impl DexScreener {
     pub fn new(http: HttpClient, base: &str) -> Self {
         Self {
@@ -63,7 +47,7 @@ impl PriceFeed for DexScreener {
         if !currency.eq_ignore_ascii_case("usd") {
             return Err(ProviderError::Unsupported("dexscreener is USD only".into()));
         }
-        let chain = chain_slug(&asset.chain).ok_or_else(unsupported)?;
+        let chain = util::dex_chain_slug(&asset.chain).ok_or_else(unsupported)?;
         let addr = util::token_address(asset).ok_or_else(unsupported)?;
         let url = Redacted::new(format!("{}/tokens/v1/{chain}/{addr}", self.base));
         let v = self.http.get_json(&url, "/tokens/v1", &[]).await?;

@@ -41,17 +41,7 @@ pub struct GoPlus {
 }
 
 fn sign(app_key: &str, time: i64, secret: &str) -> String {
-    let digest = Sha1::digest(format!("{app_key}{time}{secret}").as_bytes());
-    digest.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-fn flag(code: &str, severity: Severity, detail: Option<String>) -> RiskFlag {
-    RiskFlag {
-        code: code.into(),
-        severity,
-        source: ID.into(),
-        detail,
-    }
+    alloy_primitives::hex::encode(Sha1::digest(format!("{app_key}{time}{secret}").as_bytes()))
 }
 
 fn is_one(v: &Value) -> bool {
@@ -70,7 +60,12 @@ fn tax_flag(code: &str, v: &Value) -> Option<RiskFlag> {
     };
     // A tax too large to express in percent still raises the flag, just without the detail.
     let pct = t.checked_mul(Decimal::ONE_HUNDRED);
-    Some(flag(code, sev, pct.map(|p| format!("{}%", p.normalize()))))
+    Some(util::risk_flag(
+        ID,
+        code,
+        sev,
+        pct.map(|p| format!("{}%", p.normalize())),
+    ))
 }
 
 fn evm_flags(r: &Value) -> Vec<RiskFlag> {
@@ -102,10 +97,15 @@ fn evm_flags(r: &Value) -> Vec<RiskFlag> {
     let mut out: Vec<RiskFlag> = BOOL_FLAGS
         .iter()
         .filter(|(k, _, _)| is_one(&r[*k]))
-        .map(|(_, code, sev)| flag(code, *sev, None))
+        .map(|(_, code, sev)| util::risk_flag(ID, code, *sev, None))
         .collect();
     if r["is_open_source"].as_str() == Some("0") {
-        out.push(flag("not_open_source", Severity::Medium, None));
+        out.push(util::risk_flag(
+            ID,
+            "not_open_source",
+            Severity::Medium,
+            None,
+        ));
     }
     out.extend(tax_flag("buy_tax", &r["buy_tax"]));
     out.extend(tax_flag("sell_tax", &r["sell_tax"]));
@@ -133,10 +133,10 @@ fn solana_flags(r: &Value) -> Vec<RiskFlag> {
     let mut out: Vec<RiskFlag> = FLAGS
         .iter()
         .filter(|(k, _, _)| is_one(&r[*k]))
-        .map(|(_, code, sev)| flag(code, *sev, None))
+        .map(|(_, code, sev)| util::risk_flag(ID, code, *sev, None))
         .collect();
     if r["transfer_hook"].as_array().is_some_and(|a| !a.is_empty()) {
-        out.push(flag("transfer_hook", Severity::Medium, None));
+        out.push(util::risk_flag(ID, "transfer_hook", Severity::Medium, None));
     }
     out
 }
@@ -226,11 +226,7 @@ impl TokenRisk for GoPlus {
                 v["message"].as_str().unwrap_or("")
             )));
         }
-        let r = v["result"]
-            .as_object()
-            .and_then(|m| m.iter().find(|(k, _)| k.eq_ignore_ascii_case(&addr)))
-            .map(|(_, r)| r)
-            .ok_or(ProviderError::NotFound)?;
+        let r = util::get_ci(&v["result"], &addr).ok_or(ProviderError::NotFound)?;
         Ok(RiskAssessment {
             source: ID.into(),
             flags: if solana {

@@ -7,7 +7,7 @@
 //! in `bdm-adapters` (`vendors::private_relay`).
 
 use super::{
-    block_number, block_tag, decode_transfer_log, erc20, fees, hex_u64, logs,
+    block_number, block_tag, decode_transfer_log, erc20, evm_owner, fees, hex_u64, logs,
     multicall3::{self, Call},
     RawTransfer,
 };
@@ -108,13 +108,6 @@ impl ChainRpc {
             )));
         }
         Ok(())
-    }
-}
-
-fn evm_owner(owner: &AccountAddress) -> PortResult<Address> {
-    match owner {
-        AccountAddress::Evm(a) => Ok(*a),
-        AccountAddress::Solana(_) => Err(ProviderError::Invalid("expected an EVM address".into())),
     }
 }
 

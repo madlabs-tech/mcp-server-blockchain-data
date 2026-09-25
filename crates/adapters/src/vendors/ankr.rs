@@ -11,7 +11,7 @@ use alloy_primitives::U256;
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
 use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef};
-use bdm_ports::{PortHandle, PortResult, ProviderError, Registration, TokenBalance, TokenBalances};
+use bdm_ports::{PortHandle, PortResult, Registration, TokenBalance, TokenBalances};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -75,9 +75,7 @@ impl TokenBalances for Ankr {
         owner: &AccountAddress,
         assets: Option<&[AssetId]>,
     ) -> PortResult<Vec<TokenBalance>> {
-        let AccountAddress::Evm(who) = owner else {
-            return Err(ProviderError::Invalid("expected an EVM address".into()));
-        };
+        let who = bdm_protocols::evm::evm_owner(owner)?;
         let params = json!({
             "walletAddress": format!("{who:#x}"),
             "blockchain": [self.blockchain],

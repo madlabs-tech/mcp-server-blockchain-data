@@ -104,13 +104,6 @@ fn unsupported(e: ProviderError) -> ProviderError {
     }
 }
 
-fn evm(owner: &AccountAddress) -> PortResult<Address> {
-    match owner {
-        AccountAddress::Evm(a) => Ok(*a),
-        AccountAddress::Solana(_) => Err(ProviderError::Invalid("expected an EVM address".into())),
-    }
-}
-
 fn hex_u256(v: &Value) -> Option<U256> {
     let s = v.as_str()?.trim_start_matches("0x");
     U256::from_str_radix(if s.is_empty() { "0" } else { s }, 16).ok()
@@ -157,7 +150,7 @@ impl TokenBalances for Alchemy {
         owner: &AccountAddress,
         assets: Option<&[AssetId]>,
     ) -> PortResult<Vec<TokenBalance>> {
-        let who = evm(owner)?;
+        let who = bdm_protocols::evm::evm_owner(owner)?;
         let want = wanted(assets);
         let mut out = Vec::new();
         if want.native {
@@ -226,7 +219,7 @@ impl TransferHistory for Alchemy {
     /// carries both page keys.
     #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn transfers(&self, q: &TransferQuery) -> PortResult<Page<Transfer>> {
-        let who = evm(&q.owner)?;
+        let who = bdm_protocols::evm::evm_owner(&q.owner)?;
         let want = wanted(q.assets.as_deref());
         let mut categories = Vec::new();
         if want.native {

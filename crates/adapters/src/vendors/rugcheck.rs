@@ -35,18 +35,9 @@ pub struct RugCheck {
 
 /// "Mutable metadata" → "mutable_metadata".
 fn slug(name: &str) -> String {
-    let s: String = name
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() {
-                c.to_ascii_lowercase()
-            } else {
-                '_'
-            }
-        })
-        .collect();
-    s.split('_')
+    name.split(|c: char| !c.is_ascii_alphanumeric())
         .filter(|p| !p.is_empty())
+        .map(str::to_ascii_lowercase)
         .collect::<Vec<_>>()
         .join("_")
 }

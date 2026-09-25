@@ -43,6 +43,14 @@ pub async fn eth_call(
     hex_bytes(&v)
 }
 
+/// The EVM address of an owner, or `Invalid` for a Solana one.
+pub fn evm_owner(owner: &AccountAddress) -> PortResult<Address> {
+    match owner {
+        AccountAddress::Evm(a) => Ok(*a),
+        AccountAddress::Solana(_) => Err(ProviderError::Invalid("expected an EVM address".into())),
+    }
+}
+
 pub(crate) fn malformed(what: &str) -> ProviderError {
     // Transient: a garbled answer is the node's fault, so routing may try another vendor.
     ProviderError::Transient(format!("malformed RPC response: {what}"))
