@@ -17,8 +17,6 @@ bdm-transport-mcp = { workspace = true }
 axum = { workspace = true }
 chrono = { workspace = true }
 futures = { workspace = true }
-hex = { workspace = true }
-rand = { workspace = true }
 http = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

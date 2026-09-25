@@ -1,5 +1,6 @@
 //! sqlite persistence on a dedicated thread, with in-memory mirrors for hot-path reads.
 
+use alloy_primitives::hex;
 use bdm_config::ClientLimits;
 use bdm_domain::DomainError;
 use bdm_routing::{CounterStore, Dims, WindowKey};
@@ -104,7 +105,8 @@ pub fn hash_key(key: &str) -> String {
     hex::encode(Sha256::digest(key.as_bytes()))
 }
 
-fn random_hex(bytes: usize) -> String {
+/// `bytes` random bytes, hex-encoded (key ids, generated passwords).
+pub fn random_hex(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     rand::rng().fill_bytes(&mut buf);
     hex::encode(buf)
@@ -1064,5 +1066,20 @@ mod tests {
         migrate(&mut c).unwrap();
         migrate(&mut c).unwrap();
         assert!(has_table(&c, "usage").unwrap());
+    }
+
+    /// Stored client-key hashes must not change encoding (lowercase hex, no prefix).
+    #[test]
+    fn hex_encoding_is_stable() {
+        assert_eq!(
+            hash_key("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        let r = random_hex(4);
+        assert!(
+            r.len() == 8
+                && r.bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        );
     }
 }

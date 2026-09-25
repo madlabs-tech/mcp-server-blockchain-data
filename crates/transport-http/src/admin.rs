@@ -33,7 +33,6 @@ use bdm_ports::{
 use bdm_routing::{ProviderRegistry, Router as EmsRouter, RoutingTable, VendorHealth, WindowKey};
 use bdm_store::{effective_client_limits, ClientRecord, QuotaEngine, Store};
 use chrono::Utc;
-use rand::RngCore;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::{
@@ -126,7 +125,7 @@ impl AdminState {
     /// Validate edits without writing (applied to a throwaway copy of the config dir).
     pub fn validate(&self, edits: &[Edit]) -> Result<Vec<Issue>, Vec<Issue>> {
         let current = self.router().table().config.clone();
-        let tmp = std::env::temp_dir().join(format!("bdm-validate-{}", random_hex(8)));
+        let tmp = std::env::temp_dir().join(format!("bdm-validate-{}", bdm_store::random_hex(8)));
         let io = |e: std::io::Error| vec![Issue::error("validate", e.to_string())];
         std::fs::create_dir_all(&tmp).map_err(io)?;
         let result = (|| {
@@ -152,12 +151,6 @@ impl AdminState {
         let next = self.loader.load()?;
         Ok(self.install(next))
     }
-}
-
-pub(crate) fn random_hex(bytes: usize) -> String {
-    let mut buf = vec![0u8; bytes];
-    rand::rng().fill_bytes(&mut buf);
-    hex::encode(buf)
 }
 
 /// Dashboard + admin API router.
