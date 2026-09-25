@@ -1,10 +1,12 @@
 [package]
-name = "bdm-server"
-description = "Composition root and binary for the blockchain data aggregator (MCP + REST)"
+name = "onchain-data-mcp"
+description = "MCP + REST server for blockchain data (EVM + Solana) with vendor routing and free-tier quotas"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [[bin]]
 name = "onchain-data-mcp"

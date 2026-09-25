@@ -2,10 +2,16 @@
 FROM rust:1.90-bookworm AS builder
 WORKDIR /src
 COPY . .
-RUN cargo build --release -p bdm-server --locked
+RUN cargo build --release -p onchain-data-mcp --locked
 
 # ---- runtime -------------------------------------------------------------------------------
 FROM debian:bookworm-slim
+# MCP Registry ownership check reads io.modelcontextprotocol.server.name (must match server.json).
+LABEL io.modelcontextprotocol.server.name="io.github.madlabs-tech/onchain-data-mcp" \
+      org.opencontainers.image.title="onchain-data-mcp" \
+      org.opencontainers.image.description="MCP + REST server for blockchain data (EVM + Solana)" \
+      org.opencontainers.image.source="https://github.com/madlabs-tech/onchain-data-mcp" \
+      org.opencontainers.image.licenses="MIT"
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl \
  && rm -rf /var/lib/apt/lists/* \
