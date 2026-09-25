@@ -291,10 +291,10 @@ Providers are sorted into four tiers:
 
 | Tier | What it means | Examples |
 |---|---|---|
-| **1** | Free, no sign-up. Works right away. | DefiLlama, DexScreener, CoW Protocol, Frankfurter, public blockchain connections (17 in total) |
+| **1** | Free, no sign-up. Works right away. | DefiLlama, DexScreener, CoW Protocol, Frankfurter, public blockchain connections, RugCheck (18 in total) |
 | **2** | Free key, big limit. | Alchemy, Helius |
 | **3** | Free key, small limit. | 1inch, Birdeye, CoinGecko, Open Exchange Rates |
-| **4** | Paid, trial only, or still being checked. Off unless you turn it on. | QuickNode, Moralis, Pyth, 0x, Uniswap, OKX, Ankr, RugCheck |
+| **4** | Paid, trial only, or needs a sign-up key. Off unless you turn it on. | QuickNode, Moralis, Pyth, Ankr, 0x, Uniswap API, OKX DEX (7 in total) |
 
 **Our advice:** start with no keys. When you want better results, get free keys from
 [Alchemy](https://dashboard.alchemy.com/signup) and [Helius](https://dashboard.helius.dev/signup)

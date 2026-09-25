@@ -35,7 +35,7 @@ enabled = false
 [vendors.coingecko]
 enabled = true
 
-[vendors.ankr]                      # free tier unconfirmed, off by default
+[vendors.ankr]                      # free plan needs a signup key; off by default, set true with ANKR_API_KEY
 enabled = false
 
 # ---------------------------------------------------------------------------- routing

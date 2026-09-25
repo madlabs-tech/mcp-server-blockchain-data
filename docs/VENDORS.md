@@ -38,6 +38,7 @@ These work right away. A few accept an optional free key that raises the limit.
 | Jupiter | Optional | `JUPITER_API_KEY` | 30 requests a minute (60 with a free key) | Solana prices, swap prices and token details | [portal.jup.ag](https://portal.jup.ag/) |
 | GoPlus Security | Optional | `GOPLUS_APP_KEY`, `GOPLUS_APP_SECRET` | 30 requests a minute | Scam checks for tokens | [gopluslabs.io](https://gopluslabs.io/security-api) |
 | honeypot.is | No | — | 30 requests a minute (our safety limit) | Scam checks (tokens you can buy but not sell) on Ethereum, BNB Chain and Base | Not needed |
+| RugCheck | Optional | `RUGCHECK_API_KEY` | We keep it to 30 a minute (they don't publish a limit) | Checking Solana tokens for scams | Not needed |
 | GeckoTerminal | No | — | 10 requests a minute | Token prices from trading pools | Not needed |
 | Velora (ParaSwap) | No | — | 5,000 requests a day, 1 a second | Swap prices | Not needed |
 | TRM Labs | Optional | `TRM_API_KEY` | 100 checks a day (100,000 with a free key) | Sanctions checks (is this address on a blocked list?) | [trmlabs.com](https://www.trmlabs.com/products/sanctions) |
@@ -66,17 +67,16 @@ A free key, but the monthly limit is small. Still worth adding.
 
 ## Tier 4: Paid or trial only — off unless you turn it on
 
-These have no lasting free plan, or we could not confirm one. The server skips them unless you
-turn them on. Turn one on only if you pay for it (or want to use its trial).
+These have no lasting free plan, we could not confirm one, or (like Ankr) the free plan needs a
+signup key. The server skips them unless you turn them on. Turn one on only if you pay for it (or want to use its trial).
 
 | Provider | Needs a key? | Setting name | Free limit | What we use it for | Sign up |
 |---|---|---|---|---|---|
-| Ankr | Yes | `ANKR_API_KEY` | Not confirmed yet (being reviewed) | Wallet balances | [ankr.com](https://www.ankr.com/rpc/) |
+| Ankr | Yes | `ANKR_API_KEY` | Free plan exists (200M credits/month, 50 requests/minute) but needs a signup key; off by default — turn it on in config if you add ANKR_API_KEY. | Wallet balances | [ankr.com](https://www.ankr.com/rpc/) |
 | QuickNode | Yes | `QN_ENDPOINT_NAME`, `QN_TOKEN_ID` | Trial only: 10 million credits for 1 month | Blockchain reads, fees and sending transactions (backup) | [dashboard.quicknode.com](https://dashboard.quicknode.com/signup) |
 | Uniswap Trading API | Yes | `UNISWAP_API_KEY` | Not confirmed as free | Swap prices | [developers.uniswap.org](https://developers.uniswap.org/dashboard/welcome) |
 | OKX DEX | Yes | `OKX_API_KEY`, `OKX_SECRET_KEY`, `OKX_PASSPHRASE` | Trial only: 60 days | Swap prices | [web3.okx.com](https://web3.okx.com/build/dev-portal) |
 | Pyth | Yes | `PYTH_API_KEY` | Short free trial, then paid | Past prices of main coins (ETH, SOL…) | [pythdata.app](https://pythdata.app/signup) |
-| RugCheck | Optional | `RUGCHECK_API_KEY` | No key needed, but no published limit (being reviewed) | Scam checks for Solana tokens | Not needed |
 | Moralis | Yes | `MORALIS_API_KEY` | None (paid plans from $149 a month) | Wallet balances and transaction history (backup) | [admin.moralis.com](https://admin.moralis.com/register) |
 | 0x | Yes | `ZEROEX_API_KEY` | None (paid plans from $1,000 a month) | Swap prices | [dashboard.0x.org](https://dashboard.0x.org) |
 
@@ -108,5 +108,7 @@ Checked on 2026-09-25:
 - **Pyth** now needs a key, with a free trial and then paid plans. It is now off by default.
 - CoinGecko's free plan allows 100 requests a minute (up from the 30 we used before).
 - Velora's free plan is 5,000 requests a day and 1 a second.
+- **RugCheck** is now on — it needs no key.
+- **Ankr** has a free plan, but it needs a signup key, so it stays off by default.
 
 Nothing breaks when a provider turns off. The server simply asks the next one.

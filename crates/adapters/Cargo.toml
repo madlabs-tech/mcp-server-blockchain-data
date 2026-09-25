@@ -9,7 +9,7 @@ license.workspace = true
 [features]
 # One feature per vendor module (each must build alone: CI runs `cargo hack --each-feature`).
 # Default = vendors with a verified free tier; unverified ones are opt-in.
-default = ["alchemy", "quicknode", "moralis", "flashbots", "mev_blocker", "helius", "jito", "jupiter", "quicknode_sol", "trm", "coingecko", "geckoterminal", "defillama", "dexscreener", "birdeye", "pyth", "goplus", "honeypot_is", "oneinch", "velora", "cow", "frankfurter", "openexchangerates"]
+default = ["alchemy", "quicknode", "moralis", "flashbots", "mev_blocker", "helius", "jito", "jupiter", "quicknode_sol", "trm", "coingecko", "geckoterminal", "defillama", "dexscreener", "birdeye", "pyth", "goplus", "honeypot_is", "rugcheck", "oneinch", "velora", "cow", "frankfurter", "openexchangerates"]
 alchemy = []
 quicknode = []
 moralis = []
