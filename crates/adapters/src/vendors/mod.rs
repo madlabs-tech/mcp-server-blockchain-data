@@ -14,8 +14,6 @@ pub mod cow;
 pub mod defillama;
 #[cfg(feature = "dexscreener")]
 pub mod dexscreener;
-#[cfg(feature = "flashbots")]
-pub mod flashbots;
 #[cfg(feature = "frankfurter")]
 pub mod frankfurter;
 #[cfg(feature = "geckoterminal")]
@@ -30,8 +28,6 @@ pub mod honeypot_is;
 pub mod jito;
 #[cfg(feature = "jupiter")]
 pub mod jupiter;
-#[cfg(feature = "mev_blocker")]
-pub mod mev_blocker;
 #[cfg(feature = "moralis")]
 pub mod moralis;
 #[cfg(feature = "okx_dex")]
@@ -40,6 +36,8 @@ pub mod okx_dex;
 pub mod oneinch;
 #[cfg(feature = "openexchangerates")]
 pub mod openexchangerates;
+#[cfg(any(feature = "flashbots", feature = "mev_blocker"))]
+pub mod private_relay;
 #[cfg(feature = "pyth")]
 pub mod pyth;
 #[cfg(feature = "quicknode")]
@@ -92,9 +90,9 @@ pub fn registrations(loaded: &Loaded) -> Vec<Registration> {
     #[cfg(feature = "ankr")]
     ankr::register(loaded, &mut out);
     #[cfg(feature = "flashbots")]
-    flashbots::register(loaded, &mut out);
+    private_relay::register(loaded, &mut out, private_relay::FLASHBOTS);
     #[cfg(feature = "mev_blocker")]
-    mev_blocker::register(loaded, &mut out);
+    private_relay::register(loaded, &mut out, private_relay::MEV_BLOCKER);
     #[cfg(feature = "helius")]
     helius::register(loaded, &mut out);
     #[cfg(feature = "jito")]

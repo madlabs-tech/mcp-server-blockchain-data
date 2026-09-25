@@ -1,5 +1,7 @@
-//! `flashbots` vendor adapter: Flashbots Protect private relay (`private_relay`), Ethereum
-//! mainnet only; other chains get no private relay. Owner: `evm` (T1.E3).
+//! EVM private relays (`private_relay`), Ethereum mainnet only; other chains get no private
+//! relay. Keyless; both accept plain `eth_sendRawTransaction`. Owner: `evm` (T1.E3).
+//! - `flashbots`: Flashbots Protect. Source: https://docs.flashbots.net/flashbots-protect/quick-start
+//! - `mev_blocker`: MEV Blocker. Source: https://docs.mevblocker.io/reference/api/transaction-endpoints
 
 use crate::{
     chain_rpc::EvmRpcClient,
@@ -14,30 +16,30 @@ use bdm_ports::{
 };
 use std::sync::Arc;
 
-const VENDOR: &str = "flashbots";
-/// Keyless; accepts plain `eth_sendRawTransaction`.
-/// Source: https://docs.flashbots.net/flashbots-protect/quick-start
-const URL: &str = "https://rpc.flashbots.net/fast";
+#[cfg(feature = "flashbots")]
+pub const FLASHBOTS: (&str, &str) = ("flashbots", "https://rpc.flashbots.net/fast");
+#[cfg(feature = "mev_blocker")]
+pub const MEV_BLOCKER: (&str, &str) = ("mev_blocker", "https://rpc.mevblocker.io");
 
-/// Push this vendor's registration if it is active (`loaded.vendor_status("flashbots")`).
-pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
+/// Push `(vendor, url)`'s registration if it is active (`loaded.vendor_status(vendor)`).
+pub fn register(loaded: &Loaded, out: &mut Vec<Registration>, (vendor, url): (&str, &str)) {
     let mainnet = ChainId::evm(1);
-    if loaded.vendor_status(VENDOR) != VendorStatus::Active
+    if loaded.vendor_status(vendor) != VendorStatus::Active
         || !loaded.registry.chains.enabled().any(|c| c.id == mainnet)
     {
         return;
     }
-    let Some(entry) = loaded.registry.vendors.get(VENDOR) else {
+    let Some(entry) = loaded.registry.vendors.get(vendor) else {
         return;
     };
     let meta = VendorMeta {
-        id: VENDOR.into(),
+        id: vendor.into(),
         display_name: entry.display_name.clone(),
         requires_key: false,
         signup_url: entry.signup_url.clone(),
         rpc_features: Default::default(),
     };
-    let relay = Relay::new(URL.into());
+    let relay = Relay::new(vendor, url.into());
     out.push(
         Registration::new(meta).chain_port(mainnet, PortHandle::PrivateRelay(Arc::new(relay))),
     );
@@ -46,9 +48,9 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
 struct Relay(EvmRpcClient);
 
 impl Relay {
-    fn new(url: String) -> Self {
+    fn new(vendor: &str, url: String) -> Self {
         Self(EvmRpcClient::new(
-            HttpClient::new(VENDOR, DEFAULT_TIMEOUT),
+            HttpClient::new(vendor, DEFAULT_TIMEOUT),
             1,
             Redacted::new(url),
         ))
@@ -89,7 +91,7 @@ mod tests {
     async fn private_send_with_local_hash_and_idempotent_resend() {
         let server = FakeJsonRpc::start().await;
         server.on("eth_sendRawTransaction", json!("0xrelay"));
-        let relay = Relay::new(server.url());
+        let relay = Relay::new("test", server.url());
         let r = relay.send_raw("0x").await.unwrap();
         assert_eq!((r.tx_hash.as_str(), r.private), (EMPTY_HASH, true));
 
@@ -112,11 +114,19 @@ mod tests {
         .unwrap()
         .load_texts("", "")
         .unwrap();
-        let mut out = Vec::new();
-        register(&loaded, &mut out);
-        let ports = &out[0].ports;
-        assert_eq!(ports.len(), 1);
-        assert_eq!(ports[0].0, Some(ChainId::evm(1)));
-        assert_eq!(ports[0].1.capability(), bdm_ports::Capability::PrivateRelay);
+        let mut relays = Vec::new();
+        #[cfg(feature = "flashbots")]
+        relays.push(FLASHBOTS);
+        #[cfg(feature = "mev_blocker")]
+        relays.push(MEV_BLOCKER);
+        for relay in relays {
+            let mut out = Vec::new();
+            register(&loaded, &mut out, relay);
+            assert_eq!(out[0].vendor.id, relay.0);
+            let ports = &out[0].ports;
+            assert_eq!(ports.len(), 1);
+            assert_eq!(ports[0].0, Some(ChainId::evm(1)));
+            assert_eq!(ports[0].1.capability(), bdm_ports::Capability::PrivateRelay);
+        }
     }
 }

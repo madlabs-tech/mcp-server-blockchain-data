@@ -4,7 +4,7 @@
 //! user's `evm_rpc` order, failover, breakers and quota guard.
 //!
 //! Private relays (Flashbots Protect, MEV Blocker; Ethereum mainnet only) need HTTP, so they live
-//! in `bdm-adapters` (`vendors::{flashbots, mev_blocker}`).
+//! in `bdm-adapters` (`vendors::private_relay`).
 
 use super::{
     block_number, block_tag, decode_transfer_log, erc20, fees, hex_u64, logs,
