@@ -105,16 +105,8 @@ pub async fn get_tx(
 }
 
 /// Pure parser over a `getTransaction` (jsonParsed, maxSupportedTransactionVersion 0) result.
-///
-/// The result carries no commitment, so finality is the conservative
-/// `Confirmed { confirmations: 0 }` (getTransaction never serves `processed`); use
-/// [`parse_tx_with_finality`] when the commitment is known. Confidential transfers always
-/// yield `Unverifiable`.
-pub fn parse_tx(chain: &ChainEntry, tx: &Value) -> Result<Tx, DomainError> {
-    parse_tx_with_finality(chain, tx, Finality::Confirmed { confirmations: 0 })
-}
-
-/// [`parse_tx`] with a known finality (e.g. from `getSignatureStatuses`).
+/// The result carries no commitment, so the caller supplies `finality` (e.g. from
+/// `getSignatureStatuses`). Confidential transfers always yield `Unverifiable`.
 #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 pub fn parse_tx_with_finality(
     chain: &ChainEntry,
@@ -745,6 +737,12 @@ mod tests {
     use super::*;
     use crate::solana::testutil::{fixture, mainnet, FnRpc};
     use alloy_primitives::U256;
+
+    /// Finality is the conservative `Confirmed { confirmations: 0 }` (getTransaction never
+    /// serves `processed`).
+    fn parse_tx(chain: &ChainEntry, tx: &Value) -> Result<Tx, DomainError> {
+        parse_tx_with_finality(chain, tx, Finality::Confirmed { confirmations: 0 })
+    }
 
     const PYUSD: &str = "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo";
     const USDC: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";

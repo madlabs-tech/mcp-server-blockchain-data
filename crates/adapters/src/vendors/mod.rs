@@ -40,8 +40,6 @@ pub mod openexchangerates;
 pub mod private_relay;
 #[cfg(feature = "pyth")]
 pub mod pyth;
-#[cfg(feature = "quicknode")]
-pub mod quicknode;
 #[cfg(feature = "quicknode_sol")]
 pub mod quicknode_sol;
 #[cfg(feature = "rugcheck")]
@@ -66,8 +64,6 @@ pub fn registrations(loaded: &Loaded) -> Vec<Registration> {
     let mut out = Vec::new();
     #[cfg(feature = "alchemy")]
     alchemy::register(loaded, &mut out);
-    #[cfg(feature = "quicknode")]
-    quicknode::register(loaded, &mut out);
     #[cfg(feature = "moralis")]
     moralis::register(loaded, &mut out);
     #[cfg(feature = "ankr")]

@@ -11,6 +11,8 @@ license.workspace = true
 # Default = vendors with a verified free tier; unverified ones are opt-in.
 default = ["alchemy", "quicknode", "moralis", "flashbots", "mev_blocker", "helius", "jito", "jupiter", "quicknode_sol", "trm", "coingecko", "geckoterminal", "defillama", "dexscreener", "birdeye", "pyth", "goplus", "honeypot_is", "rugcheck", "oneinch", "velora", "cow", "frankfurter", "openexchangerates"]
 alchemy = []
+# No module: QuickNode chain RPC comes from `factory::base_registrations` (registry `rpc_urls`)
+# and its Solana fee oracle is `quicknode_sol`. Kept so existing `--features quicknode` builds work.
 quicknode = []
 moralis = []
 ankr = []
