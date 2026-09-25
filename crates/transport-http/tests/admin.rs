@@ -290,6 +290,14 @@ async fn secrets_are_never_echoed() {
         .find(|v| v["id"] == "helius")
         .unwrap();
     assert_eq!(helius["keys"][0]["set"], true);
+    assert_eq!(helius["tier"], 2);
+    for v in cfg["vendors"].as_array().unwrap() {
+        assert!(
+            (1..=4).contains(&v["tier"].as_u64().unwrap_or(0)),
+            "vendor {} has no tier",
+            v["id"]
+        );
+    }
     assert!(cfg["settings"].get("keys").is_none());
     for path in [
         "/admin/api/quota",

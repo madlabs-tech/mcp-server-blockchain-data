@@ -1,10 +1,15 @@
 # Built-in vendor registry: free-tier limits, key env names, URL templates, cost tables and the
 # built-in routing order (lowest precedence; config.toml and env override everything here).
 #
-# Limits are the vendor's FREE tier from plan/research (2026-09-23). `free_tier_verified = false`
-# vendors ship disabled until someone confirms the free tier. Costs are per request in the vendor's
-# unit and are ESTIMATES (local metering is labeled "estimated" in the dashboard). Adapter owners
-# refine cost tables in Phase 1. URL placeholders: {api_key} {endpoint_name} {token_id}.
+# Limits are the vendor's FREE tier, re-checked against each vendor's pricing/docs page on
+# 2026-09-25 (`# verified <date> <url>` comments). `free_tier_verified = false` vendors ship
+# disabled (no permanent free tier, trial-only, paid-only or unconfirmed); paid users can enable
+# them. Costs are per request in the vendor's unit and are ESTIMATES unless marked verified (local
+# metering is labeled "estimated" in the dashboard). URL placeholders: {api_key} {endpoint_name} {token_id}.
+#
+# `tier` (docs/VENDORS.md) follows a fixed rule: 4 = free_tier_verified false or paid-only;
+# 1 = no key required (optional keys count); else 2 if the tightest window allows >= 1M units/month
+# (daily x30, per_minute x43,200, rps x2,592,000), otherwise 3. A test in registry.rs enforces it.
 #
 # Pseudo-vendors: "public" = keyless public RPCs from chains.toml; "rpc" = generic implementations
 # over the routed chain RPC (Multicall3 balances, getLogs scans, feeHistory, on-chain oracles).
@@ -44,15 +49,17 @@ sanctions        = ["trm"]                              # Chainalysis oracle is 
 display_name = "Public RPC (keyless)"
 requires_key = false
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { rps = 5 }                 # conservative; Solana public = 100 req/10 s per IP
+limit = { rps = 5 }                 # conservative; Solana public = 100 req/10 s per IP; # verified 2026-09-25 https://solana.com/docs/references/clusters
 note = "Rate-limited, not for production. Last-resort fallback."
 
 [vendor.rpc]
 display_name = "On-chain via routed RPC"
 requires_key = false
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
 note = "Generic implementations; usage is metered on the underlying RPC vendor."
@@ -64,11 +71,12 @@ requires_key = true
 keys = { api_key = "ALCHEMY_API_KEY" }
 signup_url = "https://dashboard.alchemy.com/signup"
 free_tier_verified = true
+tier = 2
 unit = "credits"
 reset = "calendar_month"
-limit = { monthly = 30_000_000 }
+limit = { monthly = 30_000_000 }               # Free: 30M CU/mo, 25 req/s; # verified 2026-09-25 https://www.alchemy.com/pricing
 default_cost = 20
-costs = { eth_blockNumber = 10, eth_chainId = 0, eth_getBalance = 20, eth_call = 26, eth_getLogs = 75, eth_getTransactionReceipt = 20, eth_getTransactionByHash = 20, eth_getBlockByNumber = 20, eth_sendRawTransaction = 250, eth_feeHistory = 10, eth_simulateV1 = 100, debug_traceCall = 170, alchemy_getAssetTransfers = 150, alchemy_getTokenBalances = 26, alchemy_getTokenMetadata = 10 }   # ⚠ estimates
+costs = { eth_blockNumber = 10, eth_chainId = 0, eth_getBalance = 20, eth_call = 26, eth_getLogs = 60, eth_getTransactionReceipt = 20, eth_getTransactionByHash = 20, eth_getBlockByNumber = 20, eth_sendRawTransaction = 40, eth_feeHistory = 10, eth_simulateV1 = 40, debug_traceCall = 40, alchemy_getAssetTransfers = 120, alchemy_getTokenBalances = 20, alchemy_getTokenMetadata = 10 }   # # verified 2026-09-25 https://www.alchemy.com/docs/reference/compute-unit-costs
 # Enhanced APIs (alchemy_getAssetTransfers / getTokenBalances) run on the rpc_urls below. The Transfers
 # API is documented for Ethereum, Base, Polygon, Arbitrum, Optimism; other networks answer "unsupported"
 # and routing moves on. `internal` transfers only on Ethereum, Polygon, Base.
@@ -89,11 +97,15 @@ display_name = "QuickNode"
 requires_key = true
 keys = { endpoint_name = "QN_ENDPOINT_NAME", token_id = "QN_TOKEN_ID" }
 signup_url = "https://dashboard.quicknode.com/signup"
-free_tier_verified = true
+# No permanent free plan since 2026-09: the free tier is now a 1-month trial (then Build $49/mo),
+# so it is off by default; enable it (`vendors.quicknode.enabled = true`) if you pay.
+free_tier_verified = false
+tier = 4
 unit = "credits"
 reset = "calendar_month"
-limit = { monthly = 10_000_000, rps = 15 }     # ⚠ one source says 50M
-default_cost = 20                              # ⚠ estimate
+limit = { monthly = 10_000_000, rps = 15 }     # trial numbers; # verified 2026-09-25 https://www.quicknode.com/pricing
+default_cost = 20                              # EVM/Solana methods (chain tier 2); # verified 2026-09-25 https://www.quicknode.com/api-credits
+note = "Free trial only (1 month: 10M credits, 15 req/s, 1 endpoint), then paid plans. Off by default; enable it if you pay."
 rpc_features = { get_logs_max_range = 5, simulate_v1 = true }
 [vendor.quicknode.rpc_urls]                   # multichain endpoint; slugs from each chain's eth_blockNumber docs page (2026-09-23)
 "eip155:1"      = "https://{endpoint_name}.quiknode.pro/{token_id}/"      # ⚠ Ethereum: no chain slug (docs show only a demo host)
@@ -112,9 +124,10 @@ requires_key = true
 keys = { api_key = "HELIUS_API_KEY" }
 signup_url = "https://dashboard.helius.dev/signup"
 free_tier_verified = true
+tier = 2
 unit = "credits"
 reset = "calendar_month"
-limit = { monthly = 1_000_000, rps = 10 }
+limit = { monthly = 1_000_000, rps = 10 }      # # verified 2026-09-25 https://www.helius.dev/pricing
 default_cost = 1                               # standard RPC calls: 1 credit
 # https://www.helius.dev/pricing: DAS 10 credits; archival getTransaction / getSignaturesForAddress
 # can cost 10 (not knowable per call, so metered at 1: estimate). Paid-only methods
@@ -129,25 +142,29 @@ display_name = "Moralis"
 requires_key = true
 keys = { api_key = "MORALIS_API_KEY" }
 signup_url = "https://admin.moralis.com/register"
-free_tier_verified = true
+# No permanent free tier since 2026-09-01 (legacy free plans stopped), so it is off by default;
+# enable it (`vendors.moralis.enabled = true`) if you pay. The limit below is the Starter plan.
+free_tier_verified = false
+tier = 4
 unit = "credits"
-reset = "daily_utc"
-limit = { daily = 40_000 }
+reset = "calendar_month"
+limit = { monthly = 2_000_000, rps = 40 }      # Starter $149/mo; # verified 2026-09-25 https://docs.moralis.com/get-started/pricing
 default_cost = 10                              # ⚠ compute units vary per endpoint
 costs = { wallet_tokens = 100, erc20_transfers = 50 }   # ⚠ estimates; keys = adapter endpoint labels
-note = "REST (X-API-Key). Not on Robinhood Chain (docs.moralis.com/supported-chains)."
+note = "REST (X-API-Key). Paid only since 2026-09-01 (Starter $149/mo: 2M CU/mo, 40 rps). Not on Robinhood Chain (docs.moralis.com/supported-chains)."
 
 [vendor.ankr]
 display_name = "Ankr Advanced API"
 requires_key = true
 keys = { api_key = "ANKR_API_KEY" }
 signup_url = "https://www.ankr.com/rpc/"
-free_tier_verified = false
+free_tier_verified = false                     # Freemium does include the Advanced API; enabling it awaits a decision
+tier = 4
 unit = "credits"
 reset = "calendar_month"
 default_cost = 700                             # Advanced API: 700 credits per request (ankr.com/docs/advanced-api/overview/)
 costs = { ankr_getAccountBalance = 700 }
-note = "Not on Robinhood Chain. Freemium access to the Advanced API unconfirmed (Ankr docs disagree)."
+note = "Not on Robinhood Chain. Freemium: 200M credits/mo, Advanced API included at 50 req/min, 700 credits/req (verified 2026-09-25 https://www.ankr.com/docs/rpc-service/service-plans/)."
 
 # ----------------------------------------------------------------------------- market
 [vendor.coingecko]
@@ -156,9 +173,10 @@ requires_key = true
 keys = { api_key = "COINGECKO_API_KEY" }
 signup_url = "https://www.coingecko.com/en/developers/dashboard"
 free_tier_verified = true
+tier = 3
 unit = "requests"
 reset = "calendar_month"
-limit = { monthly = 10_000, per_minute = 30 }  # ⚠ 30 vs 100/min
+limit = { monthly = 10_000, per_minute = 100 } # # verified 2026-09-25 https://docs.coingecko.com/docs/errors-and-rate-limits
 default_cost = 1
 note = "Demo plan: key in x-cg-demo-api-key. The /key usage endpoint is paid-plan only (docs, 2026-09-23), so quota is locally metered."
 
@@ -166,26 +184,29 @@ note = "Demo plan: key in x-cg-demo-api-key. The /key usage endpoint is paid-pla
 display_name = "GeckoTerminal (public)"
 requires_key = false
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { per_minute = 10 }                    # ⚠ 10 vs 30/min
+limit = { per_minute = 10 }                    # # verified 2026-09-25 https://www.geckoterminal.com/dex-api
 note = "Keyless. Tokens only (no native coins); Robinhood Chain network slug unverified."
 
 [vendor.defillama]
 display_name = "DefiLlama"
 requires_key = false
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { per_minute = 60 }                    # conservative self-limit; Pro endpoints excluded
+limit = { per_minute = 60 }                    # self-limit (free limit unpublished), keyless; # verified 2026-09-25 https://api-docs.defillama.com/
 
 [vendor.dexscreener]
 display_name = "DexScreener"
 requires_key = false
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { per_minute = 300 }
+limit = { per_minute = 300 }                   # # verified 2026-09-25 https://docs.dexscreener.com/api/reference
 note = "Keyless. Price from the most liquid pair where the token is the base token."
 
 [vendor.birdeye]
@@ -194,9 +215,10 @@ requires_key = true
 keys = { api_key = "BIRDEYE_API_KEY" }
 signup_url = "https://bds.birdeye.so"
 free_tier_verified = true
+tier = 3
 unit = "credits"
 reset = "calendar_month"
-limit = { monthly = 30_000, rps = 1 }
+limit = { monthly = 30_000, rps = 1 }          # # verified 2026-09-25 https://data.birdeye.so/docs/guides/payment/pricing.md
 default_cost = 1                               # ⚠ CU vary per endpoint
 
 [vendor.jupiter]
@@ -205,9 +227,10 @@ requires_key = false                           # keyless 0.5 RPS; free key 1 RPS
 keys = { api_key = "JUPITER_API_KEY" }
 signup_url = "https://portal.jup.ag/"
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { per_minute = 30 }                    # keyless; 60/min with a free key
+limit = { per_minute = 30 }                    # keyless; 60/min with a free key; # verified 2026-09-25 https://developers.jup.ag/docs/portal/rate-limits
 # https://developers.jup.ag/docs/portal/rate-limits (Keyless 0.5 RPS / 30 RPM; Free 1 RPS / 60 RPM)
 costs = { price_v3 = 1, swap_v2_order = 1 }    # a non-SOL swap quote also calls price_v3 (decimals)
 note = "Price v3 + Swap v2 /order on api.jup.ag. Set limit.per_minute = 60 with JUPITER_API_KEY."
@@ -216,12 +239,15 @@ note = "Price v3 + Swap v2 /order on api.jup.ag. Set limit.per_minute = 60 with 
 display_name = "Pyth (Hermes / Benchmarks)"
 requires_key = true                            # Hermes needs Authorization: Bearer since 2026-08-26 (docs.pyth.network)
 keys = { api_key = "PYTH_API_KEY" }
-signup_url = "https://docs.pyth.network/price-feeds/core/use-historical-price-data"
-note = "Native coins only (feeds keyed by symbol). Benchmarks auth header undocumented; the Hermes Bearer header is reused."
-free_tier_verified = true
+signup_url = "https://pythdata.app/signup"    # # verified 2026-09-25 https://docs.pyth.network/price-feeds/core/upgrade/preparing.md
+note = "Native coins only (feeds keyed by symbol). Keys come with a free trial; paid plans cover ongoing use. Benchmarks auth header undocumented; the Hermes Bearer header is reused."
+# No permanent free tier since the 2026-08-26 key cutover (free trial, then paid), so it is off
+# by default; enable it (`vendors.pyth.enabled = true`) if you pay.
+free_tier_verified = false
+tier = 4
 unit = "requests"
 reset = "rolling"
-limit = { per_minute = 60 }                    # Benchmarks: 10 req / 10 s
+limit = { per_minute = 60 }                    # Benchmarks: 10 req / 10 s per IP; # verified 2026-09-25 https://docs.pyth.network/price-feeds/core/use-historical-price-data
 
 [vendor.goplus]
 display_name = "GoPlus Security"
@@ -229,64 +255,72 @@ requires_key = false                           # access token optional per docs;
 keys = { app_key = "GOPLUS_APP_KEY", app_secret = "GOPLUS_APP_SECRET" }
 signup_url = "https://gopluslabs.io/security-api"
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { per_minute = 30 }
+limit = { per_minute = 30 }                    # # verified 2026-09-25 https://docs.gopluslabs.io/reference/support
 note = "With GOPLUS_APP_KEY + GOPLUS_APP_SECRET an access token is fetched (sign = sha1(key+time+secret)) and sent as Bearer."
 
 [vendor.honeypot_is]
 display_name = "honeypot.is"
 requires_key = false
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { per_minute = 30 }                    # self-limit; ETH/BSC/Base only
+limit = { per_minute = 30 }                    # self-limit (unpublished), keyless, ETH/BSC/Base only; # verified 2026-09-25 https://docs.honeypot.is/
 
 [vendor.rugcheck]
 display_name = "RugCheck"
 requires_key = false
 keys = { api_key = "RUGCHECK_API_KEY" }
-free_tier_verified = false
+free_tier_verified = false                     # report endpoint is keyless, limit unpublished; enabling it awaits a decision
+tier = 4
 unit = "requests"
 reset = "rolling"
-limit = { per_minute = 60 }                    # ⚠ third-party report
-note = "Solana only. Auth unverified: an optional RUGCHECK_API_KEY is sent as X-API-KEY."
+limit = { per_minute = 60 }                    # ⚠ third-party report; no official limit published
+note = "Solana only. Report endpoints are keyless; an optional RUGCHECK_API_KEY (JWT) is sent in the Authorization header (verified 2026-09-25 https://api.rugcheck.xyz/swagger/doc.json)."
 
 # ----------------------------------------------------------------------------- swap / MEV
 [vendor.oneinch]
 display_name = "1inch"
 requires_key = true
 keys = { api_key = "ONEINCH_API_KEY" }
-signup_url = "https://portal.1inch.dev/"
+signup_url = "https://business.1inch.com/portal"
 free_tier_verified = true
+tier = 3
 unit = "requests"
 reset = "calendar_month"
-limit = { monthly = 100_000, rps = 1 }
-note = "api.1inch.com/swap/v6.1; Robinhood Chain (4663) supported per 1inch docs."
+limit = { monthly = 100_000, rps = 1 }         # 60/min; # verified 2026-09-25 https://business.1inch.com/portal/documentation/payment-methods/subscriptions
+note = "api.1inch.com/swap/v6.1; Robinhood Chain (4663) supported per 1inch docs. Free: 100k API calls/mo + 25k Web3 RPC calls/mo, 60/min."
 
 [vendor.velora]
 display_name = "Velora (ParaSwap)"
 requires_key = false
 free_tier_verified = true
+tier = 1
 unit = "requests"
-reset = "rolling"
-limit = { per_minute = 60 }                    # anonymous use carries a 1 bps fee
-note = "api.velora.xyz, /prices version 6.2."
+reset = "daily_utc"                            # daily reset time not stated
+limit = { daily = 5_000, rps = 1 }             # # verified 2026-09-25 https://www.velora.xyz/docs/overview/pro-api-accounts.md
+note = "api.velora.xyz, /prices version 6.2. Free tier: pass &partner=<app>, no signup."
 
 [vendor.cow]
 display_name = "CoW Protocol"
 requires_key = false
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { per_minute = 60 }
+limit = { per_minute = 60 }                    # below every documented limit; # verified 2026-09-25 https://docs.cow.fi/cow-protocol/integrate/api
 note = "Quotes only (orders are EIP-712 intents, no tx to build). No native sells."
 
 [vendor.zeroex]
 display_name = "0x Swap API"
 requires_key = true
 keys = { api_key = "ZEROEX_API_KEY" }
-free_tier_verified = false
+signup_url = "https://dashboard.0x.org"
+free_tier_verified = false                     # paid only; # verified 2026-09-25 https://0x.org/pricing
+tier = 4
 unit = "requests"
 reset = "calendar_month"
 note = "No free tier: 0x.org/pricing lists Standard $1000/mo (checked 2026-09-23). Supports Robinhood Chain."
@@ -295,26 +329,31 @@ note = "No free tier: 0x.org/pricing lists Standard $1000/mo (checked 2026-09-23
 display_name = "Uniswap Trading API"
 requires_key = true
 keys = { api_key = "UNISWAP_API_KEY" }
-free_tier_verified = false
+signup_url = "https://developers.uniswap.org/dashboard/welcome"
+free_tier_verified = false                     # current docs don't say it is free
+tier = 4
 unit = "requests"
 reset = "rolling"
-limit = { rps = 6 }
+limit = { rps = 6 }                            # # verified 2026-09-25 https://developers.uniswap.org/docs/trading/swapping-api/common-errors
 note = "FAQ says free, 6 req/s per key (2026-09-23). Kept disabled until the /v1/swap shape is checked. Supports Robinhood Chain."
 
 [vendor.okx_dex]
 display_name = "OKX DEX"
 requires_key = true
 keys = { api_key = "OKX_API_KEY", secret_key = "OKX_SECRET_KEY", passphrase = "OKX_PASSPHRASE" }
-free_tier_verified = false
+signup_url = "https://web3.okx.com/build/dev-portal"
+free_tier_verified = false                     # no permanent free tier; # verified 2026-09-25 https://web3.okx.com/onchainos/dev-docs/trade/api-fee
+tier = 4
 unit = "requests"
 reset = "rolling"
-note = "API v6, HMAC-SHA256 signed. Free tier unverified."
+note = "API v6, HMAC-SHA256 signed. Trial only: 1 RPS for 60 days after key creation; then paid Start-up tier."
 
 [vendor.flashbots]
 display_name = "Flashbots Protect"
 requires_key = false
 signup_url = "https://docs.flashbots.net/flashbots-protect/quick-start"
-free_tier_verified = true
+free_tier_verified = true                      # keyless; # verified 2026-09-25 https://docs.flashbots.net/flashbots-protect/quick-start
+tier = 1
 unit = "requests"
 reset = "rolling"
 note = "Ethereum mainnet only. Keyless private relay at https://rpc.flashbots.net/fast (eth_sendRawTransaction)."
@@ -323,7 +362,8 @@ note = "Ethereum mainnet only. Keyless private relay at https://rpc.flashbots.ne
 display_name = "MEV Blocker"
 requires_key = false
 signup_url = "https://docs.mevblocker.io/"
-free_tier_verified = true
+free_tier_verified = true                      # keyless; # verified 2026-09-25 https://docs.mevblocker.io/
+tier = 1
 unit = "requests"
 reset = "rolling"
 note = "Ethereum mainnet only. Keyless private relay at https://rpc.mevblocker.io (eth_sendRawTransaction)."
@@ -332,25 +372,28 @@ note = "Ethereum mainnet only. Keyless private relay at https://rpc.mevblocker.i
 display_name = "Jito block engine"
 requires_key = false
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { rps = 1 }                            # keyless: 1 req/s per IP per region (docs.jito.wtf/lowlatencytxnsend)
+limit = { rps = 1 }                            # keyless: 1 req/s per IP per region; # verified 2026-09-25 https://docs.jito.wtf/lowlatencytxnsend/
 note = "sendTransaction?bundleOnly=true (private). Tx must tip >= 1000 lamports to a Jito tip account (checked locally)."
 
 [vendor.helius_sender]
 display_name = "Helius Sender"
 requires_key = false
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { rps = 50 }                           # 50 TPS keyless (helius.dev/docs/sending-transactions/sender)
+limit = { rps = 50 }                           # 50 TPS keyless; # verified 2026-09-25 https://www.helius.dev/docs/sending-transactions/sender
 note = "Keyless, no credits. Tx must tip >= 0.001 SOL to a Sender tip account and set a compute-unit price (checked locally)."
 
 # ----------------------------------------------------------------------------- compliance / fiat
 [vendor.chainalysis_oracle]
 display_name = "Chainalysis sanctions oracle (on-chain)"
 requires_key = false
-free_tier_verified = true
+free_tier_verified = true                      # # verified 2026-09-25 https://go.chainalysis.com/chainalysis-oracle-docs.html
+tier = 1
 unit = "requests"
 reset = "rolling"
 note = "isSanctioned(address) via routed RPC (metered there). 0x40C5…C8fb on Ethereum/OP/BSC/Polygon/Avalanche/Arbitrum, 0x3A91…739B on Base; not on Robinhood Chain or Solana. Source: https://go.chainalysis.com/chainalysis-oracle-docs.html. May lag official lists."
@@ -361,9 +404,10 @@ requires_key = false                           # keyless works (1 req/s, 100/day
 keys = { api_key = "TRM_API_KEY" }
 signup_url = "https://www.trmlabs.com/products/sanctions"
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "daily_utc"
-limit = { daily = 100, rps = 1 }               # keyless tier; with a key: 1000 rps / 100K per day (override `vendors.trm.limit`)
+limit = { daily = 100, rps = 1 }               # keyless tier; with a key: 1000 rps / 100K per day (override `vendors.trm.limit`); # verified 2026-09-25 https://docs.sanctions.trmlabs.com/
 costs = { "sanctions/screening" = 1 }
 note = "POST /public/v1/sanctions/screening (https://docs.sanctions.trmlabs.com/). Address only, no chain field."
 
@@ -371,9 +415,10 @@ note = "POST /public/v1/sanctions/screening (https://docs.sanctions.trmlabs.com/
 display_name = "Frankfurter (ECB)"
 requires_key = false
 free_tier_verified = true
+tier = 1
 unit = "requests"
 reset = "rolling"
-limit = { per_minute = 60 }                    # self-limit
+limit = { per_minute = 60 }                    # self-limit; keyless, no quotas; # verified 2026-09-25 https://frankfurter.dev/
 costs = { latest = 1, historical = 1 }
 note = "ECB reference rates, ~30 currencies, TARGET business days only (~16:00 CET); weekend/holiday dates return the previous business day."
 
@@ -383,8 +428,9 @@ requires_key = true
 keys = { app_id = "OPENEXCHANGERATES_APP_ID" }
 signup_url = "https://openexchangerates.org/signup/free"
 free_tier_verified = true
+tier = 3
 unit = "requests"
 reset = "calendar_month"
-limit = { monthly = 1_000 }
+limit = { monthly = 1_000 }                    # # verified 2026-09-25 https://openexchangerates.org/signup/free
 costs = { latest = 1, historical = 1, usage = 0 }   # usage.json is documented as not counted
 note = "Free plan: USD base only (cross rates computed locally), hourly updates."

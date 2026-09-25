@@ -481,6 +481,7 @@ async fn config(State(s): State<AdminState>) -> Response {
                 "signup_url": e.signup_url,
                 "note": e.note,
                 "free_tier_verified": e.free_tier_verified,
+                "tier": e.tier,
                 "unit": e.unit,
                 "status": cfg.vendor_status(id),
                 "enabled": cfg.settings.vendors.get(id).and_then(|v| v.enabled).or(e.enabled).unwrap_or(e.free_tier_verified),
