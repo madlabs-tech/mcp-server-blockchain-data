@@ -74,8 +74,13 @@ const store = {
 };
 
 const fmtN = (n) => (n === null || n === undefined ? "—" : Number(n).toLocaleString());
-const fmtT = (t) => (t ? new Date(t).toLocaleString() : "—");
-const fmtD = (t) => (t ? new Date(t).toLocaleDateString() : "—");
+/** Local time as `2026-09-25 23:26:53` (24-hour, same everywhere on the dashboard). */
+function stamp(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+const fmtT = (t) => (t ? stamp(new Date(t)) : "—");
+const fmtD = (t) => (t ? stamp(new Date(t)).slice(0, 10) : "—");
 const clamp = (t, n) => (t && t.length > n ? `${t.slice(0, n - 1).trimEnd()}…` : t || "");
 const hosted = () => !!cache.config && cache.config.mode === "hosted";
 
@@ -910,8 +915,10 @@ async function overview() {
   const open = health.vendors.filter((v) => v.breaker !== "closed").length;
   const strained = q.vendors.filter((v) => v.state !== "ok").length;
 
+  // `rpc` is generic code over the routed chain RPC: its traffic already shows on the RPC vendor
+  // that served it (e.g. public), so it is hidden here like on Providers.
   const rows = health.vendors
-    .filter((v) => v.ok || v.failed || (quotaBy[v.vendor] && quotaBy[v.vendor].state !== "ok") || v.breaker !== "closed")
+    .filter((v) => v.vendor !== "rpc" && (v.ok || v.failed || (quotaBy[v.vendor] && quotaBy[v.vendor].state !== "ok") || v.breaker !== "closed"))
     .sort((a, b) => (b.ok + b.failed) - (a.ok + a.failed))
     .map((v) => {
       const qv = quotaBy[v.vendor];
@@ -960,7 +967,7 @@ async function overview() {
 function feedLine(c) {
   const t = new Date(c.ts);
   return h("li", { class: `ln ${c.ok ? "ok" : "bad"}` },
-    h("time", { datetime: t.toISOString() }, t.toLocaleTimeString([], { hour12: false })),
+    h("time", { datetime: t.toISOString() }, stamp(t).slice(11)),
     h("span", { class: "st" }, c.ok ? "OK " : "ERR"),
     h("span", { class: "op" }, `> ${c.op}`),
     h("span", { class: "ch" }, c.chain || "—"),
@@ -1061,7 +1068,7 @@ async function clients() {
     } catch (err) { handle(err); }
   };
   const d = data.defaults;
-  const table = data.clients.length ? h("div", { class: "scroll" }, h("table", {},
+  const table = data.clients.length ? h("div", { class: "scroll" }, h("table", { class: "clients" },
     h("thead", {}, h("tr", {}, ["Client", "Status", "Today", "This month", "Top tools", "Limits (override)", ""].map((t) => h("th", { scope: "col" }, t)))),
     h("tbody", {}, data.clients.map(clientRow)))) : emptyState("No client keys yet. Create one above.");
   return h("div", { class: "page" },
@@ -1105,7 +1112,7 @@ function clientRow(c) {
     h("td", {}, c.active ? badge("active", "ok") : badge(`revoked ${fmtD(c.revoked_at)}`, "bad")),
     h("td", {}, `${fmtN(c.today.requests)} req`, c.today.throttled ? h("div", {}, badge(`${c.today.throttled} throttled`, "warn")) : null),
     h("td", {}, `${fmtN(c.month.requests)} req · ${fmtN(c.month.credits)} credits`, c.month.throttled ? h("div", { class: "dim small" }, `${c.month.throttled} throttled`) : null),
-    h("td", {}, c.top_tools.length ? h("ol", { class: "rank" }, c.top_tools.map(([t, n]) => h("li", {}, h("span", { class: "mono" }, t || "-"), h("span", { class: "num" }, fmtN(n))))) : h("span", { class: "dim" }, "—")),
+    h("td", {}, c.top_tools.length ? h("ol", { class: "rank" }, c.top_tools.map(([t, n]) => h("li", {}, h("span", { class: "mono" }, t || "-"), h("span", { class: "num" }, `${fmtN(n)} credits`)))) : h("span", { class: "dim" }, "—")),
     h("td", {}, form),
     h("td", {}, c.active ? btn("Revoke", revoke, { cls: "small danger", aria: `Revoke ${c.name}` }) : null));
 }

@@ -373,6 +373,8 @@ table.chains td, table.chains th { min-width: 7rem; }
 table.chains td:nth-child(4) { min-width: 15rem; }
 .rpc-cell { min-width: 20rem; }
 .rpc-cell > * + * { margin-top: 8px; }
+table.clients th, table.clients td { padding-left: 8px; padding-right: 8px; }
+table.clients tbody th, table.clients td:nth-child(n+3):nth-child(-n+5) { white-space: nowrap; }
 
 /* ------------------------------------------------------------ meters + charts */
 
@@ -523,7 +525,8 @@ details > summary:hover { color: var(--accent); }
 .feed-empty { color: var(--dim); padding: 8px 0; }
 .feed { list-style: none; margin: 0; padding: 0; }
 .ln {
-  display: grid; grid-template-columns: 8.5ch 3.5ch minmax(12ch, 1.5fr) minmax(8ch, 1fr) minmax(10ch, 1.3fr) 7ch minmax(6ch, 0.8fr) minmax(0, auto);
+  /* Each row is its own grid: no content-sized (auto) track, so every row gets the same columns. */
+  display: grid; grid-template-columns: 8.5ch 3.5ch minmax(12ch, 1.5fr) minmax(8ch, 1fr) minmax(10ch, 1.3fr) 7ch minmax(6ch, 0.6fr) minmax(8ch, 1.2fr);
   gap: 10px; padding: 4px 6px; border-bottom: 1px dashed rgba(42, 42, 58, 0.7); align-items: baseline;
 }
 .ln:first-child { animation: line-in 0.35s var(--ease); }
@@ -547,7 +550,7 @@ details > summary:hover { color: var(--accent); }
 .key-once pre { padding: 12px 0; }
 .key-once pre code { font-size: 14px; overflow-wrap: anywhere; white-space: pre-wrap; }
 .warn-txt { display: flex; gap: 8px; align-items: center; color: var(--warn); }
-.limits { align-items: flex-end; min-width: 24rem; }
+.limits { align-items: flex-end; min-width: 13rem; } /* fields wrap: the clients table fits at 1440px */
 .limits .budget-in { flex: 1 1 6rem; }
 
 /* ------------------------------------------------------------ login */
@@ -613,7 +616,7 @@ details > summary:hover { color: var(--accent); }
   .hue { filter: drop-shadow(0 0 6px rgba(0, 255, 136, 0.2)); }
   .rail a .rail-lbl { display: none; }
   .rail a[aria-current="step"] .rail-lbl { display: inline; }
-  .ln { grid-template-columns: auto auto minmax(0, 1fr); gap: 2px 10px; }
+  .ln { grid-template-columns: 8.5ch 7ch minmax(0, 1fr); gap: 2px 10px; }
   .ln .ch, .ln .pv, .ln .cl, .ln .code { grid-column: 3; }
   .ln .ms { grid-column: 2; text-align: left; }
   .presets .btn.solid { margin-left: 0; }

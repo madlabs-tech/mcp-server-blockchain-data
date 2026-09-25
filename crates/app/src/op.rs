@@ -147,7 +147,8 @@ pub trait DynOperation: Send + Sync {
     fn cache_ttl(&self) -> Option<Duration>;
     fn input_schema(&self) -> Map<String, Value>;
     fn output_schema(&self) -> Map<String, Value>;
-    /// Executes and renders: `{"data": …, "meta": …}` (or bare data for legacy aliases).
+    /// Executes and renders `{"data": …, "meta": …}`. Legacy aliases get the envelope too, so the
+    /// call log sees their chain and provider; [`crate::App::call`] strips it before returning.
     async fn call(&self, ctx: &Ctx, input: Value) -> Result<Value, DomainError>;
 }
 
@@ -212,9 +213,6 @@ impl<O: Operation> DynOperation for OpBox<O> {
         let out = self.0.execute(ctx, input).await?;
         let data =
             serde_json::to_value(out.data).map_err(|e| DomainError::internal(e.to_string()))?;
-        if O::LEGACY {
-            return Ok(data);
-        }
         let meta =
             serde_json::to_value(out.meta).map_err(|e| DomainError::internal(e.to_string()))?;
         Ok(serde_json::json!({ "data": data, "meta": meta }))
