@@ -296,6 +296,12 @@ cargo hack check -p bdm-adapters --each-feature --no-dev-deps   # every vendor b
 CI (`.github/workflows/ci.yml`) runs these on Linux and the tests on Windows. `.gitattributes`
 forces LF line endings so Windows checkouts match.
 
+For a quick local binary, use `cargo build --profile fast -p onchain-data-mcp` (output in
+`target/fast/`): it skips link-time optimisation, so it builds much faster but runs a little
+slower. If a build uses too much memory, limit parallel jobs with `CARGO_BUILD_JOBS=2` (the
+Dockerfile defaults to 2; override with `--build-arg CARGO_BUILD_JOBS=4`). Release binaries are
+built by `dist` with `[profile.dist]`, not by these commands.
+
 ## Releasing
 
 Releases use [cargo-dist](https://opensource.axo.dev/cargo-dist/) (`dist-workspace.toml`,

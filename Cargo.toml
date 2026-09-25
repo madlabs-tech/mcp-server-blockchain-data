@@ -70,6 +70,13 @@ lto = "thin"
 codegen-units = 1
 strip = true
 
+# Quick local builds; releases use [profile.dist].
+[profile.fast]
+inherits = "release"
+lto = false
+codegen-units = 16
+strip = true
+
 # Reliability rule: no panics on untrusted data in production code. Test code opts out with
 # `#![cfg_attr(test, allow(..))]` / `#![allow(..)]` headers. `serde_json::Value["k"]` reads are
 # panic-free and carry a scoped, justified allow where clippy flags them.
