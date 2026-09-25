@@ -6,7 +6,7 @@
 //! (permanent delegate, Token-2022 `pausable`, frozen default account state).
 
 use crate::stablecoins::{FreezeCheck, PauseCheck, StablecoinEntry};
-use alloy_primitives::{Address, B256};
+use alloy_primitives::{hex, Address, B256};
 use alloy_sol_types::{sol, SolCall};
 use bdm_domain::{AccountAddress, AssetId, AssetRef, BlockRef};
 use bdm_ports::{EvmRpc, PortResult, ProviderError, SolanaRpc};

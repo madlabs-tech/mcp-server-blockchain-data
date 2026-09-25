@@ -600,7 +600,6 @@ dependencies = [
  "bs58",
  "chrono",
  "curve25519-dalek",
- "hex",
  "schemars",
  "serde",
  "serde_json",

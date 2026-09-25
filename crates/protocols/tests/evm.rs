@@ -8,7 +8,7 @@
     clippy::panic
 )]
 
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{hex, Address, Bytes, U256};
 use alloy_sol_types::{SolCall, SolEvent, SolValue};
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, ConfigDir, ConfigLoader, EnvSource, Loaded, Registry};
