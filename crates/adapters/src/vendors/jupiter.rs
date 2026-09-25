@@ -22,7 +22,7 @@ use bdm_domain::{Amount, AssetId, AssetRef, Price, SwapQuote, UnsignedTx};
 use bdm_ports::{
     PortHandle, PortResult, PriceFeed, ProviderError, Registration, SwapQuoter, SwapRequest,
 };
-use bdm_protocols::solana::{spl::WRAPPED_SOL_MINT, tx, SOLANA_MAINNET};
+use bdm_protocols::solana::{spl::WRAPPED_SOL_MINT, tx};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde_json::Value;
@@ -35,12 +35,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status("jupiter") != VendorStatus::Active {
         return;
     }
-    let Some(chain) = loaded
-        .registry
-        .chains
-        .enabled()
-        .find(|c| c.id.to_string() == SOLANA_MAINNET)
-    else {
+    let Some(chain) = bdm_protocols::solana::enabled_mainnet(loaded) else {
         return;
     };
     let meta = loaded.vendor_meta("jupiter");
@@ -241,6 +236,7 @@ mod tests {
     use super::*;
     use base64::Engine;
     use bdm_config::Registry;
+    use bdm_protocols::solana::SOLANA_MAINNET;
     use bdm_testkit::wiremock::{
         matchers::{header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,

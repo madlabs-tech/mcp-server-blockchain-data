@@ -25,7 +25,7 @@ use bdm_ports::{
     BroadcastReceipt, Broadcaster, FeeOracle, PortHandle, PortResult, ProviderError, Registration,
     TokenBalance, TokenBalances, TokenInfo, TokenMetadata,
 };
-use bdm_protocols::solana::{fees, spl, tx, SOLANA_MAINNET};
+use bdm_protocols::solana::{fees, spl, tx};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -51,12 +51,7 @@ const DAS_MAX_PAGES: u32 = 10;
 
 /// Push `helius` (DAS, priority fee) and `helius_sender` (relay) registrations when active.
 pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
-    let Some(chain) = loaded
-        .registry
-        .chains
-        .enabled()
-        .find(|c| c.id.to_string() == SOLANA_MAINNET)
-    else {
+    let Some(chain) = bdm_protocols::solana::enabled_mainnet(loaded) else {
         return;
     };
     if loaded.vendor_status("helius") == VendorStatus::Active {
@@ -304,6 +299,7 @@ mod tests {
     use super::*;
     use crate::http::{HttpClient, DEFAULT_TIMEOUT};
     use bdm_config::Registry;
+    use bdm_protocols::solana::SOLANA_MAINNET;
     use bdm_testkit::FakeJsonRpc;
     use std::time::Duration;
 

@@ -70,13 +70,7 @@ impl UniswapApi {
 
     /// `(chain id, raw quote response)`.
     async fn raw_quote(&self, req: &SwapRequest) -> PortResult<(u64, Value)> {
-        let chain = util::evm_chain_id(&req.chain)?;
-        if !CHAINS.contains(&chain) {
-            return Err(ProviderError::Unsupported(format!(
-                "uniswap api does not cover {}",
-                req.chain
-            )));
-        }
+        let chain = util::covered_evm_chain(&req.chain, CHAINS, "uniswap api")?;
         let swapper = match req.taker {
             Some(AccountAddress::Evm(a)) => a.to_checksum(None),
             _ => util::ZERO_ADDRESS.to_owned(),

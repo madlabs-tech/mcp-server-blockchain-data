@@ -8,7 +8,7 @@ use crate::http::HttpClient;
 use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
 use bdm_domain::SwapQuote;
-use bdm_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
+use bdm_ports::{PortHandle, PortResult, Registration, SwapQuoter, SwapRequest};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -43,13 +43,7 @@ impl OneInch {
     }
 
     async fn call(&self, req: &SwapRequest, endpoint: &str, extra: &str) -> PortResult<Value> {
-        let chain = util::evm_chain_id(&req.chain)?;
-        if !CHAINS.contains(&chain) {
-            return Err(ProviderError::Unsupported(format!(
-                "1inch does not cover {}",
-                req.chain
-            )));
-        }
+        let chain = util::covered_evm_chain(&req.chain, CHAINS, "1inch")?;
         let url = Redacted::new(format!(
             "{}/{chain}/{endpoint}?src={}&dst={}&amount={}&includeTokensInfo=true{extra}",
             self.base,
@@ -107,6 +101,7 @@ mod tests {
     use crate::http::DEFAULT_TIMEOUT;
     use alloy_primitives::U256;
     use bdm_domain::{AccountAddress, Amount, ChainId};
+    use bdm_ports::ProviderError;
     use bdm_testkit::wiremock::{
         matchers::{header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,

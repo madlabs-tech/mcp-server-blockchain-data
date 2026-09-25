@@ -17,7 +17,7 @@ use bdm_config::{Loaded, Redacted, VendorStatus};
 use bdm_ports::{
     BroadcastReceipt, Broadcaster, PortHandle, PortResult, ProviderError, Registration,
 };
-use bdm_protocols::solana::{fees::JITO_MIN_TIP_LAMPORTS, tx, SOLANA_MAINNET};
+use bdm_protocols::solana::{fees::JITO_MIN_TIP_LAMPORTS, tx};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -41,12 +41,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status("jito") != VendorStatus::Active {
         return;
     }
-    let Some(chain) = loaded
-        .registry
-        .chains
-        .enabled()
-        .find(|c| c.id.to_string() == SOLANA_MAINNET)
-    else {
+    let Some(chain) = bdm_protocols::solana::enabled_mainnet(loaded) else {
         return;
     };
     let meta = loaded.vendor_meta("jito");

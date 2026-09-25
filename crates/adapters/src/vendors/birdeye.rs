@@ -3,6 +3,7 @@
 //! `X-API-KEY` and `x-chain`. Native SOL is priced through the wrapped-SOL mint.
 
 use super::util;
+use bdm_protocols::solana::spl::WRAPPED_SOL_MINT;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -16,7 +17,6 @@ use std::sync::Arc;
 pub const ID: &str = "birdeye";
 const BASE: &str = "https://public-api.birdeye.so";
 /// Wrapped SOL mint (SPL Token program's native mint).
-const WSOL: &str = "So11111111111111111111111111111111111111112";
 
 pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status(ID) != VendorStatus::Active {
@@ -62,7 +62,7 @@ fn target(asset: &AssetId, currency: &str) -> PortResult<(&'static str, String)>
     }
     let chain = chain_slug(&asset.chain).ok_or_else(unsupported)?;
     let addr = match (&asset.asset, chain) {
-        (AssetRef::Native { slip44: 501 }, "solana") => WSOL.to_owned(),
+        (AssetRef::Native { slip44: 501 }, "solana") => WRAPPED_SOL_MINT.to_owned(),
         _ => util::token_address(asset).ok_or_else(unsupported)?,
     };
     Ok((chain, addr))
@@ -181,7 +181,7 @@ mod tests {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/defi/price"))
-            .and(query_param("address", WSOL))
+            .and(query_param("address", WRAPPED_SOL_MINT))
             .and(header("x-chain", "solana"))
             .and(header("X-API-KEY", "be-key-123456"))
             .respond_with(

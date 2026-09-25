@@ -39,13 +39,7 @@ impl Velora {
 
     /// `(priceRoute, network)`.
     async fn price_route(&self, req: &SwapRequest) -> PortResult<(Value, u64)> {
-        let chain = util::evm_chain_id(&req.chain)?;
-        if !CHAINS.contains(&chain) {
-            return Err(ProviderError::Unsupported(format!(
-                "velora does not cover {}",
-                req.chain
-            )));
-        }
+        let chain = util::covered_evm_chain(&req.chain, CHAINS, "velora")?;
         let url = Redacted::new(format!(
             "{}/prices?srcToken={}&destToken={}&amount={}&srcDecimals={}&side=SELL&network={chain}&version=6.2",
             self.base,

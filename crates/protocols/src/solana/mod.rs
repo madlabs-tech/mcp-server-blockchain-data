@@ -15,13 +15,22 @@ pub mod rpc_vendor;
 pub mod spl;
 pub mod tx;
 
-use bdm_config::ChainEntry;
+use bdm_config::{ChainEntry, Loaded};
 use bdm_domain::{AssetId, AssetRef, Finality, SolanaPubkey};
 
 /// CAIP-2 id of Solana mainnet-beta (genesis-hash prefix). Mainnet-only vendor APIs (Jito,
 /// Helius Sender, Jupiter) register for this chain only.
 /// <https://namespaces.chainagnostic.org/solana/caip2>
 pub const SOLANA_MAINNET: &str = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+
+/// The Solana mainnet entry, if that chain is enabled.
+pub fn enabled_mainnet(loaded: &Loaded) -> Option<&ChainEntry> {
+    loaded
+        .registry
+        .chains
+        .enabled()
+        .find(|c| c.id.to_string() == SOLANA_MAINNET)
+}
 
 /// Commitment level the chain policy treats as settled: `"finalized"` or `"confirmed"`.
 pub fn settled_commitment(chain: &ChainEntry) -> &'static str {

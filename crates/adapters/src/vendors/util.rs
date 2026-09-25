@@ -11,7 +11,7 @@ use rust_decimal::Decimal;
 use serde_json::Value;
 use std::str::FromStr;
 
-pub const SOLANA_MAINNET: &str = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+pub use bdm_protocols::solana::SOLANA_MAINNET;
 /// Native-token placeholder used by most EVM aggregators.
 pub const EVM_NATIVE: &str = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 pub const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
@@ -84,6 +84,18 @@ pub fn evm_chain_id(chain: &ChainId) -> PortResult<u64> {
     chain
         .evm_chain_id()
         .ok_or_else(|| ProviderError::Unsupported(format!("{chain} is not an EVM chain")))
+}
+
+/// EVM chain id of `chain` if `vendor` (as named in the error) covers it.
+pub fn covered_evm_chain(chain: &ChainId, covered: &[u64], vendor: &str) -> PortResult<u64> {
+    let id = evm_chain_id(chain)?;
+    if covered.contains(&id) {
+        Ok(id)
+    } else {
+        Err(ProviderError::Unsupported(format!(
+            "{vendor} does not cover {chain}"
+        )))
+    }
 }
 
 /// `buy × (10000 − slippage) / 10000`, rounded down.

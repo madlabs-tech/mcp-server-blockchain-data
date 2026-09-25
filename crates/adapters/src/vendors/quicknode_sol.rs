@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, VendorStatus};
 use bdm_domain::{FeeEstimate, FeeSpeed};
 use bdm_ports::{FeeOracle, PortHandle, PortResult, ProviderError, Registration};
-use bdm_protocols::solana::{fees, SOLANA_MAINNET};
+use bdm_protocols::solana::fees;
 use serde_json::json;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -31,12 +31,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status(VENDOR) != VendorStatus::Active {
         return;
     }
-    let Some(chain) = loaded
-        .registry
-        .chains
-        .enabled()
-        .find(|c| c.id.to_string() == SOLANA_MAINNET)
-    else {
+    let Some(chain) = bdm_protocols::solana::enabled_mainnet(loaded) else {
         return;
     };
     let Some(url) = loaded.rpc_url(VENDOR, &chain.id) else {

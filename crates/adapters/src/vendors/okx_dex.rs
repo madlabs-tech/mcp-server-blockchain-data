@@ -67,13 +67,7 @@ fn route(req: &SwapRequest) -> PortResult<(String, String, String)> {
         };
         return Ok((SOLANA_INDEX.into(), t(&req.sell_asset)?, t(&req.buy_asset)?));
     }
-    let chain = util::evm_chain_id(&req.chain)?;
-    if !EVM_CHAINS.contains(&chain) {
-        return Err(ProviderError::Unsupported(format!(
-            "okx dex does not cover {}",
-            req.chain
-        )));
-    }
+    let chain = util::covered_evm_chain(&req.chain, EVM_CHAINS, "okx dex")?;
     Ok((
         chain.to_string(),
         util::evm_token_or_native(&req.sell_asset)?,

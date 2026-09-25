@@ -51,13 +51,7 @@ impl ZeroEx {
         endpoint: &str,
         taker: Option<&str>,
     ) -> PortResult<Value> {
-        let chain = util::evm_chain_id(&req.chain)?;
-        if !CHAINS.contains(&chain) {
-            return Err(ProviderError::Unsupported(format!(
-                "0x does not cover {}",
-                req.chain
-            )));
-        }
+        let chain = util::covered_evm_chain(&req.chain, CHAINS, "0x")?;
         let taker = taker.map(|t| format!("&taker={t}")).unwrap_or_default();
         let url = Redacted::new(format!(
             "{}/swap/allowance-holder/{endpoint}?chainId={chain}&sellToken={}&buyToken={}&sellAmount={}&slippageBps={}{taker}",
