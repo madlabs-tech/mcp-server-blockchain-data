@@ -15,7 +15,7 @@ COPY --from=builder /src/target/release/onchain-data-mcp /usr/local/bin/onchain-
 
 USER ems
 # /data: sqlite bdm.db (usage counters, client keys, call log)
-# /config: config.toml + secrets.toml (written by the dashboard) + admin_token (created on first start)
+# /config: config.toml + secrets.toml (written by the dashboard) + dashboard_password (created on first start)
 VOLUME ["/data", "/config"]
 ENV ODM__SERVER__DATA_DIR=/data \
     ODM__SERVER__HTTP_BIND=0.0.0.0:8787 \

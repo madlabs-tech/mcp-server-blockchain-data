@@ -52,7 +52,7 @@ impl std::fmt::Display for Issue {
     }
 }
 
-/// Directory holding `config.toml`, `secrets.toml` (0600) and the admin token.
+/// Directory holding `config.toml`, `secrets.toml` (0600) and `dashboard_password`.
 #[derive(Debug, Clone)]
 pub struct ConfigDir {
     pub root: PathBuf,
@@ -95,7 +95,8 @@ impl EnvSource {
                 .collect(),
         )
     }
-    fn get(&self, k: &str) -> Option<&str> {
+    /// The value of `k`, or `None` if unset or blank.
+    pub fn get(&self, k: &str) -> Option<&str> {
         self.0
             .get(k)
             .map(String::as_str)
