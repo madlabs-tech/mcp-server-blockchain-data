@@ -31,6 +31,3 @@ pub use quota::{
     project, Breakdown, Projection, QuotaEngine, QuotaState, SourceReading, UsageSource,
     VendorQuota, WindowQuota,
 };
-
-/// `SqliteCounterStore` is the name routing docs use for the persistent counter store.
-pub type SqliteCounterStore = Store;

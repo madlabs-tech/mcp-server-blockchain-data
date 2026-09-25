@@ -46,23 +46,19 @@ signed ones.";
 #[derive(Clone)]
 pub struct McpServer {
     app: Arc<App>,
-    /// Caller used when the request carries none (stdio / self-hosted).
-    default_caller: Caller,
 }
 
 impl McpServer {
     pub fn new(app: Arc<App>) -> Self {
-        Self {
-            app,
-            default_caller: Caller::local(),
-        }
+        Self { app }
     }
 
     fn caller(&self, ctx: &RequestContext<RoleServer>) -> Caller {
         ctx.extensions
             .get::<http::request::Parts>()
             .and_then(|p| p.extensions.get::<Caller>().cloned())
-            .unwrap_or_else(|| self.default_caller.clone())
+            // No caller on the request (stdio / self-hosted): the local caller.
+            .unwrap_or_else(Caller::local)
     }
 
     fn tool(op: &dyn bdm_app::DynOperation) -> Tool {

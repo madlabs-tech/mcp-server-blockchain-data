@@ -112,7 +112,6 @@ pub struct Loaded {
     /// Key paths set by env → the env var name that set it ("locked by env").
     pub locked: BTreeMap<Vec<String>, String>,
     pub warnings: Vec<Issue>,
-    pub dir: ConfigDir,
 }
 
 impl Loaded {
@@ -187,7 +186,6 @@ impl ConfigLoader {
             registry,
             locked,
             warnings: Vec::new(),
-            dir: self.dir.clone(),
         };
         issues.extend(validate(&loaded));
         let (errors, warnings): (Vec<_>, Vec<_>) = issues

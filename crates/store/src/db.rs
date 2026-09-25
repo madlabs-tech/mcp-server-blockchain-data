@@ -82,7 +82,7 @@ CREATE TABLE client_usage (
 );
 "#];
 
-/// Default number of calls kept in the call-log ring.
+/// Number of calls kept in the call-log ring.
 const DEFAULT_RING: usize = 1_000;
 
 fn wkey(w: &WindowKey) -> String {
@@ -222,7 +222,6 @@ struct Inner {
     clients: Mutex<HashMap<String, ClientRecord>>,
     client_usage: Mutex<HashMap<(String, WindowKey), ClientCounters>>,
     calls: broadcast::Sender<CallRecord>,
-    ring: usize,
 }
 
 /// Handle to the sqlite store. Cheap to clone.
@@ -275,7 +274,6 @@ impl Store {
                 clients: Mutex::new(clients),
                 client_usage: Mutex::new(client_usage),
                 calls: broadcast::channel(256).0,
-                ring: DEFAULT_RING,
             }),
         })
     }
@@ -398,7 +396,7 @@ impl Store {
     /// Append to the call-log ring and publish to live subscribers.
     pub fn log_call(&self, rec: CallRecord) {
         let _ = self.inner.calls.send(rec.clone());
-        let ring = self.inner.ring as i64;
+        let ring = DEFAULT_RING as i64;
         self.submit("call log", move |c| {
             c.execute(
                 "INSERT INTO calls (ts, op, chain, provider, fallback, cached, latency_ms, client, ok, error_code) \
@@ -431,7 +429,7 @@ impl Store {
 
     /// Most recent calls, newest first.
     pub async fn recent_calls(&self, limit: usize) -> Result<Vec<CallRecord>> {
-        let limit = limit.min(self.inner.ring) as i64;
+        let limit = limit.min(DEFAULT_RING) as i64;
         self.call(move |c| -> Result<Vec<CallRecord>> {
             let mut st = c.prepare(
                 "SELECT ts, op, chain, provider, fallback, cached, latency_ms, client, ok, error_code \
