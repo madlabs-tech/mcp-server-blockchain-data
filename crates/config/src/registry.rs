@@ -147,6 +147,11 @@ pub struct VendorEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signup_url: Option<String>,
     pub free_tier_verified: bool,
+    /// Plain-language access tier (docs/VENDORS.md, dashboard): 1 = free, no key needed;
+    /// 2 = free key with a big limit (>= 1M units/month); 3 = free key with a small limit;
+    /// 4 = paid, trial-only or unverified (off by default).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tier: Option<u8>,
     /// Explicit default; otherwise enabled iff `free_tier_verified`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
@@ -250,6 +255,29 @@ mod tests {
         assert_eq!(err.code, ErrorCode::UnsupportedChain);
         assert!(r.vendors.contains_key("alchemy"));
         assert!(!r.vendors["ankr"].free_tier_verified);
+        // tier follows the fixed rule in docs/VENDORS.md
+        for (id, v) in &r.vendors {
+            let l = &v.limit;
+            let monthly = [
+                l.monthly,
+                l.daily.map(|n| n * 30),
+                l.per_minute.map(|n| n * 43_200),
+                l.rps.map(|n| n * 2_592_000),
+            ]
+            .into_iter()
+            .flatten()
+            .min();
+            let want = if !v.free_tier_verified {
+                4
+            } else if !v.requires_key {
+                1
+            } else if monthly.is_some_and(|m| m >= 1_000_000) {
+                2
+            } else {
+                3
+            };
+            assert_eq!(v.tier, Some(want), "vendor '{id}' tier");
+        }
         // every vendor referenced by a default order exists in the registry
         let orders = r
             .default_order

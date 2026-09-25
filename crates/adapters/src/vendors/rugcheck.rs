@@ -1,5 +1,6 @@
-//! `rugcheck` (Solana token reports). Disabled by default: auth and limits are unverified
-//! (~60/min reported). An optional `RUGCHECK_API_KEY` is sent as `X-API-KEY` ⚠ unverified.
+//! `rugcheck` (Solana token reports). Disabled by default: the rate limit is unpublished
+//! (~60/min reported). The report endpoints are keyless; an optional `RUGCHECK_API_KEY` (JWT) is
+//! sent raw in `Authorization` (api.rugcheck.xyz/swagger/doc.json `ApiKeyAuth`, checked 2026-09-25).
 //! Owner: `market-trading` (T1.M2). Port: `TokenRisk`.
 
 use super::market_util as util;
@@ -73,7 +74,7 @@ impl TokenRisk for RugCheck {
         let headers: Vec<(&str, &str)> = self
             .key
             .as_ref()
-            .map(|k| ("X-API-KEY", k.expose().as_str()))
+            .map(|k| ("Authorization", k.expose().as_str()))
             .into_iter()
             .collect();
         let v = self
@@ -111,7 +112,7 @@ mod tests {
     use super::*;
     use crate::http::DEFAULT_TIMEOUT;
     use bdm_testkit::wiremock::{
-        matchers::{method, path},
+        matchers::{header, method, path},
         Mock, MockServer, ResponseTemplate,
     };
 
@@ -138,5 +139,32 @@ mod tests {
         assert_eq!(out.flags[0].code, "freeze_authority_still_enabled");
         assert_eq!(out.flags[0].severity, Severity::High);
         assert_eq!(out.flags[1].severity, Severity::Medium);
+    }
+
+    #[tokio::test]
+    async fn optional_key_goes_in_authorization_header() {
+        let server = MockServer::start().await;
+        let mint = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+        Mock::given(method("GET"))
+            .and(path(format!("/v1/tokens/{mint}/report/summary")))
+            .and(header("Authorization", "rc-jwt"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(bdm_testkit::vendor_fixture(
+                    env!("CARGO_MANIFEST_DIR"),
+                    ID,
+                    "report_summary",
+                )),
+            )
+            .mount(&server)
+            .await;
+        let r = RugCheck::new(
+            HttpClient::new(ID, DEFAULT_TIMEOUT),
+            &server.uri(),
+            Some("rc-jwt"),
+        );
+        let asset: AssetId = format!("{}/token:{mint}", util::SOLANA_MAINNET)
+            .parse()
+            .unwrap();
+        assert!(!r.assess(&asset).await.unwrap().flags.is_empty());
     }
 }

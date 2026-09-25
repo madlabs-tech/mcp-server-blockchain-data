@@ -29,8 +29,8 @@ enabled = true
 # [vendors.helius.cap]
 # rps = 5
 
-[vendors.quicknode]
-enabled = true
+[vendors.quicknode]                 # 1-month trial only since 2026-09, off by default; true if you pay
+enabled = false
 
 [vendors.coingecko]
 enabled = true
