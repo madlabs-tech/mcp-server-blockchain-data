@@ -215,6 +215,21 @@ async fn cache_capacity_zero_caches_nothing() {
     assert_eq!(count.load(Ordering::SeqCst), 2);
 }
 
+#[tokio::test]
+async fn cache_holds_at_most_cache_max_entries() {
+    let (app, count) = app_with_cache("", vec![], 2);
+    for i in 0..10 {
+        echo(&app, &i.to_string()).await;
+    }
+    let before = count.load(Ordering::SeqCst);
+    let mut hits = 0;
+    for i in 0..10 {
+        hits += usize::from(echo(&app, &i.to_string()).await["meta"]["cached"] == json!(true));
+    }
+    assert!(hits <= 2, "{hits} hits with room for 2");
+    assert_eq!(count.load(Ordering::SeqCst), before + 10 - hits);
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn cache_is_consistent_under_concurrent_calls() {
     let (app, _) = app("", vec![]);
