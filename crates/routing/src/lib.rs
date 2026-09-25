@@ -16,7 +16,7 @@
 //! - Every attempt goes through the resilience decorator: rate limiter → timeout → bounded retry
 //!   on `Transient` → circuit breaker + health + quota bookkeeping. The `public` pseudo-vendor
 //!   gets a shorter attempt timeout ([`PUBLIC_ATTEMPT_TIMEOUT`]) than keyed vendors.
-//! - The routing table (config + registry) is hot-swappable via `ArcSwap`; runtime state
+//! - The routing table (config + registry) is an `Arc` snapshot swapped on reload; runtime state
 //!   (breakers, counters, limiters) survives swaps. In-flight requests finish on their snapshot.
 
 mod registry;

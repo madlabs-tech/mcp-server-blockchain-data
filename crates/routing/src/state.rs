@@ -5,7 +5,6 @@ use crate::{
     router::RoutingTable,
     store::{CounterStore, Dims, WindowKey},
 };
-use arc_swap::ArcSwap;
 use bdm_config::{EffectiveBudget, OnExhausted};
 use bdm_ports::{
     metering::{CallContext, RateLimitSnapshot, UsageSink},
@@ -15,7 +14,7 @@ use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
     time::Duration,
 };
 use tokio::time::Instant;
@@ -397,13 +396,18 @@ impl RuntimeState {
 /// Meters requests reported by adapters (via `bdm_ports::metering`) into the counter store,
 /// converting to credits with the vendor cost table of the *current* config.
 pub(crate) struct QuotaSink {
-    pub(crate) table: Arc<ArcSwap<RoutingTable>>,
+    pub(crate) table: Arc<RwLock<Arc<RoutingTable>>>,
     pub(crate) state: Arc<RuntimeState>,
 }
 
 impl UsageSink for QuotaSink {
     fn record_request(&self, vendor: &str, method: &str, ctx: &CallContext) {
-        let cost = self.table.load().config.cost(vendor, method);
+        let cost = self
+            .table
+            .read()
+            .unwrap_or_else(|e| e.into_inner())
+            .config
+            .cost(vendor, method);
         let dims = Dims {
             method: method.to_owned(),
             tool: ctx.tool.clone(),

@@ -3,7 +3,6 @@ use crate::{
     state::{QuotaSink, RuntimeState, VendorHealth},
     store::CounterStore,
 };
-use arc_swap::ArcSwap;
 use bdm_config::{Loaded, VendorStatus};
 use bdm_domain::{
     Attempt, AttemptOutcome, ChainId, DomainError, ErrorCode, Provenance, SourceKind,
@@ -11,7 +10,11 @@ use bdm_domain::{
 use bdm_ports::{metering::UsageSink, Capability, PortKind, ProviderError};
 use futures::{stream::FuturesUnordered, StreamExt};
 use rand::Rng;
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{
+    future::Future,
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 use tokio::time::Instant;
 
 /// Keyless public RPCs are slow or dead more often than keyed vendors; a shorter attempt timeout
@@ -142,7 +145,7 @@ impl<T> QuorumOutcome<T> {
 }
 
 pub struct Router {
-    table: Arc<ArcSwap<RoutingTable>>,
+    table: Arc<RwLock<Arc<RoutingTable>>>,
     state: Arc<RuntimeState>,
     opts: RouterOptions,
 }
@@ -159,7 +162,7 @@ impl Router {
             opts.breaker_cooldown,
         ));
         Arc::new(Self {
-            table: Arc::new(ArcSwap::from_pointee(table)),
+            table: Arc::new(RwLock::new(Arc::new(table))),
             state,
             opts,
         })
@@ -167,12 +170,12 @@ impl Router {
 
     /// Current snapshot (hold it for the duration of one request).
     pub fn table(&self) -> Arc<RoutingTable> {
-        self.table.load_full()
+        self.table.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     /// Hot-swap config + registry. Runtime state (breakers, counters) is kept.
     pub fn swap(&self, table: RoutingTable) {
-        self.table.store(Arc::new(table));
+        *self.table.write().unwrap_or_else(|e| e.into_inner()) = Arc::new(table);
     }
 
     /// Sink to install in `bdm_ports::metering::scope` for every operation.
