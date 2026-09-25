@@ -22,6 +22,12 @@ use std::{
 };
 use tokio::time::Instant;
 
+/// The `rpc` pseudo-vendor runs generic code over the routed chain RPC, so its errors are the
+/// underlying RPC vendors' errors, already tracked (breaker, rate-limit marks) on those vendors.
+/// Marking `rpc` as well would let one rate-limited chain (say BSC's public RPC during a wallet
+/// fan-out) disable every rpc-backed capability on every chain, e.g. keyless fee estimates.
+const COMPOSITE_VENDOR: &str = "rpc";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BreakerState {
@@ -231,6 +237,7 @@ impl RuntimeState {
         latency: Duration,
     ) {
         let now = Utc::now();
+        let composite = vendor == COMPOSITE_VENDOR;
         self.with(vendor, |s| {
             let ms = latency.as_secs_f64() * 1000.0;
             s.latency_ewma_ms = Some(s.latency_ewma_ms.map_or(ms, |prev| prev * 0.8 + ms * 0.2));
@@ -239,6 +246,12 @@ impl RuntimeState {
                 Err(e) => {
                     s.last_error = Some(e.reason().to_owned());
                     match e {
+                        ProviderError::RateLimited { .. }
+                        | ProviderError::QuotaExhausted { .. }
+                            if composite =>
+                        {
+                            false
+                        }
                         ProviderError::RateLimited { retry_after } => {
                             let d = retry_after.unwrap_or(Duration::from_secs(10));
                             s.exhausted_until =
@@ -260,16 +273,20 @@ impl RuntimeState {
             };
             if breaker_failure {
                 s.failed += 1;
-                s.breaker = match s.breaker {
-                    Breaker::Closed { consecutive } if consecutive + 1 < self.breaker_threshold => {
-                        Breaker::Closed {
-                            consecutive: consecutive + 1,
+                if !composite {
+                    s.breaker = match s.breaker {
+                        Breaker::Closed { consecutive }
+                            if consecutive + 1 < self.breaker_threshold =>
+                        {
+                            Breaker::Closed {
+                                consecutive: consecutive + 1,
+                            }
                         }
-                    }
-                    _ => Breaker::Open {
-                        until: Instant::now() + self.breaker_cooldown,
-                    },
-                };
+                        _ => Breaker::Open {
+                            until: Instant::now() + self.breaker_cooldown,
+                        },
+                    };
+                }
             } else {
                 if result.is_ok() {
                     s.ok += 1;
