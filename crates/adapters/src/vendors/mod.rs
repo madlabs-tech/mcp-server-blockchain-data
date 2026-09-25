@@ -119,3 +119,55 @@ pub fn registrations(loaded: &Loaded) -> Vec<Registration> {
     let _ = loaded;
     out
 }
+
+#[cfg(all(
+    test,
+    feature = "ankr",
+    feature = "zeroex",
+    feature = "uniswap_api",
+    feature = "okx_dex"
+))]
+mod tests {
+    use super::*;
+
+    const PAID: [&str; 4] = ["ankr", "zeroex", "uniswap_api", "okx_dex"];
+
+    fn ids(config: &str) -> Vec<String> {
+        let env = [
+            ("ANKR_API_KEY", "ankr-key-123"),
+            ("ZEROEX_API_KEY", "zeroex-key-123"),
+            ("UNISWAP_API_KEY", "uniswap-key-123"),
+            ("OKX_API_KEY", "okx-key-123"),
+            ("OKX_SECRET_KEY", "okx-secret-123"),
+            ("OKX_PASSPHRASE", "okx-pass-123"),
+        ];
+        let loaded = bdm_config::ConfigLoader::new(
+            bdm_config::ConfigDir::new("/nonexistent"),
+            bdm_config::EnvSource::from_pairs(env),
+        )
+        .unwrap()
+        .load_texts(config, "")
+        .unwrap();
+        registrations(&loaded)
+            .into_iter()
+            .map(|r| r.vendor.id)
+            .filter(|id| PAID.contains(&id.as_str()))
+            .collect()
+    }
+
+    /// Paid vendors ship in the binary but stay off until config turns them on (keys alone
+    /// are not enough).
+    #[test]
+    fn paid_vendors_are_built_in_but_off_until_enabled() {
+        assert!(ids("").is_empty(), "{:?}", ids(""));
+        let on: String = PAID
+            .iter()
+            .map(|v| format!("[vendors.{v}]\nenabled = true\n"))
+            .collect();
+        let mut got = ids(&on);
+        got.sort();
+        let mut want = PAID.map(String::from).to_vec();
+        want.sort();
+        assert_eq!(got, want);
+    }
+}

@@ -46,8 +46,8 @@ Production code denies `unwrap`, `expect`, indexing, `panic!` and `unreachable!`
 clippy lints): vendor data never crashes the process.
 
 **Adding a vendor:** a module in `crates/adapters/src/vendors/`, a feature in
-`crates/adapters/Cargo.toml`, an entry in `registry/vendors.toml` (with `tier`), and a row in
-`docs/VENDORS.md`.
+`crates/adapters/Cargo.toml` (also listed in `default`: runtime on/off is config), an entry in
+`registry/vendors.toml` (with `tier`), and a row in `docs/VENDORS.md`.
 
 **Adding a tool:** an `Operation` in `crates/app/src/ops/<domain>.rs` with `NAME`, `DOMAIN`,
 `DESCRIPTION` and `PROFILES`, registered in that module's `register`. Set `READ_ONLY = false`

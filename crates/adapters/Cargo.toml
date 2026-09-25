@@ -8,8 +8,9 @@ license.workspace = true
 
 [features]
 # One feature per vendor module (each must build alone: CI runs `cargo hack --each-feature`).
-# Default = vendors with a verified free tier; unverified ones are opt-in.
-default = ["alchemy", "quicknode", "moralis", "flashbots", "mev_blocker", "helius", "jito", "jupiter", "quicknode_sol", "trm", "coingecko", "geckoterminal", "defillama", "dexscreener", "birdeye", "pyth", "goplus", "honeypot_is", "rugcheck", "oneinch", "velora", "cow", "frankfurter", "openexchangerates"]
+# Default = every vendor. Paid/unverified ones (registry tier 4: ankr, zeroex, uniswap_api,
+# okx_dex, ...) are still off at runtime until `vendors.<id>.enabled = true` plus their keys.
+default = ["alchemy", "quicknode", "moralis", "ankr", "flashbots", "mev_blocker", "helius", "jito", "jupiter", "quicknode_sol", "trm", "coingecko", "geckoterminal", "defillama", "dexscreener", "birdeye", "pyth", "goplus", "honeypot_is", "rugcheck", "oneinch", "velora", "cow", "zeroex", "uniswap_api", "okx_dex", "frankfurter", "openexchangerates"]
 alchemy = []
 # No module: QuickNode chain RPC comes from `factory::base_registrations` (registry `rpc_urls`)
 # and its Solana fee oracle is `quicknode_sol`. Kept so existing `--features quicknode` builds work.
