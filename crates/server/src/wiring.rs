@@ -38,10 +38,15 @@ pub fn render(issues: &[bdm_config::Issue]) -> String {
     format!("invalid configuration:\n{}", lines.join("\n"))
 }
 
-/// Open `<data_dir>/bdm.db`. Self-hosted falls back to an in-memory store when the directory
+/// `<data_dir>/bdm.db`.
+pub fn db_path(loaded: &Loaded) -> PathBuf {
+    loaded.settings.server.data_dir.join("bdm.db")
+}
+
+/// Open [`db_path`]. Self-hosted falls back to an in-memory store when the directory
 /// isn't writable (e.g. Claude Desktop starting us with cwd `/`); hosted mode must persist.
 pub fn open_store(loaded: &Loaded) -> Result<Store> {
-    let path = loaded.settings.server.data_dir.join("bdm.db");
+    let path = db_path(loaded);
     match Store::open(&path) {
         Ok(s) => Ok(s),
         Err(e) if loaded.settings.server.mode == Mode::SelfHosted => {

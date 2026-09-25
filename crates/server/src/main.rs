@@ -29,7 +29,7 @@ use bdm_store::{ClientKeyAuth, QuotaEngine, Store};
 use bdm_transport_http::{
     admin_router, dashboard_base, ensure_dashboard_password,
     password::{self, Source},
-    public_router, reset_dashboard_password, AdminState, HttpState,
+    public_router, reset_dashboard_password, AdminState, HttpState, DEFAULT_ADMIN_BIND,
 };
 use bdm_transport_mcp::McpServer;
 use std::{
@@ -37,7 +37,6 @@ use std::{
     sync::Arc,
 };
 
-const DEFAULT_ADMIN_BIND: &str = "127.0.0.1:8788";
 const DEFAULT_CONFIG_DIR: &str = "config";
 /// Env var that sets the dashboard password (read through the config loader's env snapshot).
 const PASSWORD_ENV: &str = "DASHBOARD_PASSWORD";
@@ -189,7 +188,7 @@ fn log_dashboard(srv: &ServerSettings, config_dir: &Path) {
 }
 
 async fn clients_create(loaded: &Loaded, name: &str) -> Result<()> {
-    let path = loaded.settings.server.data_dir.join("bdm.db");
+    let path = wiring::db_path(loaded);
     let store = Store::open(&path).with_context(|| format!("opening {}", path.display()))?;
     let (rec, key) = store.create_client(name, None).await?;
     println!("client id: {}\nname:      {}\nkey:       {key}\n\nThe key is shown once and stored only as a SHA-256 hash.", rec.id, rec.name);
@@ -197,7 +196,7 @@ async fn clients_create(loaded: &Loaded, name: &str) -> Result<()> {
 }
 
 fn clients_list(loaded: &Loaded) -> Result<()> {
-    let path = loaded.settings.server.data_dir.join("bdm.db");
+    let path = wiring::db_path(loaded);
     let store = Store::open(&path).with_context(|| format!("opening {}", path.display()))?;
     for c in store.clients() {
         let state = if c.active() { "active" } else { "revoked" };

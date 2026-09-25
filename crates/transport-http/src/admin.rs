@@ -23,14 +23,17 @@ use axum::{
 };
 use bdm_app::{App, DynOperation, Profile};
 use bdm_config::{
-    apply_edits, ClientLimits, ConfigLoader, Edit, Issue, Loaded, OnExhausted, VendorStatus,
+    apply_edits, validate_edits, ClientLimits, ConfigLoader, Edit, Issue, Loaded, OnExhausted,
+    VendorStatus,
 };
 use bdm_domain::{ChainId, DomainError, ErrorCode};
 use bdm_ports::{
     metering::{self, CallContext},
     Capability, EvmRpc, FxRates, PortKind, SolanaRpc,
 };
-use bdm_routing::{ProviderRegistry, Router as EmsRouter, RoutingTable, VendorHealth, WindowKey};
+use bdm_routing::{
+    ProviderRegistry, Router as VendorRouter, RoutingTable, VendorHealth, WindowKey,
+};
 use bdm_store::{effective_client_limits, ClientRecord, QuotaEngine, Store};
 use chrono::Utc;
 use serde::Deserialize;
@@ -100,7 +103,7 @@ impl AdminState {
         }
     }
 
-    fn router(&self) -> &Arc<EmsRouter> {
+    fn router(&self) -> &Arc<VendorRouter> {
         self.app.router()
     }
 
@@ -122,27 +125,10 @@ impl AdminState {
         Ok(self.install(next))
     }
 
-    /// Validate edits without writing (applied to a throwaway copy of the config dir).
+    /// Validate edits without writing.
     pub fn validate(&self, edits: &[Edit]) -> Result<Vec<Issue>, Vec<Issue>> {
         let current = self.router().table().config.clone();
-        let tmp = std::env::temp_dir().join(format!("bdm-validate-{}", bdm_store::random_hex(8)));
-        let io = |e: std::io::Error| vec![Issue::error("validate", e.to_string())];
-        std::fs::create_dir_all(&tmp).map_err(io)?;
-        let result = (|| {
-            for p in [
-                self.loader.dir.config_path(),
-                self.loader.dir.secrets_path(),
-            ] {
-                if let Some(name) = p.file_name().filter(|_| p.exists()) {
-                    std::fs::copy(&p, tmp.join(name)).map_err(io)?;
-                }
-            }
-            let loader =
-                ConfigLoader::new(bdm_config::ConfigDir::new(&tmp), self.loader.env.clone())?;
-            apply_edits(&loader, &current, edits).map(|l| l.warnings)
-        })();
-        let _ = std::fs::remove_dir_all(&tmp);
-        result
+        validate_edits(&self.loader, &current, edits).map(|l| l.warnings)
     }
 
     /// Re-read the config files (dashboard "reload" and SIGHUP).
@@ -300,10 +286,13 @@ fn bind_url(bind: &str) -> String {
     }
 }
 
+/// Hosted-mode admin listener when `server.admin_bind` is unset.
+pub const DEFAULT_ADMIN_BIND: &str = "127.0.0.1:8788";
+
 /// Base URL of the dashboard and admin API: `admin_bind` in hosted mode, `http_bind` otherwise.
 pub fn dashboard_base(srv: &bdm_config::ServerSettings) -> String {
     if srv.mode == bdm_config::Mode::Hosted {
-        bind_url(srv.admin_bind.as_deref().unwrap_or("127.0.0.1:8788"))
+        bind_url(srv.admin_bind.as_deref().unwrap_or(DEFAULT_ADMIN_BIND))
     } else {
         bind_url(&srv.http_bind)
     }
@@ -344,11 +333,6 @@ async fn connect(State(s): State<AdminState>) -> Response {
 }
 
 // ------------------------------------------------------------------ config
-
-fn lock_of(cfg: &Loaded, path: &[&str]) -> Option<String> {
-    let path: Vec<String> = path.iter().map(|s| s.to_string()).collect();
-    cfg.locked_by(&path).map(str::to_owned)
-}
 
 fn order_view(
     cfg: &Loaded,
@@ -433,7 +417,7 @@ fn op_view(op: &Arc<dyn DynOperation>, cfg: &Loaded, visible: bool) -> Value {
         "strategy": os.strategy,
         "cache_ttl_secs": os.cache_ttl_secs,
         "default_cache_ttl_secs": op.cache_ttl().map(|d| d.as_secs()),
-        "locked_by": lock_of(cfg, &["operations", op.name()]),
+        "locked_by": cfg.locked_by(&["operations", op.name()]),
     })
 }
 
@@ -475,7 +459,7 @@ async fn config(State(s): State<AdminState>) -> Response {
                         "field": field,
                         "env": env,
                         "set": cfg.key(id, field).is_some(),
-                        "locked_by": lock_of(cfg, &["keys", id, field]),
+                        "locked_by": cfg.locked_by(&["keys", id, field]),
                     })
                 })
                 .collect();
@@ -490,7 +474,7 @@ async fn config(State(s): State<AdminState>) -> Response {
                 "unit": e.unit,
                 "status": cfg.vendor_status(id),
                 "enabled": cfg.settings.vendors.get(id).and_then(|v| v.enabled).or(e.enabled).unwrap_or(e.free_tier_verified),
-                "enabled_locked_by": lock_of(cfg, &["vendors", id, "enabled"]),
+                "enabled_locked_by": cfg.locked_by(&["vendors", id, "enabled"]),
                 "keys": keys,
                 "registered": table.registry.vendor(id).is_some(),
                 "quota_reporter": reporters.contains(id),
@@ -514,7 +498,7 @@ async fn config(State(s): State<AdminState>) -> Response {
                 let id = c.id.to_string();
                 let locked_by = std::iter::once(&id)
                     .chain(&c.aliases)
-                    .find_map(|k| lock_of(cfg, &["routing", "chains", k, cap.as_str()]));
+                    .find_map(|k| cfg.locked_by(&["routing", "chains", k, cap.as_str()]));
                 if let Some(m) = view.as_object_mut() {
                     m.insert("locked_by".into(), json!(locked_by));
                 }
@@ -525,7 +509,7 @@ async fn config(State(s): State<AdminState>) -> Response {
             cap.to_string(),
             json!({
                 "default": order_view(cfg, &table.registry, &health, *cap, None, !cap.is_chain_bound()),
-                "default_locked_by": lock_of(cfg, &["routing", "defaults", cap.as_str()]),
+                "default_locked_by": cfg.locked_by(&["routing", "defaults", cap.as_str()]),
                 "chains": per_chain,
             }),
         );
@@ -558,7 +542,7 @@ async fn config(State(s): State<AdminState>) -> Response {
                 "public_rpc": c.public_rpc,
                 "explorer": c.explorer,
                 "override_key": alias,
-                "locked_by": lock_of(cfg, &["chain_overrides", &alias]).or_else(|| lock_of(cfg, &["chain_overrides", &c.id.to_string()])),
+                "locked_by": cfg.locked_by(&["chain_overrides", &alias]).or_else(|| cfg.locked_by(&["chain_overrides", &c.id.to_string()])),
             })
         })
         .collect();
@@ -619,21 +603,24 @@ async fn config_validate(State(s): State<AdminState>, Json(body): Json<EditsIn>)
         Ok(e) => e,
         Err(m) => return bad_request(m),
     };
-    let st = s.clone();
-    match tokio::task::spawn_blocking(move || st.validate(&edits)).await {
-        Ok(Ok(warnings)) => Json(json!({ "ok": true, "warnings": warnings })).into_response(),
-        Ok(Err(errors)) => issues_response(StatusCode::UNPROCESSABLE_ENTITY, errors),
-        Err(e) => error_response(DomainError::internal(e.to_string())),
-    }
+    blocking_issues(move || s.validate(&edits)).await
 }
 
 async fn apply(s: AdminState, edits: Vec<Edit>) -> Response {
-    let st = s.clone();
-    match tokio::task::spawn_blocking(move || st.apply(&edits)).await {
-        Ok(Ok(warnings)) => {
+    blocking_issues(move || {
+        s.apply(&edits).inspect(|_| {
             tracing::info!("config updated from the admin API; routing table swapped");
-            Json(json!({ "ok": true, "warnings": warnings })).into_response()
-        }
+        })
+    })
+    .await
+}
+
+/// Run a config step off the async runtime: `{ok, warnings}`, or 422 with the issues.
+async fn blocking_issues(
+    f: impl FnOnce() -> Result<Vec<Issue>, Vec<Issue>> + Send + 'static,
+) -> Response {
+    match tokio::task::spawn_blocking(f).await {
+        Ok(Ok(warnings)) => Json(json!({ "ok": true, "warnings": warnings })).into_response(),
         Ok(Err(errors)) => issues_response(StatusCode::UNPROCESSABLE_ENTITY, errors),
         Err(e) => error_response(DomainError::internal(e.to_string())),
     }
@@ -647,12 +634,7 @@ async fn config_apply(State(s): State<AdminState>, Json(body): Json<EditsIn>) ->
 }
 
 async fn reload(State(s): State<AdminState>) -> Response {
-    let st = s.clone();
-    match tokio::task::spawn_blocking(move || st.reload()).await {
-        Ok(Ok(warnings)) => Json(json!({ "ok": true, "warnings": warnings })).into_response(),
-        Ok(Err(errors)) => issues_response(StatusCode::UNPROCESSABLE_ENTITY, errors),
-        Err(e) => error_response(DomainError::internal(e.to_string())),
-    }
+    blocking_issues(move || s.reload()).await
 }
 
 #[derive(Deserialize)]
@@ -861,7 +843,7 @@ async fn clients(State(s): State<AdminState>) -> Response {
     Json(json!({
         "mode": cfg.settings.server.mode,
         "defaults": cfg.settings.clients.default,
-        "defaults_locked_by": lock_of(&cfg, &["clients", "default"]),
+        "defaults_locked_by": cfg.locked_by(&["clients", "default"]),
         "clients": rows,
     }))
     .into_response()
@@ -901,22 +883,19 @@ async fn client_update(
     Path(id): Path<String>,
     Json(body): Json<ClientPatch>,
 ) -> Response {
-    match s.store.set_client_limits(&id, body.limits).await {
-        Ok(true) => match s.store.client(&id) {
-            Some(rec) => {
-                let cfg = s.router().table().config.clone();
-                Json(json!({ "client": client_view(&s, &cfg, &rec, vec![]) })).into_response()
-            }
-            None => error_response(DomainError::new(
-                ErrorCode::NotFound,
-                format!("unknown client '{id}'"),
-            )),
-        },
-        Ok(false) => error_response(DomainError::new(
+    let rec = match s.store.set_client_limits(&id, body.limits).await {
+        Ok(found) => found.then(|| s.store.client(&id)).flatten(),
+        Err(e) => return error_response(DomainError::internal(e.0)),
+    };
+    match rec {
+        Some(rec) => {
+            let cfg = s.router().table().config.clone();
+            Json(json!({ "client": client_view(&s, &cfg, &rec, vec![]) })).into_response()
+        }
+        None => error_response(DomainError::new(
             ErrorCode::NotFound,
             format!("unknown client '{id}'"),
         )),
-        Err(e) => error_response(DomainError::internal(e.0)),
     }
 }
 

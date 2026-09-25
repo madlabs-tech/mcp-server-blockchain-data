@@ -181,6 +181,18 @@ pub struct ClientLimits {
     pub tool_profile: Option<String>,
 }
 
+impl ClientLimits {
+    /// `self`, field by field, falling back to `base`.
+    pub fn or(&self, base: ClientLimits) -> ClientLimits {
+        ClientLimits {
+            requests_per_minute: self.requests_per_minute.or(base.requests_per_minute),
+            daily_requests: self.daily_requests.or(base.daily_requests),
+            monthly_credits: self.monthly_credits.or(base.monthly_credits),
+            tool_profile: self.tool_profile.clone().or(base.tool_profile),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ClientsSettings {

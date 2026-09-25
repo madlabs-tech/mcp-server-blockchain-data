@@ -29,11 +29,40 @@ impl Edit {
     }
 }
 
+/// Validate `edits` and write them atomically. Returns the new config.
 pub fn apply_edits(
     loader: &ConfigLoader,
     current: &Loaded,
     edits: &[Edit],
 ) -> Result<Loaded, Vec<Issue>> {
+    let (next, config_s, secrets_s) = plan_edits(loader, current, edits)?;
+    let dir = &loader.dir;
+    if edits.iter().any(|e| e.target() == EditTarget::Config) {
+        write_atomic(&dir.config_path(), &config_s, None)
+            .map_err(|m| vec![Issue::error("config.toml", m)])?;
+    }
+    if edits.iter().any(|e| e.target() == EditTarget::Secrets) {
+        write_atomic(&dir.secrets_path(), &secrets_s, Some(0o600))
+            .map_err(|m| vec![Issue::error("secrets.toml", m)])?;
+    }
+    Ok(next)
+}
+
+/// Validate `edits` against the current files without writing anything.
+pub fn validate_edits(
+    loader: &ConfigLoader,
+    current: &Loaded,
+    edits: &[Edit],
+) -> Result<Loaded, Vec<Issue>> {
+    plan_edits(loader, current, edits).map(|(next, _, _)| next)
+}
+
+/// Edited file texts and the config they load to.
+fn plan_edits(
+    loader: &ConfigLoader,
+    current: &Loaded,
+    edits: &[Edit],
+) -> Result<(Loaded, String, String), Vec<Issue>> {
     let locked: Vec<Issue> = edits
         .iter()
         .filter_map(|e| {
@@ -69,15 +98,7 @@ pub fn apply_edits(
 
     let (config_s, secrets_s) = (config.to_string(), secrets.to_string());
     let next = loader.load_texts(&config_s, &secrets_s)?;
-    if edits.iter().any(|e| e.target() == EditTarget::Config) {
-        write_atomic(&dir.config_path(), &config_s, None)
-            .map_err(|m| vec![Issue::error("config.toml", m)])?;
-    }
-    if edits.iter().any(|e| e.target() == EditTarget::Secrets) {
-        write_atomic(&dir.secrets_path(), &secrets_s, Some(0o600))
-            .map_err(|m| vec![Issue::error("secrets.toml", m)])?;
-    }
-    Ok(next)
+    Ok((next, config_s, secrets_s))
 }
 
 fn parse(path: &Path) -> Result<DocumentMut, Vec<Issue>> {
@@ -223,6 +244,22 @@ mod tests {
         .unwrap();
         let cur = loader.load().unwrap();
 
+        // 0. validate-only: same result, nothing written
+        let order = Edit {
+            path: p(&["routing", "chains", "eip155:4663", "evm_rpc"]),
+            value: Some(json!(["quicknode", "public"])),
+        };
+        let checked = validate_edits(&loader, &cur, std::slice::from_ref(&order)).unwrap();
+        let rh: bdm_domain::ChainId = "eip155:4663".parse().unwrap();
+        assert_eq!(
+            checked.order(Capability::EvmRpc, Some(&rh), None).vendors,
+            ["quicknode", "public"]
+        );
+        assert!(!dir.path().join("config.toml.bak").exists());
+        assert!(!std::fs::read_to_string(dir.path().join("config.toml"))
+            .unwrap()
+            .contains("quicknode"));
+
         // 1. valid edit: reorder Robinhood RPC + add a key
         let next = apply_edits(
             &loader,
@@ -239,7 +276,6 @@ mod tests {
             ],
         )
         .unwrap();
-        let rh: bdm_domain::ChainId = "eip155:4663".parse().unwrap();
         assert_eq!(
             next.order(Capability::EvmRpc, Some(&rh), None).vendors,
             ["quicknode", "public"]

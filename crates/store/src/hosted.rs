@@ -18,12 +18,7 @@ pub fn effective_client_limits(cfg: &Loaded, rec: &ClientRecord) -> ClientLimits
     let base = cfg.client_limits(&rec.id);
     match &rec.limits {
         None => base,
-        Some(o) => ClientLimits {
-            requests_per_minute: o.requests_per_minute.or(base.requests_per_minute),
-            daily_requests: o.daily_requests.or(base.daily_requests),
-            monthly_credits: o.monthly_credits.or(base.monthly_credits),
-            tool_profile: o.tool_profile.clone().or(base.tool_profile),
-        },
+        Some(o) => o.or(base),
     }
 }
 

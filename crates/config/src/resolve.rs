@@ -62,11 +62,7 @@ pub(crate) fn overlay(base: WindowBudget, over: WindowBudget) -> WindowBudget {
 }
 
 fn min_opt(a: Option<u64>, b: Option<u64>) -> Option<u64> {
-    match (a, b) {
-        (Some(x), Some(y)) => Some(x.min(y)),
-        (x, None) => x,
-        (None, y) => y,
-    }
+    a.into_iter().chain(b).min()
 }
 
 impl Loaded {
@@ -311,15 +307,10 @@ impl Loaded {
 
     /// Limits for a client id: per-client overrides field-by-field over `clients.default`.
     pub fn client_limits(&self, client: &str) -> ClientLimits {
-        let d = &self.settings.clients.default;
+        let d = self.settings.clients.default.clone();
         match self.settings.clients.overrides.get(client) {
-            None => d.clone(),
-            Some(o) => ClientLimits {
-                requests_per_minute: o.requests_per_minute.or(d.requests_per_minute),
-                daily_requests: o.daily_requests.or(d.daily_requests),
-                monthly_credits: o.monthly_credits.or(d.monthly_credits),
-                tool_profile: o.tool_profile.clone().or_else(|| d.tool_profile.clone()),
-            },
+            None => d,
+            Some(o) => o.or(d),
         }
     }
 }
