@@ -138,6 +138,10 @@ impl App {
         if let Some(o) = &self.observer {
             o.on_call(&caller, name, &result, started.elapsed());
         }
+        // Legacy aliases keep their pre-refactor bare output (the envelope was for the observer).
+        if self.catalog.get(name).is_some_and(|op| op.legacy()) {
+            return result.map(|mut v| v.get_mut("data").map(Value::take).unwrap_or(v));
+        }
         result
     }
 

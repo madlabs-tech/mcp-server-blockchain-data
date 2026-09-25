@@ -2,6 +2,7 @@
 //! (locked by `crates/server/tests/legacy_tools.rs`). They render bare JSON (no envelope) and
 //! surface failures as protocol errors, exactly like the old server.
 
+use super::chain::rpc_meta;
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use alloy_primitives::{Address, B256, U256};
 use async_trait::async_trait;
@@ -125,13 +126,16 @@ impl Operation for EthGetBalance {
             "get balance",
         )
         .await?;
-        Ok(OpOutput::local(BalanceOut {
-            address: address.to_string(),
-            chain: chain.name.clone(),
-            balance_wei: quantity(&v)?.to_string(),
-            symbol: chain.native.symbol.clone(),
-            decimals: chain.native.decimals,
-        }))
+        Ok(OpOutput::new(
+            BalanceOut {
+                address: address.to_string(),
+                chain: chain.name.clone(),
+                balance_wei: quantity(&v)?.to_string(),
+                symbol: chain.native.symbol.clone(),
+                decimals: chain.native.decimals,
+            },
+            rpc_meta(&chain.id),
+        ))
     }
 }
 
@@ -176,12 +180,15 @@ impl Operation for EthGetCode {
         .await?;
         let hex = v.as_str().unwrap_or("0x").trim_start_matches("0x");
         let size = hex.len() / 2;
-        Ok(OpOutput::local(CodeOut {
-            address: address.to_string(),
-            chain: chain.name.clone(),
-            is_contract: size > 0,
-            bytecode_size: size,
-        }))
+        Ok(OpOutput::new(
+            CodeOut {
+                address: address.to_string(),
+                chain: chain.name.clone(),
+                is_contract: size > 0,
+                bytecode_size: size,
+            },
+            rpc_meta(&chain.id),
+        ))
     }
 }
 
@@ -223,12 +230,15 @@ impl Operation for EthGasPrice {
         let chain = evm_chain(ctx, &input.chain)?;
         let wei =
             quantity(&rpc_call(ctx, chain, "eth_gasPrice", json!([]), "get gas price").await?)?;
-        Ok(OpOutput::local(GasOut {
-            chain: chain.name.clone(),
-            gas_price_wei: wei.to_string(),
-            gas_price_gwei: gwei_2dp(wei),
-            timestamp: chrono::Utc::now().to_rfc3339(),
-        }))
+        Ok(OpOutput::new(
+            GasOut {
+                chain: chain.name.clone(),
+                gas_price_wei: wei.to_string(),
+                gas_price_gwei: gwei_2dp(wei),
+                timestamp: chrono::Utc::now().to_rfc3339(),
+            },
+            rpc_meta(&chain.id),
+        ))
     }
 }
 
@@ -273,10 +283,13 @@ impl Operation for EthGetTransactionByHash {
                 .map_err(|e| DomainError::internal(format!("Failed to get transaction: {e}")))?;
             serde_json::to_value(tx).map_err(|e| DomainError::internal(e.to_string()))?
         };
-        Ok(OpOutput::local(TxOut {
-            chain: chain.name.clone(),
-            transaction,
-        }))
+        Ok(OpOutput::new(
+            TxOut {
+                chain: chain.name.clone(),
+                transaction,
+            },
+            rpc_meta(&chain.id),
+        ))
     }
 }
 
