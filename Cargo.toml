@@ -79,3 +79,8 @@ expect_used = "deny"
 indexing_slicing = "deny"
 panic = "deny"
 unreachable = "deny"
+
+# The profile that `dist` builds release artifacts with
+[profile.dist]
+inherits = "release"
+lto = "thin"
