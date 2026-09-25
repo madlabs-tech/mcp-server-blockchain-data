@@ -57,16 +57,16 @@ price = ["jupiter", "birdeye", "defillama"]
 
 # ---------------------------------------------------------------------------- operations
 [operations.payments_verify_transfer]
-strategy = "quorum"                 # failover | quorum | aggregate | fan_out | hedged
-quorum   = 2
+strategy = "quorum"                 # the one tool where strategy matters: failover (default) | quorum
+quorum   = 2                        # providers that must return the same block hash
 
 [operations.market_get_price]
-strategy       = "aggregate"        # median + spread across the first N available vendors
-fan_out        = 3
+strategy       = "aggregate"        # always aggregates (median + spread); strategy is informational here
+fan_out        = 3                  # how many vendors to ask
 cache_ttl_secs = 15
 
 [operations.tx_broadcast]
-strategy = "fan_out"
+strategy = "fan_out"                # always sends to every vendor; strategy is informational here
 
 # ---------------------------------------------------------------------------- hosted mode clients
 [clients.default]
