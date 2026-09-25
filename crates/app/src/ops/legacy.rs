@@ -4,7 +4,7 @@
 
 use super::chain::rpc_meta;
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
-use alloy_primitives::{Address, B256, U256};
+use alloy_primitives::{Address, Bytes, FixedBytes, Signature, B256, U128, U256, U64, U8};
 use async_trait::async_trait;
 use bdm_config::ChainEntry;
 use bdm_domain::{ChainFamily, DomainError};
@@ -291,11 +291,186 @@ impl Operation for EthGetTransactionByHash {
     }
 }
 
-/// Round-trip through alloy's RPC type to keep the exact pre-refactor serialization.
+/// Shapes a raw RPC transaction exactly like the pre-refactor server, which round-tripped it
+/// through alloy 1.0.41's `alloy_rpc_types_eth::Transaction` (pinned by the tests below): only the
+/// fields of tx types 0-4 are kept, numbers become minimal hex quantities, hex is lowercased, and
+/// whatever alloy rejected (unknown type, missing or malformed field) is an error.
 fn legacy_tx_json(raw: Value) -> Result<Value, String> {
-    let tx: alloy_rpc_types_eth::Transaction =
-        serde_json::from_value(raw).map_err(|e| e.to_string())?;
-    serde_json::to_value(tx).map_err(|e| e.to_string())
+    let tx = raw.as_object().ok_or("transaction is not an object")?;
+    let ty = match tx.get("type") {
+        None | Some(Value::Null) => 0,
+        Some(Value::String(t)) => match t.as_str() {
+            "0x0" | "0x00" | "0X0" => 0,
+            "0x1" | "0x01" | "0X1" => 1,
+            "0x2" | "0x02" | "0X2" => 2,
+            "0x3" | "0x03" | "0X3" => 3,
+            "0x4" | "0x04" | "0X4" => 4,
+            _ => return Err(format!("unknown transaction type `{t}`")),
+        },
+        Some(t) => return Err(format!("invalid transaction type {t}")),
+    };
+    if tx.contains_key("gas") && tx.contains_key("gasLimit") {
+        return Err("duplicate field `gas`".into());
+    }
+    let gas_key = if tx.contains_key("gas") {
+        "gas"
+    } else {
+        "gasLimit"
+    };
+
+    let mut out = json!({
+        "type": format!("0x{ty:x}"),
+        "hash": get::<B256>(tx, "hash")?,
+        "from": get::<Address>(tx, "from")?,
+        "blockHash": get::<Option<B256>>(tx, "blockHash")?,
+        "blockNumber": get::<Option<U64>>(tx, "blockNumber")?,
+        "transactionIndex": get::<Option<U64>>(tx, "transactionIndex")?,
+        "nonce": get::<U64>(tx, "nonce")?,
+        "gas": get::<U64>(tx, gas_key)?,
+        "value": get::<U256>(tx, "value")?,
+        "input": get::<Bytes>(tx, "input")?,
+    });
+    // alloy reads `gasPrice` twice: as the tx field (types 0, 1) and as the effective gas price
+    // (types 2-4, only echoed when present), so it must fit u128 whatever the type.
+    let gas_price = get::<Option<U128>>(tx, "gasPrice")?;
+    let mut put = |k: &str, v: Value| {
+        if let Some(o) = out.as_object_mut() {
+            o.insert(k.to_string(), v);
+        }
+    };
+
+    if ty == 0 {
+        put("gasPrice", json!(get::<U128>(tx, "gasPrice")?));
+        put("to", json!(get::<Option<Address>>(tx, "to")?));
+        let chain_id = get::<Option<U64>>(tx, "chainId")?.map(|c| c.to::<u64>());
+        let (r, s) = (get::<U256>(tx, "r")?, get::<U256>(tx, "s")?);
+        let v = get::<U128>(tx, "v")?.to::<u128>();
+        // Pre-Bedrock Optimism system txs carry an all-zero signature and keep their chainId;
+        // otherwise v is EIP-155 decoded and its chain id (or none, for 27/28) wins.
+        let (parity, chain_id) = if r.is_zero() && s.is_zero() && v == 0 {
+            (0, chain_id)
+        } else {
+            let (parity, from_v) = match v {
+                27 | 28 => (v - 27, None),
+                35.. => (
+                    (v - 35) % 2,
+                    Some(u64::try_from((v - 35) / 2).map_err(|e| e.to_string())?),
+                ),
+                _ => return Err("invalid EIP-155 signature parity value".into()),
+            };
+            if matches!((chain_id, from_v), (Some(a), Some(b)) if a != b) {
+                return Err("chain id mismatch".into());
+            }
+            (parity, from_v)
+        };
+        let v = match chain_id {
+            Some(id) => 35 + u128::from(id) * 2 + parity,
+            None => 27 + parity,
+        };
+        if let Some(id) = chain_id {
+            put("chainId", json!(U64::from(id)));
+        }
+        put("r", json!(r));
+        put("s", json!(s));
+        put("v", json!(U128::from(v)));
+        return Ok(out);
+    }
+
+    put("chainId", json!(get::<U64>(tx, "chainId")?));
+    // Required for every typed tx; only EIP-1559 tolerates an explicit `null` (read as empty).
+    let access_list = match (ty, tx.get("accessList")) {
+        (2, Some(Value::Null)) => Vec::new(),
+        _ => get::<Vec<AccessListItem>>(tx, "accessList")?,
+    };
+    put("accessList", json!(access_list));
+    if ty == 1 {
+        put("gasPrice", json!(get::<U128>(tx, "gasPrice")?));
+    } else {
+        put("maxFeePerGas", json!(get::<U128>(tx, "maxFeePerGas")?));
+        put(
+            "maxPriorityFeePerGas",
+            json!(get::<U128>(tx, "maxPriorityFeePerGas")?),
+        );
+        if let Some(p) = gas_price {
+            put("gasPrice", json!(p));
+        }
+    }
+    if ty <= 2 {
+        put("to", json!(get::<Option<Address>>(tx, "to")?));
+    } else {
+        put("to", json!(get::<Address>(tx, "to")?));
+    }
+    if ty == 3 {
+        put(
+            "blobVersionedHashes",
+            json!(get::<Vec<B256>>(tx, "blobVersionedHashes")?),
+        );
+        put(
+            "maxFeePerBlobGas",
+            json!(get::<U128>(tx, "maxFeePerBlobGas")?),
+        );
+        // A sidecar is echoed only when all of it parses; otherwise alloy silently drops it.
+        if let Ok(sidecar) = BlobSidecar::deserialize(&raw) {
+            if sidecar.blobs.iter().all(|b| b.len() == 131_072) {
+                put("blobs", json!(sidecar.blobs));
+                put("commitments", json!(sidecar.commitments));
+                put("proofs", json!(sidecar.proofs));
+            }
+        }
+    }
+    if ty == 4 {
+        let auths = get::<Vec<AuthorizationIn>>(tx, "authorizationList")?
+            .into_iter()
+            .map(|a| {
+                let y_parity = a.y_parity.or(a.v).ok_or("missing `yParity` or `v`")?;
+                Ok(json!({
+                    "chainId": a.chain_id, "address": a.address, "nonce": a.nonce,
+                    "yParity": y_parity, "r": a.r, "s": a.s,
+                }))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        put("authorizationList", Value::Array(auths));
+    }
+    // Typed txs: r, s, and the parity as both `yParity` and `v` (0/1).
+    let sig = Signature::deserialize(&raw).map_err(|e| e.to_string())?;
+    if let (Some(o), Value::Object(s)) = (out.as_object_mut(), json!(sig)) {
+        o.extend(s);
+    }
+    Ok(out)
+}
+
+/// Reads `key` with alloy's serde rules; a missing key reads as `null`.
+fn get<T: serde::de::DeserializeOwned>(
+    tx: &serde_json::Map<String, Value>,
+    key: &str,
+) -> Result<T, String> {
+    T::deserialize(tx.get(key).unwrap_or(&Value::Null)).map_err(|e| format!("`{key}`: {e}"))
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AccessListItem {
+    address: Address,
+    storage_keys: Vec<B256>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AuthorizationIn {
+    chain_id: U256,
+    address: Address,
+    nonce: U64,
+    r: U256,
+    s: U256,
+    y_parity: Option<U8>,
+    v: Option<U8>,
+}
+
+#[derive(Deserialize)]
+struct BlobSidecar {
+    blobs: Vec<Bytes>,
+    commitments: Vec<FixedBytes<48>>,
+    proofs: Vec<FixedBytes<48>>,
 }
 
 #[cfg(test)]
