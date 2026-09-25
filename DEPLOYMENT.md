@@ -1,189 +1,280 @@
-# Deployment
+# Put it on a server
 
-One binary, two modes. Configuration is layered: **built-in registry < `config/config.toml` < `config/secrets.toml` < environment** (`ODM__<PATH>`, `__` between segments). Values set by env show as **locked by env** in the dashboard.
+This guide is for running onchain-data-mcp **for other people or apps** ("hosted mode").
+If it's just for you, you don't need this: see the [README](README.md).
 
-| | `self_hosted` (default) | `hosted` (operator VPS) |
-|---|---|---|
-| Who | you, with your own vendor keys | an operator serving other people with their vendor accounts |
-| Transports | stdio (Claude Desktop) + HTTP on `http_bind` (`127.0.0.1:8787`) | REST + `/mcp` on `public_bind`, behind a TLS proxy |
-| Client auth | none (local only) | `Authorization: Bearer <client key>` on every request |
-| Startup | – | refuses to start with no client keys (fail closed) |
-| Limits | per vendor (limit / cap / reserve) | per vendor **and** per client |
-| Dashboard | `http://127.0.0.1:8787/dashboard` | `admin_bind` (`127.0.0.1:8788`), never on the public port |
+**How hosted mode works**
 
-## Self-hosted
+- The program runs on a server (a computer that is always on, for example a small cloud server, also called a VPS).
+- Your customers connect over the internet, at an address like `https://api.example.com/mcp`.
+- Each customer gets a **client key** (starts with `odm_`). No key, no access.
+- Each client key has its own limits, so one busy customer can't use up everything.
+- The program uses **your** provider keys (Alchemy, Helius…) for everyone.
+- The dashboard is **never** on the internet. You reach it through a private tunnel (see [Open the dashboard](#open-the-dashboard)).
 
-```bash
-cargo build --release -p bdm-server
-cp .env.example .env                              # all keys optional
-cp config/config.example.toml config/config.toml  # optional; the dashboard edits this file
-set -a; source .env; set +a
-./target/release/onchain-data-mcp serve             # or without `serve` for MCP on stdio
-```
+**What you need**
 
-- Dashboard: `http://127.0.0.1:8787/dashboard`, token in `config/admin_token` (created on first start, mode 0600, printed once in the log).
-- State: `<data_dir>/bdm.db` (default `./data`): usage counters, client keys, call log. If the directory isn't writable (Claude Desktop starts the binary with cwd `/`) the server keeps counters in memory and warns; pass absolute `--config-dir` and `ODM__SERVER__DATA_DIR`.
-- Zero keys: public RPCs plus keyless vendors (DefiLlama, DexScreener, GeckoTerminal, CoW, Velora, Frankfurter, GoPlus, TRM keyless tier, Chainalysis oracle, Flashbots, Jito…). Tools that need a key answer `UNSUPPORTED_CAPABILITY`.
-- Self-hosted has **no client auth**. Keep `http_bind` on loopback; the server warns if it isn't.
+- A Linux server with about 1 GB of memory.
+- A domain name (like `api.example.com`) that points to your server's IP address.
+- About 30 minutes.
 
-Docker, self-hosted (the image binds `0.0.0.0:8787` inside the container; publish it on loopback only):
+Pick **Option A** (Docker, easiest) or **Option B** (no Docker).
 
-```bash
-docker build -t onchain-data-mcp .
-docker run -d --name ems -p 127.0.0.1:8787:8787 --env-file .env \
-  -v bdm-data:/data -v bdm-config:/config onchain-data-mcp
-docker exec ems cat /config/admin_token
-```
+## Option A: Docker + Caddy (recommended)
 
-## Hosted (small VPS)
+Docker runs programs in sealed boxes. Caddy is a small web server that sits in front and gets a
+free HTTPS certificate for your domain by itself. Only Caddy is reachable from the internet.
 
-### 1. Configure
+### 1. Get the files
+
+On your server:
 
 ```bash
-git clone <repo> && cd <repo>
-cp .env.example .env && chmod 600 .env
+git clone https://github.com/madlabs-tech/onchain-data-mcp.git
+cd onchain-data-mcp
+cp .env.example .env
+chmod 600 .env
 ```
 
-In `.env` set at least:
+### 2. Fill in your settings
 
-```
-ODM__SERVER__MODE=hosted
-ODM__SERVER__PUBLIC_BIND=0.0.0.0:8787      # inside the container / behind the proxy
-ODM__SERVER__ADMIN_BIND=0.0.0.0:8788       # container: published to 127.0.0.1 on the host only
-ALCHEMY_API_KEY=…                          # the operator's vendor keys
-```
-
-Everything below can be set by env **or** later in the dashboard (env wins and locks the field).
-
-**Per vendor** (`ODM__VENDORS__<ID>__…`):
-
-| Setting | Meaning | Example |
-|---|---|---|
-| `LIMIT__<window>` | the vendor's real quota (defaults to its free tier) | `ODM__VENDORS__ALCHEMY__LIMIT__MONTHLY_CREDITS=30000000` |
-| `CAP__<window>` | your budget below the limit; windows `RPS`, `PER_MINUTE`, `DAILY`, `MONTHLY` (`MONTHLY_CREDITS`, `DAILY_REQUESTS` accepted) | `ODM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS=15000000` |
-| `RESERVE_PCT` | stop routing at `(100 − reserve)%` of the budget | `ODM__VENDORS__ALCHEMY__RESERVE_PCT=10` |
-| `ON_EXHAUSTED` | `skip` or `allow_overage` | `ODM__VENDORS__ALCHEMY__ON_EXHAUSTED=skip` |
-| `ENABLED` | on/off | `ODM__VENDORS__MORALIS__ENABLED=false` |
-
-Effective budget per window = `min(cap, limit × (1 − reserve_pct/100))`.
-
-**Per client** (`ODM__CLIENTS__DEFAULT__…`, overridable per key in the dashboard or `PATCH /admin/api/clients/{id}`):
-
-| Setting | Example |
-|---|---|
-| requests per minute (token bucket) | `ODM__CLIENTS__DEFAULT__REQUESTS_PER_MINUTE=30` |
-| daily requests (reset 00:00 UTC) | `ODM__CLIENTS__DEFAULT__DAILY_REQUESTS=1000` |
-| monthly vendor credits spent for the client (reset on the 1st) | `ODM__CLIENTS__DEFAULT__MONTHLY_CREDITS=200000` |
-| tool profile | `ODM__CLIENTS__DEFAULT__TOOL_PROFILE=payments` |
-
-Over a limit → HTTP 429 `QUOTA_EXCEEDED` with `retry_after_secs` and a `Retry-After` header; other clients are unaffected.
-
-**Routing order:** `ODM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public` (see README for precedence).
-
-### 2. Create the first client key
-
-Hosted mode refuses to start without one:
+Open `.env` in a text editor (for example `nano .env`) and fill in:
 
 ```bash
-# Docker
-docker compose -f deploy/docker-compose.yml run --rm onchain-data-mcp clients create alice
-# bare metal
-onchain-data-mcp clients create alice --config-dir config
-onchain-data-mcp clients list --config-dir config        # ids, status, names; never keys
+# Your provider keys (all optional, but recommended for a public server)
+ALCHEMY_API_KEY=your-alchemy-key
+HELIUS_API_KEY=your-helius-key
+
+# Your dashboard password: at least 12 characters, no spaces
+DASHBOARD_PASSWORD=pick-a-long-password-here
 ```
 
-The key (`odm_…`) is printed once and stored as a SHA-256 hash.
+You don't need to set the mode or addresses. The Docker setup already turns on hosted mode.
 
-### 3. Run: Docker + Caddy
+### 3. Put in your domain
+
+Replace `your.domain` with your real domain in the Caddy settings:
 
 ```bash
 sed -i 's/your.domain/api.example.com/' deploy/Caddyfile
-docker compose -f deploy/docker-compose.yml up -d
-docker compose -f deploy/docker-compose.yml logs -f onchain-data-mcp
 ```
 
-`deploy/docker-compose.yml` runs the server and Caddy. Caddy obtains TLS certificates automatically and is the only service with public ports (80/443). The server's public port is reachable only from Caddy; the admin port is published to `127.0.0.1:8788` on the host only.
+### 4. Create the first client key
 
-### 3b. Run: systemd (no Docker)
+Hosted mode won't start without at least one client key. Create one (the first time, this also
+builds the program, which can take 10 to 20 minutes):
 
 ```bash
-sudo cp target/release/onchain-data-mcp /usr/local/bin/
-sudo mkdir -p /etc/onchain-data-mcp && sudo cp .env /etc/onchain-data-mcp/env && sudo chmod 600 /etc/onchain-data-mcp/env
-sudo cp deploy/onchain-data-mcp.service /etc/systemd/system/
-sudo systemctl daemon-reload && sudo systemctl enable onchain-data-mcp
+docker compose -f deploy/docker-compose.yml run --rm onchain-data-mcp clients create alice --config-dir /config
 ```
 
-The unit runs as a `DynamicUser` with `ProtectSystem=strict`; the only writable path is `/var/lib/onchain-data-mcp` (`config/` with `admin_token`, `config.toml`, `secrets.toml`; `data/` with `bdm.db`). Set `ODM__SERVER__PUBLIC_BIND=127.0.0.1:8787` in the env file, put a TLS reverse proxy (Caddy, nginx) in front of it and leave `127.0.0.1:8788` unproxied.
+It prints the key **once**, like `key: odm_6924…`. Copy it somewhere safe. We only keep a
+scrambled copy (a "hash"), so it can't be shown again. Lost it? Create a new one.
 
-Hosted mode needs a client key before the first start. Create it inside the unit's sandbox (same state directory and dynamic user), then start:
+### 5. Start it
+
+```bash
+docker compose -f deploy/docker-compose.yml up -d
+```
+
+Check that it works (from any computer):
+
+```bash
+curl https://api.example.com/healthz
+```
+
+It should answer `ok`. To watch the logs: `docker compose -f deploy/docker-compose.yml logs -f onchain-data-mcp`.
+
+## Option B: Without Docker (systemd)
+
+systemd is the part of Linux that starts programs when the server boots.
+Our service file runs the program as a locked-down user that can only write to its own folder.
+
+### 1. Install the program and the files
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/madlabs-tech/onchain-data-mcp/releases/latest/download/onchain-data-mcp-installer.sh | sh
+sudo cp ~/.cargo/bin/onchain-data-mcp /usr/local/bin/
+git clone https://github.com/madlabs-tech/onchain-data-mcp.git
+sudo cp onchain-data-mcp/deploy/onchain-data-mcp.service /etc/systemd/system/
+```
+
+### 2. Write the settings file
+
+```bash
+sudo mkdir -p /etc/onchain-data-mcp
+sudo nano /etc/onchain-data-mcp/env
+```
+
+Paste this, and fill in your own values:
+
+```bash
+ODM__SERVER__MODE=hosted
+ODM__SERVER__PUBLIC_BIND=127.0.0.1:8787
+DASHBOARD_PASSWORD=pick-a-long-password-here
+ALCHEMY_API_KEY=your-alchemy-key
+HELIUS_API_KEY=your-helius-key
+```
+
+Then lock the file so only the admin can read it:
+
+```bash
+sudo chmod 600 /etc/onchain-data-mcp/env
+```
+
+Set the dashboard password here, in `DASHBOARD_PASSWORD`. The service runs as a temporary,
+locked-down user, so `onchain-data-mcp password reset` can't be used for it.
+
+### 3. Create the first client key
+
+This runs the command inside the same locked-down setup the service uses:
 
 ```bash
 sudo systemd-run --wait --pipe --collect -p DynamicUser=yes -p StateDirectory=onchain-data-mcp \
   -p EnvironmentFile=/etc/onchain-data-mcp/env -p Environment=ODM__SERVER__DATA_DIR=/var/lib/onchain-data-mcp/data \
   /usr/local/bin/onchain-data-mcp clients create alice --config-dir /var/lib/onchain-data-mcp/config
-sudo systemctl start onchain-data-mcp
+```
+
+Copy the `odm_…` key it prints. It is shown only once.
+
+### 4. Start it
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now onchain-data-mcp
 sudo journalctl -u onchain-data-mcp -f
 ```
 
-### 4. Dashboard over an SSH tunnel
+### 5. Add HTTPS in front
 
-The admin port is never public. From your machine:
+The program now listens only on the server itself (`127.0.0.1:8787`). Put a web server with
+HTTPS in front of it. With [Caddy](https://caddyserver.com/docs/install), use
+`deploy/Caddyfile` and change two things: your domain instead of `your.domain`, and
+`127.0.0.1:8787` instead of `onchain-data-mcp:8787`. Never forward port 8788 (the dashboard).
 
-```bash
-ssh -N -L 8788:127.0.0.1:8788 you@vps
-# then open http://127.0.0.1:8788/dashboard
-docker exec ems cat /config/admin_token            # Docker
-sudo cat /var/lib/onchain-data-mcp/config/admin_token # systemd
-```
+## Open the dashboard
 
-Clients page: create keys (shown once), set per-client limits, revoke (immediate). Quota page: limit / cap / used per vendor, source badge (`vendor API` / `headers` / `estimated`), burn rate, CSV.
-
-Admin API for scripts: every call needs `Authorization: Bearer <admin token>` and `X-BDM-Admin: 1`:
+The dashboard runs on the server at `127.0.0.1:8788`, which the internet can't reach.
+To open it, make a private tunnel from your own computer with SSH (the tool you use to log in
+to your server):
 
 ```bash
-curl -s -H "Authorization: Bearer $TOKEN" -H 'X-BDM-Admin: 1' http://127.0.0.1:8788/admin/api/quota
-curl -s -H "Authorization: Bearer $TOKEN" -H 'X-BDM-Admin: 1' -X POST http://127.0.0.1:8788/admin/api/clients \
-  -H 'content-type: application/json' -d '{"name":"bob"}'
+ssh -N -L 8788:127.0.0.1:8788 you@your-server
 ```
 
-### 5. Client configuration
+Keep that window open, then visit `http://127.0.0.1:8788/dashboard` in your browser and log in
+with your `DASHBOARD_PASSWORD`.
+
+Forgot the password?
+
+- Docker: `docker exec ems onchain-data-mcp password --config-dir /config`
+- systemd: look in `/etc/onchain-data-mcp/env`
+
+## Create client keys
+
+One key per customer or app. Two ways:
+
+- **Dashboard:** open **Clients**, type a name, click create. You can also change limits or cancel a key there; cancelling works right away.
+- **Command line:** then restart the program so it sees the new key (the dashboard doesn't need a restart).
+  - Docker: `docker exec ems onchain-data-mcp clients create bob --config-dir /config`, then `docker restart ems`
+  - systemd: the `systemd-run` command from [step 3](#3-create-the-first-client-key) with a new name, then `sudo systemctl restart onchain-data-mcp`
+
+To list keys (names and ids only, never the keys themselves): `clients list` instead of `clients create <name>`.
+
+**Default limits per client key.** You can change them per key in the dashboard.
+
+| Limit | Default | Setting to change the default |
+|---|---|---|
+| Requests per minute | 30 | `ODM__CLIENTS__DEFAULT__REQUESTS_PER_MINUTE` |
+| Requests per day (resets at midnight UTC) | 1,000 | `ODM__CLIENTS__DEFAULT__DAILY_REQUESTS` |
+| Provider credits per month (resets on the 1st) | 200,000 | `ODM__CLIENTS__DEFAULT__MONTHLY_CREDITS` |
+| Tool set | `payments` | `ODM__CLIENTS__DEFAULT__TOOL_PROFILE` |
+
+A customer over their limit gets a "too many requests" answer telling them when to try again.
+Other customers are not affected.
+
+## Give a customer their settings
+
+Send them their key and this, with your domain filled in. It goes into their AI app's MCP
+settings (for example `claude_desktop_config.json` or `~/.cursor/mcp.json`):
 
 ```json
-{ "mcpServers": { "onchain-data": {
-  "url": "https://api.example.com/mcp",
-  "headers": { "Authorization": "Bearer odm_…" } } } }
+{
+  "mcpServers": {
+    "onchain-data": {
+      "url": "https://api.example.com/mcp",
+      "headers": { "Authorization": "Bearer odm_their-key-here" }
+    }
+  }
+}
 ```
 
+For Claude Code:
+
 ```bash
-curl -s -H 'Authorization: Bearer odm_…' -X POST https://api.example.com/v1/wallet/get_balances \
-  -H 'content-type: application/json' -d '{"address":"0x…"}'
+claude mcp add --transport http onchain-data https://api.example.com/mcp --header "Authorization: Bearer odm_their-key-here"
 ```
+
+Apps that don't use MCP can call the same tools as a normal web API. See
+[docs/TECHNICAL.md](docs/TECHNICAL.md#rest-api).
+
+## Update to a new version
+
+**Docker:**
+
+```bash
+cd onchain-data-mcp
+git pull
+docker compose -f deploy/docker-compose.yml up -d --build
+```
+
+**systemd:** run the install command from Option B step 1 again, then:
+
+```bash
+sudo cp ~/.cargo/bin/onchain-data-mcp /usr/local/bin/
+sudo systemctl restart onchain-data-mcp
+```
+
+Your settings, keys and usage numbers are kept.
 
 ## Backups
 
-Everything durable is in two places:
+Two things hold everything:
 
-- `bdm.db` (sqlite, WAL mode): usage counters, client keys (hashes + limits), call log. Back it up live with sqlite's online backup so the WAL is included:
-  ```bash
-  # Docker: copy the volume from a throwaway container
-  docker run --rm -v bdm-data:/data -v "$PWD":/out alpine \
-    sh -c 'apk add -q sqlite && sqlite3 /data/bdm.db ".backup /out/bdm-$(date +%F).db"'
-  # systemd
-  sudo sqlite3 /var/lib/onchain-data-mcp/data/bdm.db ".backup /root/bdm-$(date +%F).db"
-  ```
-  Or stop the service and copy `bdm.db`, `bdm.db-wal`, `bdm.db-shm` together.
-- the config dir: `config.toml`, `secrets.toml`, `admin_token` (all three are secret-bearing; keep the backup at mode 0600).
+- **The database** `bdm.db`: usage numbers, client keys (scrambled) and the call log.
+- **The settings folder**: `config.toml`, `secrets.toml` (provider keys) and `dashboard_password`.
 
-Restore = put both back and start. Client keys keep working since only hashes are stored.
+**Docker** (saves both into the current folder):
+
+```bash
+docker run --rm --volumes-from ems -v "$PWD":/out alpine \
+  sh -c 'apk add -q sqlite && sqlite3 /data/bdm.db ".backup /out/bdm-$(date +%F).db" && tar -C /config -czf /out/config-$(date +%F).tgz .'
+```
+
+**systemd:**
+
+```bash
+sudo sqlite3 /var/lib/onchain-data-mcp/data/bdm.db ".backup /root/bdm-$(date +%F).db"
+sudo tar -C /var/lib/onchain-data-mcp -czf /root/config-$(date +%F).tgz config
+sudo cp /etc/onchain-data-mcp/env /root/env-$(date +%F)
+```
+
+(The systemd way needs the `sqlite3` tool: `sudo apt install sqlite3`.)
+
+The backups contain secrets. Keep them somewhere private.
+
+**To restore:** stop the program, put the database and the settings folder back, and start it
+again. Client keys keep working.
 
 ## Security checklist
 
-- [ ] `ODM__SERVER__MODE=hosted`; the server refuses to start without client keys.
-- [ ] Only 80/443 are reachable from the internet: `curl -m 5 https://api.example.com:8788/` and `:8787` fail.
-- [ ] `.env`, `secrets.toml`, `admin_token` are mode 0600 and outside git.
-- [ ] Separate vendor accounts for the VPS and for local testing so quotas don't collide.
-- [ ] A `cap` below the `limit` for every vendor the public instance uses, and `reserve_pct` set.
-- [ ] Conservative `clients.default` limits; raise per trusted client in the dashboard.
-- [ ] Dashboard only through the SSH tunnel; the admin token is never sent over plain HTTP off-host.
-- [ ] `docker compose pull`/rebuild and `sudo systemctl restart` after a version bump; `POST /admin/api/reload` (or `SIGHUP`) after editing files by hand.
-- [ ] Backups of `bdm.db` and the config dir on a schedule.
+- [ ] Hosted mode is on. (The Docker setup does this for you. It won't start without a client key.)
+- [ ] Only the web ports 80 and 443 are open to the internet. Test from another computer: `curl -m 5 http://api.example.com:8787/` and `curl -m 5 http://api.example.com:8788/` should both fail.
+- [ ] `.env`, `/etc/onchain-data-mcp/env` and `secrets.toml` can only be read by the admin (`chmod 600`), and are never added to git.
+- [ ] You set a strong `DASHBOARD_PASSWORD`, and only open the dashboard through the SSH tunnel.
+- [ ] The server uses its own provider accounts, separate from the ones on your laptop, so their limits don't clash.
+- [ ] Each provider has a budget below its real limit (dashboard, **Providers** page), so customers can't use up your whole plan.
+- [ ] Client key limits start low. Raise them for customers you trust.
+- [ ] You cancel any client key you think has leaked (dashboard, **Clients** page).
+- [ ] Backups run on a schedule.
+- [ ] You update when a new version comes out.
