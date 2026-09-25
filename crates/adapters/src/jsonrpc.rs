@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 /// `v[key]` as an array, or `Transient` when the vendor answered with a different shape (an
 /// empty list would silently stand for "nothing held"; a fail-over is the honest answer).
+#[cfg(any(feature = "alchemy", feature = "helius"))]
 pub(crate) fn array_field<'a>(v: &'a Value, key: &str, what: &str) -> PortResult<&'a Vec<Value>> {
     v.get(key)
         .and_then(Value::as_array)
