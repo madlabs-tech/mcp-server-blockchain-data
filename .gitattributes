@@ -1,0 +1,2 @@
+# LF everywhere, including Windows checkouts (tests compare file text).
+* text=auto eol=lf

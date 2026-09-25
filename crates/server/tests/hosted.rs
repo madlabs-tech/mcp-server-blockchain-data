@@ -45,7 +45,7 @@ fn write_config(dir: &Path, public: u16, admin: u16) {
 mode = "hosted"
 public_bind = "127.0.0.1:{public}"
 admin_bind = "127.0.0.1:{admin}"
-data_dir = "{}"
+data_dir = '{}'  # literal string: Windows paths have backslashes
 
 [chain_overrides.ethereum]
 public_rpc = ["http://127.0.0.1:9"]
