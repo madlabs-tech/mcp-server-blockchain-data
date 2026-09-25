@@ -10,12 +10,9 @@ use async_trait::async_trait;
 use bdm_app::{
     App, CallGuard, Caller, Catalog, Ctx, Domain, OpOutput, Operation, Profile, ProfileSelection,
 };
-use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
 use bdm_domain::{ChainId, DomainError, ErrorCode};
-use bdm_ports::{metering, PortHandle, Registration, VendorMeta};
-use bdm_routing::{
-    InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable, WindowKey,
-};
+use bdm_ports::{metering, PortHandle, Registration};
+use bdm_routing::WindowKey;
 use bdm_testkit::mocks::MockEvmRpc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -27,6 +24,8 @@ use std::{
     },
     time::Duration,
 };
+
+mod common;
 
 #[derive(Deserialize, JsonSchema)]
 struct EchoIn {
@@ -101,16 +100,7 @@ fn app(cfg: &str, regs: Vec<Registration>) -> (App, Arc<AtomicUsize>) {
 }
 
 fn app_with_cache(cfg: &str, regs: Vec<Registration>, cache_max: u64) -> (App, Arc<AtomicUsize>) {
-    let loader = ConfigLoader::new(ConfigDir::new("/nonexistent"), EnvSource::default()).unwrap();
-    let config = Arc::new(loader.load_texts(cfg, "").unwrap());
-    let router = Router::new(
-        RoutingTable {
-            config,
-            registry: ProviderRegistry::new(regs),
-        },
-        Arc::new(InMemoryCounterStore::default()),
-        RouterOptions::default(),
-    );
+    let router = common::router(&[], cfg, regs);
     let count = Arc::new(AtomicUsize::new(0));
     let mut catalog = Catalog::new();
     bdm_app::ops::register_all(&mut catalog);
@@ -342,14 +332,7 @@ async fn schemas_are_generated() {
 }
 
 fn public_eth(mock: Arc<MockEvmRpc>) -> Registration {
-    let meta = VendorMeta {
-        id: "public".into(),
-        display_name: "public".into(),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    };
-    Registration::new(meta).chain_port(ChainId::evm(1), PortHandle::EvmRpc(mock))
+    Registration::new(common::meta("public")).chain_port(ChainId::evm(1), PortHandle::EvmRpc(mock))
 }
 
 #[tokio::test]

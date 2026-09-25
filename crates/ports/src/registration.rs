@@ -117,7 +117,7 @@ pub struct RpcFeatures {
 }
 
 /// Static facts about a vendor, shown in the dashboard and used for filtering.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct VendorMeta {
     /// Stable id, the name used in config orders (e.g. "alchemy", "public", "rpc").
     pub id: String,

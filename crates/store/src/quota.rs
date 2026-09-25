@@ -739,8 +739,7 @@ mod tests {
                     id: "coingecko".into(),
                     display_name: "CoinGecko".into(),
                     requires_key: true,
-                    signup_url: None,
-                    rpc_features: Default::default(),
+                    ..Default::default()
                 })
                 .with_quota_reporter(Arc::new(FakeReporter(n))),
             );

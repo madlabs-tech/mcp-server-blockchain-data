@@ -722,9 +722,7 @@ fn public_reg(fake: &Arc<FakeEvm>) -> Registration {
     Registration::new(VendorMeta {
         id: "public".into(),
         display_name: "fake".into(),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
+        ..Default::default()
     })
     .chain_port(
         bdm_domain::ChainId::evm(fake.chain_id),

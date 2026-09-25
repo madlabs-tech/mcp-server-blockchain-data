@@ -265,9 +265,7 @@ mod tests {
         let meta = VendorMeta {
             id: "public".into(),
             display_name: "public".into(),
-            requires_key: false,
-            signup_url: None,
-            rpc_features: Default::default(),
+            ..Default::default()
         };
         let reg = guard_chain_ids(
             Registration::new(meta)

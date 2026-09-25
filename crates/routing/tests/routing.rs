@@ -100,9 +100,7 @@ fn meta(id: &str) -> VendorMeta {
     VendorMeta {
         id: id.into(),
         display_name: id.into(),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
+        ..Default::default()
     }
 }
 
