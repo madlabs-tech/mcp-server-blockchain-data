@@ -97,6 +97,10 @@ impl Operation for Panicking {
 }
 
 fn app(cfg: &str, regs: Vec<Registration>) -> (App, Arc<AtomicUsize>) {
+    app_with_cache(cfg, regs, 1000)
+}
+
+fn app_with_cache(cfg: &str, regs: Vec<Registration>, cache_max: u64) -> (App, Arc<AtomicUsize>) {
     let loader = ConfigLoader::new(ConfigDir::new("/nonexistent"), EnvSource::default()).unwrap();
     let config = Arc::new(loader.load_texts(cfg, "").unwrap());
     let router = Router::new(
@@ -113,7 +117,7 @@ fn app(cfg: &str, regs: Vec<Registration>) -> (App, Arc<AtomicUsize>) {
     catalog.register(Echo(count.clone()));
     catalog.register(TradingOnly);
     catalog.register(Panicking);
-    (App::new(catalog, router, 1000), count)
+    (App::new(catalog, router, cache_max), count)
 }
 
 #[tokio::test]
@@ -185,6 +189,55 @@ async fn config_cache_ttl_zero_disables_cache() {
         .await
         .unwrap();
     assert_eq!(count.load(Ordering::SeqCst), 2);
+}
+
+async fn echo(app: &App, msg: &str) -> Value {
+    app.call("test_echo", json!({ "msg": msg }), Caller::local())
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn cache_entry_expires_after_its_ttl() {
+    let (app, count) = app("[operations.test_echo]\ncache_ttl_secs = 1\n", vec![]);
+    echo(&app, "x").await;
+    assert_eq!(echo(&app, "x").await["meta"]["cached"], json!(true));
+    tokio::time::sleep(Duration::from_millis(1100)).await;
+    assert_eq!(echo(&app, "x").await["meta"]["cached"], json!(false));
+    assert_eq!(count.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn cache_capacity_zero_caches_nothing() {
+    let (app, count) = app_with_cache("", vec![], 0);
+    echo(&app, "x").await;
+    assert_eq!(echo(&app, "x").await["meta"]["cached"], json!(false));
+    assert_eq!(count.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn cache_is_consistent_under_concurrent_calls() {
+    let (app, _) = app("", vec![]);
+    let app = Arc::new(app);
+    let tasks: Vec<_> = (0..64)
+        .map(|i| {
+            let app = app.clone();
+            tokio::spawn(async move {
+                let msg = (i % 8).to_string();
+                (echo(&app, &msg).await, msg)
+            })
+        })
+        .collect();
+    for t in tasks {
+        let (out, msg) = t.await.unwrap();
+        assert_eq!(out["data"]["msg"], json!(msg));
+    }
+    for i in 0..8 {
+        assert_eq!(
+            echo(&app, &i.to_string()).await["meta"]["cached"],
+            json!(true)
+        );
+    }
 }
 
 #[tokio::test]
