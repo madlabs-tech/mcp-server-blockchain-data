@@ -42,7 +42,7 @@ struct Args {
 }
 
 const USAGE: &str =
-    "usage: onchain-data-mcp [serve | clients create <name> | clients list] [--config-dir DIR]";
+    "usage: onchain-data-mcp [serve | clients create <name> | clients list] [--config-dir DIR] [--version]";
 
 fn parse_args() -> Result<Args> {
     let mut command = Command::Run { serve: false };
@@ -67,6 +67,10 @@ fn parse_args() -> Result<Args> {
             "--config-dir" => config_dir = it.next().context("--config-dir needs a value")?.into(),
             "-h" | "--help" => {
                 eprintln!("{USAGE}");
+                std::process::exit(0);
+            }
+            "-V" | "--version" => {
+                println!("onchain-data-mcp {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             }
             other => bail!("unknown argument '{other}' (try --help)"),
