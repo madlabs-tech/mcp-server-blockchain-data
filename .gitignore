@@ -3,6 +3,7 @@
 config/config.toml
 config/secrets.toml
 config/admin_token
+config/dashboard_password
 *.db
 *.db-wal
 *.db-shm

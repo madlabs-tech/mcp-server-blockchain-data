@@ -31,6 +31,7 @@ fn bin(dir: &Path) -> Command {
         .env_remove("QN_ENDPOINT_NAME")
         .env_remove("QN_TOKEN_ID")
         .env_remove("ODM__SERVER__MODE")
+        .env_remove("DASHBOARD_PASSWORD")
         .kill_on_drop(true);
     c
 }
@@ -171,7 +172,7 @@ async fn hosted_mode_auth_limits_and_admin_bind() {
         "other clients are unaffected"
     );
 
-    // admin API lives only on admin_bind, and needs the admin token
+    // admin API lives only on admin_bind, and needs the dashboard password
     let r = http
         .get(format!("{base}/admin/api/health"))
         .send()
@@ -191,11 +192,11 @@ async fn hosted_mode_auth_limits_and_admin_bind() {
     assert_eq!(r.status(), 404, "no admin routes on the public port");
     let admin_url = format!("http://127.0.0.1:{admin}/admin/api/health");
     assert_eq!(http.get(&admin_url).send().await.unwrap().status(), 401);
-    let token = std::fs::read_to_string(dir.path().join("admin_token")).unwrap();
+    let token = std::fs::read_to_string(dir.path().join("dashboard_password")).unwrap();
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        let mode = std::fs::metadata(dir.path().join("admin_token"))
+        let mode = std::fs::metadata(dir.path().join("dashboard_password"))
             .unwrap()
             .permissions()
             .mode();
@@ -212,4 +213,42 @@ async fn hosted_mode_auth_limits_and_admin_bind() {
     let health: Value = r.json().await.unwrap();
     assert_eq!(health["mode"], "hosted");
     assert_eq!(health["clients"], 2);
+}
+
+#[tokio::test]
+async fn password_command_prints_admin_url_and_login_link() {
+    let dir = tempfile::tempdir().unwrap();
+    let admin = free_port();
+    write_config(dir.path(), free_port(), admin);
+    let out = bin(dir.path()).arg("password").output().await.unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stdout = String::from_utf8(out.stdout).unwrap();
+    let pw = std::fs::read_to_string(dir.path().join("dashboard_password")).unwrap();
+    assert!(
+        stdout.contains(&format!(
+            "http://127.0.0.1:{admin}/dashboard#login={}",
+            pw.trim()
+        )),
+        "{stdout}"
+    );
+    assert!(stdout.contains("Source: "), "{stdout}");
+}
+
+#[tokio::test]
+async fn password_reset_refuses_when_set_by_env() {
+    let dir = tempfile::tempdir().unwrap();
+    write_config(dir.path(), free_port(), free_port());
+    let out = bin(dir.path())
+        .args(["password", "reset"])
+        .env("DASHBOARD_PASSWORD", "from-the-env-123")
+        .output()
+        .await
+        .unwrap();
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("DASHBOARD_PASSWORD setting"));
+    assert!(!dir.path().join("dashboard_password").exists());
 }

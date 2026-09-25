@@ -1,7 +1,7 @@
 //! Admin API (`/admin/api/*`) and the embedded dashboard (`/dashboard`).
 //!
 //! Security:
-//! - every `/admin/api/*` call needs `Authorization: Bearer <admin token>` (401 otherwise) and
+//! - every `/admin/api/*` call needs `Authorization: Bearer <dashboard password>` (401 otherwise) and
 //!   the custom header `X-BDM-Admin: 1` (403 otherwise; browsers can't send it cross-site
 //!   without a CORS preflight, which we never grant, so it blocks CSRF);
 //! - secrets are never returned: key fields are write-only (status only), and config responses
@@ -39,7 +39,6 @@ use serde_json::{json, Value};
 use std::{
     collections::HashMap,
     convert::Infallible,
-    path::Path as FsPath,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -139,26 +138,10 @@ impl AdminState {
     }
 }
 
-fn random_hex(bytes: usize) -> String {
+pub(crate) fn random_hex(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     rand::rng().fill_bytes(&mut buf);
     hex::encode(buf)
-}
-
-/// Read `<dir>/admin_token`, or generate it (32 random bytes, hex, mode 0600).
-/// Returns the token and whether it was just created (print it once in that case).
-pub fn ensure_admin_token(dir: &FsPath) -> std::io::Result<(String, bool)> {
-    let path = dir.join("admin_token");
-    match std::fs::read_to_string(&path) {
-        Ok(t) if t.trim().len() >= 32 => return Ok((t.trim().to_owned(), false)),
-        Ok(_) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e) => return Err(e),
-    }
-    let token = random_hex(32);
-    bdm_config::write_atomic(&path, &format!("{token}\n"), Some(0o600))
-        .map_err(std::io::Error::other)?;
-    Ok((token, true))
 }
 
 /// Dashboard + admin API router.
@@ -234,10 +217,10 @@ async fn admin_auth(State(s): State<AdminState>, req: Request, next: Next) -> Re
         .and_then(|v| v.strip_prefix("Bearer "))
         .unwrap_or_default();
     if !ct_eq(bearer.trim().as_bytes(), s.token.as_bytes()) {
-        return error_response(
-            DomainError::new(ErrorCode::Unauthorized, "missing or invalid admin token")
-                .with_hint("the token is in config/admin_token"),
-        );
+        return error_response(DomainError::new(
+            ErrorCode::Unauthorized,
+            "missing or invalid dashboard password (run `onchain-data-mcp password` to see it)",
+        ));
     }
     if h.get("x-bdm-admin").and_then(|v| v.to_str().ok()) != Some("1") {
         let e = DomainError::new(
@@ -300,16 +283,21 @@ fn bind_url(bind: &str) -> String {
     }
 }
 
+/// Base URL of the dashboard and admin API: `admin_bind` in hosted mode, `http_bind` otherwise.
+pub fn dashboard_base(srv: &bdm_config::ServerSettings) -> String {
+    if srv.mode == bdm_config::Mode::Hosted {
+        bind_url(srv.admin_bind.as_deref().unwrap_or("127.0.0.1:8788"))
+    } else {
+        bind_url(&srv.http_bind)
+    }
+}
+
 /// Facts the dashboard needs to generate MCP/REST client snippets. Secret-free by construction.
 async fn connect(State(s): State<AdminState>) -> Response {
     let cfg = s.router().table().config.clone();
     let srv = &cfg.settings.server;
     let hosted = srv.mode == bdm_config::Mode::Hosted;
-    let http_url = if hosted {
-        bind_url(srv.admin_bind.as_deref().unwrap_or("127.0.0.1:8788"))
-    } else {
-        bind_url(&srv.http_bind)
-    };
+    let http_url = dashboard_base(srv);
     let public_url = hosted.then(|| bind_url(srv.public_bind.as_deref().unwrap_or_default()));
     let mcp_url = format!("{}/mcp", public_url.as_deref().unwrap_or(&http_url));
     let binary_path = std::env::current_exe()
