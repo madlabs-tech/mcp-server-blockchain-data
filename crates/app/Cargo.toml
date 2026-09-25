@@ -27,7 +27,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["test-util"] }
 bdm-testkit = { workspace = true }
 
 [lints]
