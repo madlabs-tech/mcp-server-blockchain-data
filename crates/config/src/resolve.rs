@@ -7,7 +7,7 @@ use crate::{
     settings::{ClientLimits, OnExhausted, OperationSettings, WindowBudget},
 };
 use bdm_domain::ChainId;
-use bdm_ports::{Capability, RPC_VENDOR};
+use bdm_ports::{Capability, VendorMeta, RPC_VENDOR};
 use serde::Serialize;
 
 /// Which config level produced an order (shown in the dashboard's effective-order view).
@@ -174,6 +174,18 @@ impl Loaded {
             }
         }
         VendorStatus::Active
+    }
+
+    /// Admin-facing metadata for a vendor, from its registry entry (bare id if unknown).
+    pub fn vendor_meta(&self, vendor: &str) -> VendorMeta {
+        let e = self.registry.vendors.get(vendor);
+        VendorMeta {
+            id: vendor.to_owned(),
+            display_name: e.map_or_else(|| vendor.to_owned(), |e| e.display_name.clone()),
+            requires_key: e.is_some_and(|e| e.requires_key),
+            signup_url: e.and_then(|e| e.signup_url.clone()),
+            rpc_features: e.map(|e| e.rpc_features.clone()).unwrap_or_default(),
+        }
     }
 
     pub fn key(&self, vendor: &str, field: &str) -> Option<&str> {

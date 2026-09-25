@@ -2,7 +2,7 @@
 //! Owner: `market-trading` (T1.M3). `quote` → `GET /prices` (v6.2); `build` → `/prices` then
 //! `POST /transactions/{network}` + ERC-20 approval to the route's token-transfer proxy.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -21,7 +21,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     }
     let a = Arc::new(Velora::new(util::http(loaded, ID), BASE));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::SwapQuote(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::SwapQuote(a)));
 }
 
 pub struct Velora {

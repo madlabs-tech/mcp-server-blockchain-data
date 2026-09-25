@@ -1,7 +1,7 @@
 //! `defillama` coins API (`coins.llama.fi`, keyless, non-Pro endpoints only).
 //! Owner: `market-trading` (T1.M1). Ports: `PriceFeed`, `PriceHistory` (USD).
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -20,7 +20,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     }
     let a = Arc::new(DefiLlama::new(util::http(loaded, ID), BASE));
     out.push(
-        Registration::new(util::meta(loaded, ID))
+        Registration::new(loaded.vendor_meta(ID))
             .global_port(PortHandle::Price(a.clone()))
             .global_port(PortHandle::PriceHistory(a)),
     );

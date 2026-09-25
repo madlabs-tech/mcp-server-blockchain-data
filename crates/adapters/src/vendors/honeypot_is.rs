@@ -1,7 +1,7 @@
 //! `honeypot_is` (keyless). Buy/sell simulation for Ethereum, BSC and Base only.
 //! Owner: `market-trading` (T1.M2). Port: `TokenRisk`.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -21,7 +21,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     }
     let a = Arc::new(HoneypotIs::new(util::http(loaded, ID), BASE));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::TokenRisk(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::TokenRisk(a)));
 }
 
 pub struct HoneypotIs {

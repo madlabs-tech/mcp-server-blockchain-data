@@ -22,7 +22,7 @@ use bdm_domain::{
 use bdm_ports::{
     Capability, EvmRpc, FeeOracle, Page, PortHandle, PortResult, ProviderError, Registration,
     SimulationResult, Simulator, TokenBalance, TokenBalances, TokenInfo, TokenMetadata,
-    TransferHistory, TransferQuery, VendorMeta, RPC_VENDOR,
+    TransferHistory, TransferQuery, RPC_VENDOR,
 };
 use bdm_routing::{RoutedEvmRpc, Router};
 use serde_json::{json, Map, Value};
@@ -34,17 +34,7 @@ const NATIVE_TRANSFER_EMITTER: Address = address!("EeeeeEeeeEeEeeEeEeEeeEEEeeeeE
 
 pub fn registrations(loaded: &Loaded, router: &Arc<Router>) -> Vec<Registration> {
     let stables = StablecoinRegistry::builtin().unwrap_or_default();
-    let meta = VendorMeta {
-        id: RPC_VENDOR.to_owned(),
-        display_name: loaded.registry.vendors.get(RPC_VENDOR).map_or_else(
-            || "On-chain via routed RPC".into(),
-            |e| e.display_name.clone(),
-        ),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    };
-    let mut reg = Registration::new(meta);
+    let mut reg = Registration::new(loaded.vendor_meta(RPC_VENDOR));
     for chain in loaded
         .registry
         .chains

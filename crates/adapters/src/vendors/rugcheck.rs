@@ -3,7 +3,7 @@
 //! sent raw in `Authorization` (api.rugcheck.xyz/swagger/doc.json `ApiKeyAuth`, checked 2026-09-25).
 //! Owner: `market-trading` (T1.M2). Port: `TokenRisk`.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -24,7 +24,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         BASE,
         loaded.key(ID, "api_key"),
     ));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::TokenRisk(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::TokenRisk(a)));
 }
 
 pub struct RugCheck {

@@ -6,7 +6,7 @@
 //! ERC-20/SPL assets return `Unsupported` and routing moves on. Feed ids are looked up once via
 //! Hermes `/v2/price_feeds` and cached.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -31,7 +31,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     };
     let a = Arc::new(Pyth::new(util::http(loaded, ID), HERMES, BENCHMARKS, key));
     out.push(
-        Registration::new(util::meta(loaded, ID))
+        Registration::new(loaded.vendor_meta(ID))
             .global_port(PortHandle::Price(a.clone()))
             .global_port(PortHandle::PriceHistory(a)),
     );

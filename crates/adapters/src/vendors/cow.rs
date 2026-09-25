@@ -5,7 +5,7 @@
 //! so `build` returns `Unsupported` and routing moves to the next vendor. Native sells need
 //! the eth-flow contract and are not supported.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -24,7 +24,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     }
     let a = Arc::new(Cow::new(util::http(loaded, ID), BASE));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::SwapQuote(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::SwapQuote(a)));
 }
 
 pub struct Cow {

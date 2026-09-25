@@ -8,14 +8,16 @@
 //!
 //! No `QuotaReporter`: no credit-free usage endpoint is confirmed.
 
-use crate::http::{HttpClient, DEFAULT_TIMEOUT};
+use super::util;
+
+use crate::http::HttpClient;
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
 use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef, BlockRef, Transfer, TransferKind};
 use bdm_ports::{
     Direction, Page, PortHandle, PortResult, ProviderError, Registration, TokenBalance,
-    TokenBalances, TransferHistory, TransferQuery, VendorMeta,
+    TokenBalances, TransferHistory, TransferQuery,
 };
 use serde_json::Value;
 use std::sync::Arc;
@@ -33,20 +35,11 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status(VENDOR) != VendorStatus::Active {
         return;
     }
-    let (Some(entry), Some(key)) = (
-        loaded.registry.vendors.get(VENDOR),
-        loaded.key(VENDOR, "api_key"),
-    ) else {
+    let Some(key) = loaded.key(VENDOR, "api_key") else {
         return;
     };
-    let http = HttpClient::new(VENDOR, DEFAULT_TIMEOUT).with_secrets(loaded.secret_values());
-    let mut reg = Registration::new(VendorMeta {
-        id: VENDOR.into(),
-        display_name: entry.display_name.clone(),
-        requires_key: entry.requires_key,
-        signup_url: entry.signup_url.clone(),
-        rpc_features: Default::default(),
-    });
+    let http = util::http(loaded, VENDOR);
+    let mut reg = Registration::new(loaded.vendor_meta(VENDOR));
     for chain in loaded.registry.chains.enabled() {
         if !chain
             .id
@@ -265,6 +258,7 @@ impl Moralis {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http::DEFAULT_TIMEOUT;
     use bdm_config::Registry;
     use bdm_testkit::{
         vendor_fixture,

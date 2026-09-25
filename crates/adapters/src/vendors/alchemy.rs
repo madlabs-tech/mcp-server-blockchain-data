@@ -9,10 +9,9 @@
 //!
 //! No `QuotaReporter`: no credit-free usage endpoint is confirmed.
 
-use crate::{
-    http::{HttpClient, DEFAULT_TIMEOUT},
-    jsonrpc::{array_field, JsonRpcClient},
-};
+use super::util;
+
+use crate::jsonrpc::{array_field, JsonRpcClient};
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, VendorStatus};
@@ -21,7 +20,7 @@ use bdm_domain::{
 };
 use bdm_ports::{
     Direction, Page, PortHandle, PortResult, ProviderError, Registration, TokenBalance,
-    TokenBalances, TransferHistory, TransferQuery, VendorMeta,
+    TokenBalances, TransferHistory, TransferQuery,
 };
 use serde_json::{json, Map, Value};
 use std::sync::Arc;
@@ -37,17 +36,8 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status(VENDOR) != VendorStatus::Active {
         return;
     }
-    let Some(entry) = loaded.registry.vendors.get(VENDOR) else {
-        return;
-    };
-    let http = HttpClient::new(VENDOR, DEFAULT_TIMEOUT).with_secrets(loaded.secret_values());
-    let mut reg = Registration::new(VendorMeta {
-        id: VENDOR.into(),
-        display_name: entry.display_name.clone(),
-        requires_key: entry.requires_key,
-        signup_url: entry.signup_url.clone(),
-        rpc_features: entry.rpc_features.clone(),
-    });
+    let http = util::http(loaded, VENDOR);
+    let mut reg = Registration::new(loaded.vendor_meta(VENDOR));
     for chain in loaded
         .registry
         .chains
@@ -80,7 +70,7 @@ impl Alchemy {
     fn new(url: String, chain: ChainEntry) -> Self {
         Self {
             rpc: JsonRpcClient::new(
-                HttpClient::new(VENDOR, DEFAULT_TIMEOUT),
+                crate::http::HttpClient::new(VENDOR, crate::http::DEFAULT_TIMEOUT),
                 bdm_config::Redacted::new(url),
             ),
             chain,

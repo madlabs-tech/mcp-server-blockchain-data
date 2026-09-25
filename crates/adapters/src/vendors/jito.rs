@@ -15,7 +15,7 @@ use crate::{
 use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
 use bdm_ports::{
-    BroadcastReceipt, Broadcaster, PortHandle, PortResult, ProviderError, Registration, VendorMeta,
+    BroadcastReceipt, Broadcaster, PortHandle, PortResult, ProviderError, Registration,
 };
 use bdm_protocols::solana::{fees::JITO_MIN_TIP_LAMPORTS, tx, SOLANA_MAINNET};
 use serde_json::json;
@@ -49,14 +49,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     else {
         return;
     };
-    let e = loaded.registry.vendors.get("jito");
-    let meta = VendorMeta {
-        id: "jito".into(),
-        display_name: e.map_or_else(|| "Jito".into(), |e| e.display_name.clone()),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    };
+    let meta = loaded.vendor_meta("jito");
     let rpc = JsonRpcClient::new(
         HttpClient::new("jito", DEFAULT_TIMEOUT),
         Redacted::new(TX_URL.to_owned()),

@@ -4,17 +4,14 @@
 //! (https://www.ankr.com/docs/advanced-api/token-methods/). Off by default: the free plan
 //! (200M credits/month, 50 req/min) needs a signup key; 700 credits per call. Not on Robinhood.
 
-use crate::{
-    http::{HttpClient, DEFAULT_TIMEOUT},
-    jsonrpc::JsonRpcClient,
-};
+use super::util;
+
+use crate::jsonrpc::JsonRpcClient;
 use alloy_primitives::U256;
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
 use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef};
-use bdm_ports::{
-    PortHandle, PortResult, ProviderError, Registration, TokenBalance, TokenBalances, VendorMeta,
-};
+use bdm_ports::{PortHandle, PortResult, ProviderError, Registration, TokenBalance, TokenBalances};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -41,20 +38,11 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status(VENDOR) != VendorStatus::Active {
         return;
     }
-    let (Some(entry), Some(key)) = (
-        loaded.registry.vendors.get(VENDOR),
-        loaded.key(VENDOR, "api_key"),
-    ) else {
+    let Some(key) = loaded.key(VENDOR, "api_key") else {
         return;
     };
-    let http = HttpClient::new(VENDOR, DEFAULT_TIMEOUT).with_secrets(loaded.secret_values());
-    let mut reg = Registration::new(VendorMeta {
-        id: VENDOR.into(),
-        display_name: entry.display_name.clone(),
-        requires_key: entry.requires_key,
-        signup_url: entry.signup_url.clone(),
-        rpc_features: Default::default(),
-    });
+    let http = util::http(loaded, VENDOR);
+    let mut reg = Registration::new(loaded.vendor_meta(VENDOR));
     for chain in loaded.registry.chains.enabled() {
         let Some(name) = chain.id.evm_chain_id().and_then(blockchain) else {
             continue;
@@ -132,6 +120,7 @@ impl Ankr {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http::{HttpClient, DEFAULT_TIMEOUT};
     use bdm_config::{ConfigDir, ConfigLoader, EnvSource, Registry};
     use bdm_testkit::{vendor_fixture, FakeJsonRpc};
 

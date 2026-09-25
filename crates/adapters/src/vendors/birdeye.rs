@@ -2,7 +2,7 @@
 //! Ports: `PriceFeed` (USD, with liquidity), `PriceHistory` (1-minute candles). Headers:
 //! `X-API-KEY` and `x-chain`. Native SOL is priced through the wrapped-SOL mint.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -27,7 +27,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     };
     let a = Arc::new(Birdeye::new(util::http(loaded, ID), BASE, key));
     out.push(
-        Registration::new(util::meta(loaded, ID))
+        Registration::new(loaded.vendor_meta(ID))
             .global_port(PortHandle::Price(a.clone()))
             .global_port(PortHandle::PriceHistory(a)),
     );

@@ -6,7 +6,7 @@
 //! Permit2, returned ready-made by the API) + `POST /v1/swap`. Quotes that need a Permit2
 //! signature (`permitData`) are not buildable here yet and return `Unsupported`.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -29,7 +29,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     };
     let a = Arc::new(UniswapApi::new(util::http(loaded, ID), BASE, key));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::SwapQuote(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::SwapQuote(a)));
 }
 
 pub struct UniswapApi {

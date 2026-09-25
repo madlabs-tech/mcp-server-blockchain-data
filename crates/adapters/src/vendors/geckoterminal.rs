@@ -1,7 +1,7 @@
 //! `geckoterminal` public API (keyless, ~10–30 req/min ⚠). Owner: `market-trading` (T1.M1).
 //! Ports: `PriceFeed` (USD, tokens only, with pool reserve as liquidity), `TokenMetadata`.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -24,7 +24,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     }
     let a = Arc::new(GeckoTerminal::new(util::http(loaded, ID), BASE));
     out.push(
-        Registration::new(util::meta(loaded, ID))
+        Registration::new(loaded.vendor_meta(ID))
             .global_port(PortHandle::Price(a.clone()))
             .global_port(PortHandle::TokenMetadata(a)),
     );

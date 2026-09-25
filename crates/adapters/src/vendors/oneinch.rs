@@ -2,7 +2,7 @@
 //! `quote` → `/quote`; `build` → `/swap` (needs `taker`) + ERC-20 approval to the router
 //! (the swap tx's `to`). Robinhood Chain (4663) is supported per 1inch docs.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -24,7 +24,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     };
     let a = Arc::new(OneInch::new(util::http(loaded, ID), BASE, key));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::SwapQuote(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::SwapQuote(a)));
 }
 
 pub struct OneInch {

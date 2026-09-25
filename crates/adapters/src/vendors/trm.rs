@@ -7,14 +7,15 @@
 //! `TRM_API_KEY` it sends HTTP Basic with the key as both username and password (higher limits).
 //! There is no chain field: the address alone is screened.
 
-use crate::http::{HttpClient, DEFAULT_TIMEOUT};
+use super::util;
+
+use crate::http::HttpClient;
 use async_trait::async_trait;
 use base64::Engine;
 use bdm_config::{Loaded, Redacted, VendorStatus};
 use bdm_domain::AccountId;
 use bdm_ports::{
     PortHandle, PortResult, ProviderError, Registration, SanctionsScreener, ScreenResult,
-    VendorMeta,
 };
 use chrono::Utc;
 use reqwest::Method;
@@ -92,29 +93,21 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status(VENDOR) != VendorStatus::Active {
         return;
     }
-    let Some(entry) = loaded.registry.vendors.get(VENDOR) else {
-        return;
-    };
-    let secrets: Vec<String> = loaded
-        .secret_values()
-        .into_iter()
-        .map(str::to_owned)
-        .collect();
-    let http = HttpClient::new(VENDOR, DEFAULT_TIMEOUT).with_secrets(secrets);
-    let trm = Trm::new(http, URL.into(), loaded.key(VENDOR, "api_key"));
-    let meta = VendorMeta {
-        id: VENDOR.into(),
-        display_name: entry.display_name.clone(),
-        requires_key: entry.requires_key,
-        signup_url: entry.signup_url.clone(),
-        rpc_features: Default::default(),
-    };
-    out.push(Registration::new(meta).global_port(PortHandle::Sanctions(Arc::new(trm))));
+    let trm = Trm::new(
+        util::http(loaded, VENDOR),
+        URL.into(),
+        loaded.key(VENDOR, "api_key"),
+    );
+    out.push(
+        Registration::new(loaded.vendor_meta(VENDOR))
+            .global_port(PortHandle::Sanctions(Arc::new(trm))),
+    );
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http::DEFAULT_TIMEOUT;
     use bdm_testkit::wiremock::{
         matchers::{body_json, header, method, path},
         Mock, MockServer, ResponseTemplate,

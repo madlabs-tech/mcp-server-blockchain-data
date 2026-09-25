@@ -1,11 +1,11 @@
-//! Helpers shared by the market-trading vendor modules (`use super::market_util as util;`).
-#![allow(dead_code)] // not every helper is used when a single vendor feature builds alone
+//! Helpers shared by the vendor modules (`use super::util;`).
+#![allow(dead_code)] // not every helper is used when a single vendor feature (or none) builds
 
 use crate::http::{HttpClient, DEFAULT_TIMEOUT};
 use alloy_primitives::{Address, U256};
 use bdm_config::Loaded;
 use bdm_domain::{AssetId, AssetRef, ChainId, UnsignedTx};
-use bdm_ports::{PortResult, ProviderError, VendorMeta};
+use bdm_ports::{PortResult, ProviderError};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde_json::Value;
@@ -18,17 +18,6 @@ pub const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
 
 pub fn http(loaded: &Loaded, vendor: &str) -> HttpClient {
     HttpClient::new(vendor, DEFAULT_TIMEOUT).with_secrets(loaded.secret_values())
-}
-
-pub fn meta(loaded: &Loaded, vendor: &str) -> VendorMeta {
-    let e = loaded.registry.vendors.get(vendor);
-    VendorMeta {
-        id: vendor.to_owned(),
-        display_name: e.map_or_else(|| vendor.to_owned(), |e| e.display_name.clone()),
-        requires_key: e.is_some_and(|e| e.requires_key),
-        signup_url: e.and_then(|e| e.signup_url.clone()),
-        rpc_features: Default::default(),
-    }
 }
 
 pub fn is_solana_mainnet(chain: &ChainId) -> bool {

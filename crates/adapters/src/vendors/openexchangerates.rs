@@ -6,17 +6,19 @@
 //! computed here: `base→quote = rates[quote] / rates[base]` in `rust_decimal`.
 //! `/usage.json` feeds the quota dashboard. Docs: https://docs.openexchangerates.org/
 
-use crate::http::{HttpClient, DEFAULT_TIMEOUT};
+use super::util;
+
+use crate::http::HttpClient;
 use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
 use bdm_ports::{
     FxRate, FxRates, PortHandle, PortResult, ProviderError, QuotaReporter, Registration, UsageUnit,
-    UsageWindow, VendorMeta, VendorUsage, WindowKind,
+    UsageWindow, VendorUsage, WindowKind,
 };
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
 use serde_json::Value;
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 const ID: &str = "openexchangerates";
 pub const BASE_URL: &str = "https://openexchangerates.org/api";
@@ -29,18 +31,13 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     let Some(app_id) = loaded.key(ID, "app_id") else {
         return;
     };
-    let http = HttpClient::new(ID, DEFAULT_TIMEOUT).with_secrets(loaded.secret_values());
-    let oxr = Arc::new(OpenExchangeRates::new(http, BASE_URL, app_id));
-    let e = loaded.registry.vendors.get(ID);
-    let meta = VendorMeta {
-        id: ID.into(),
-        display_name: e.map_or("Open Exchange Rates".into(), |e| e.display_name.clone()),
-        requires_key: true,
-        signup_url: e.and_then(|e| e.signup_url.clone()),
-        rpc_features: Default::default(),
-    };
+    let oxr = Arc::new(OpenExchangeRates::new(
+        util::http(loaded, ID),
+        BASE_URL,
+        app_id,
+    ));
     out.push(
-        Registration::new(meta)
+        Registration::new(loaded.vendor_meta(ID))
             .global_port(PortHandle::Fx(oxr.clone()))
             .with_quota_reporter(oxr),
     );
@@ -108,14 +105,6 @@ impl QuotaReporter for OpenExchangeRates {
     }
 }
 
-/// JSON number → exact decimal via its shortest round-trip text (no float arithmetic).
-fn json_decimal(v: &Value) -> Option<Decimal> {
-    let s = v.as_number()?.to_string();
-    Decimal::from_str(&s)
-        .or_else(|_| Decimal::from_scientific(&s))
-        .ok()
-}
-
 /// Cross rate from a USD-based table.
 #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 fn parse(v: &Value, base: &str, quote: &str, date: Option<NaiveDate>) -> PortResult<FxRate> {
@@ -128,7 +117,7 @@ fn parse(v: &Value, base: &str, quote: &str, date: Option<NaiveDate>) -> PortRes
         if c == "USD" {
             return Ok(Decimal::ONE);
         }
-        json_decimal(&v["rates"][c])
+        util::dec(&v["rates"][c])
             .filter(|d| !d.is_zero())
             .ok_or_else(|| ProviderError::Unsupported(format!("no {c} rate")))
     };
@@ -153,11 +142,13 @@ fn parse(v: &Value, base: &str, quote: &str, date: Option<NaiveDate>) -> PortRes
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http::DEFAULT_TIMEOUT;
     use bdm_testkit::wiremock::{
         matchers::{method, path, query_param},
         Mock, MockServer, ResponseTemplate,
     };
     use serde_json::json;
+    use std::str::FromStr;
 
     fn table() -> Value {
         json!({"timestamp": 1_758_124_800, "base": "USD", "rates": {"EUR": 0.8, "GBP": 0.75, "JPY": 150}})

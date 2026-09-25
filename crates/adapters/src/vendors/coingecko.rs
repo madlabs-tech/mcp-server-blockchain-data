@@ -4,7 +4,7 @@
 //! GeckoTerminal network + contract), native coins use `/simple/price` with the coin id.
 //! Ports: `PriceFeed`, `PriceHistory` (365 days on Demo), `TokenMetadata`.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -31,7 +31,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     };
     let a = Arc::new(CoinGecko::new(util::http(loaded, ID), BASE, key));
     out.push(
-        Registration::new(util::meta(loaded, ID))
+        Registration::new(loaded.vendor_meta(ID))
             .global_port(PortHandle::Price(a.clone()))
             .global_port(PortHandle::PriceHistory(a.clone()))
             .global_port(PortHandle::TokenMetadata(a)),

@@ -6,7 +6,7 @@
 //! go out unauthenticated at the public limit.
 //! Port: `TokenRisk` for EVM (`/token_security/{chain_id}`) and Solana (`/solana/token_security`).
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -30,7 +30,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     }
     let creds = loaded.key(ID, "app_key").zip(loaded.key(ID, "app_secret"));
     let a = Arc::new(GoPlus::new(util::http(loaded, ID), BASE, creds));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::TokenRisk(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::TokenRisk(a)));
 }
 
 pub struct GoPlus {

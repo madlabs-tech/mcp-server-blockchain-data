@@ -10,14 +10,13 @@
 //!
 //! Source: <https://www.quicknode.com/docs/solana/qn_estimatePriorityFees>.
 
-use crate::{
-    http::{HttpClient, DEFAULT_TIMEOUT},
-    jsonrpc::JsonRpcClient,
-};
+use super::util;
+
+use crate::jsonrpc::JsonRpcClient;
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, VendorStatus};
 use bdm_domain::{FeeEstimate, FeeSpeed};
-use bdm_ports::{FeeOracle, PortHandle, PortResult, ProviderError, Registration, VendorMeta};
+use bdm_ports::{FeeOracle, PortHandle, PortResult, ProviderError, Registration};
 use bdm_protocols::solana::{fees, SOLANA_MAINNET};
 use serde_json::json;
 use std::sync::{
@@ -43,16 +42,8 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     let Some(url) = loaded.rpc_url(VENDOR, &chain.id) else {
         return;
     };
-    let e = loaded.registry.vendors.get(VENDOR);
-    let meta = VendorMeta {
-        id: VENDOR.into(),
-        display_name: e.map_or_else(|| "QuickNode".into(), |e| e.display_name.clone()),
-        requires_key: true,
-        signup_url: e.and_then(|e| e.signup_url.clone()),
-        rpc_features: e.map(|e| e.rpc_features.clone()).unwrap_or_default(),
-    };
-    let http = HttpClient::new(VENDOR, DEFAULT_TIMEOUT)
-        .with_secrets(loaded.secret_values().into_iter().map(str::to_owned));
+    let meta = loaded.vendor_meta(VENDOR);
+    let http = util::http(loaded, VENDOR);
     let fees = Arc::new(QuickNodeFees::new(
         JsonRpcClient::new(http, url),
         chain.clone(),
@@ -127,6 +118,7 @@ impl FeeOracle for QuickNodeFees {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http::HttpClient;
     use bdm_config::{Redacted, Registry};
     use bdm_testkit::FakeJsonRpc;
     use std::time::Duration;

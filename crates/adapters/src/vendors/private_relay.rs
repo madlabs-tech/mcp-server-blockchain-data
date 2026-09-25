@@ -12,7 +12,7 @@ use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
 use bdm_domain::ChainId;
 use bdm_ports::{
-    BroadcastReceipt, Broadcaster, PortHandle, PortResult, ProviderError, Registration, VendorMeta,
+    BroadcastReceipt, Broadcaster, PortHandle, PortResult, ProviderError, Registration,
 };
 use std::sync::Arc;
 
@@ -29,19 +29,10 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>, (vendor, url): (&s
     {
         return;
     }
-    let Some(entry) = loaded.registry.vendors.get(vendor) else {
-        return;
-    };
-    let meta = VendorMeta {
-        id: vendor.into(),
-        display_name: entry.display_name.clone(),
-        requires_key: false,
-        signup_url: entry.signup_url.clone(),
-        rpc_features: Default::default(),
-    };
-    let relay = Relay::new(vendor, url.into());
+    let relay = Arc::new(Relay::new(vendor, url.into()));
     out.push(
-        Registration::new(meta).chain_port(mainnet, PortHandle::PrivateRelay(Arc::new(relay))),
+        Registration::new(loaded.vendor_meta(vendor))
+            .chain_port(mainnet, PortHandle::PrivateRelay(relay)),
     );
 }
 

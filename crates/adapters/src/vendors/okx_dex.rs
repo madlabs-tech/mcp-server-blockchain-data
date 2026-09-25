@@ -6,7 +6,7 @@
 //! `quote` → `/quote` (EVM + Solana); `build` → `/swap` + approval to the spender from
 //! `/approve-transaction` (EVM only; Solana builds are not supported yet).
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -39,7 +39,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     };
     let a = Arc::new(OkxDex::new(util::http(loaded, ID), BASE, key, secret, pass));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::SwapQuote(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::SwapQuote(a)));
 }
 
 pub struct OkxDex {

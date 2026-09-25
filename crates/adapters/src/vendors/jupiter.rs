@@ -13,19 +13,20 @@
 //! Sources: <https://developers.jup.ag/docs/price>, <https://developers.jup.ag/docs/swap/order-and-execute>,
 //! <https://developers.jup.ag/docs/portal/rate-limits>.
 
-use crate::http::{HttpClient, DEFAULT_TIMEOUT};
+use super::util;
+
+use crate::http::HttpClient;
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
 use bdm_domain::{Amount, AssetId, AssetRef, Price, SwapQuote, UnsignedTx};
 use bdm_ports::{
     PortHandle, PortResult, PriceFeed, ProviderError, Registration, SwapQuoter, SwapRequest,
-    VendorMeta,
 };
 use bdm_protocols::solana::{spl::WRAPPED_SOL_MINT, tx, SOLANA_MAINNET};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde_json::Value;
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 pub const BASE_URL: &str = "https://api.jup.ag";
 
@@ -42,16 +43,8 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     else {
         return;
     };
-    let e = loaded.registry.vendors.get("jupiter");
-    let meta = VendorMeta {
-        id: "jupiter".into(),
-        display_name: e.map_or_else(|| "Jupiter".into(), |e| e.display_name.clone()),
-        requires_key: false,
-        signup_url: e.and_then(|e| e.signup_url.clone()),
-        rpc_features: Default::default(),
-    };
-    let http = HttpClient::new("jupiter", DEFAULT_TIMEOUT)
-        .with_secrets(loaded.secret_values().into_iter().map(str::to_owned));
+    let meta = loaded.vendor_meta("jupiter");
+    let http = util::http(loaded, "jupiter");
     let key = loaded
         .key("jupiter", "api_key")
         .map(|k| Redacted::new(k.to_owned()));
@@ -203,18 +196,6 @@ impl Jupiter {
     }
 }
 
-/// JSON number or string → exact `Decimal` (prices are rates, parsed from their text form).
-fn decimal(v: &Value) -> Option<Decimal> {
-    let s = match v {
-        Value::Number(n) => n.to_string(),
-        Value::String(s) => s.clone(),
-        _ => return None,
-    };
-    Decimal::from_str(&s)
-        .or_else(|_| Decimal::from_scientific(&s))
-        .ok()
-}
-
 #[async_trait]
 impl PriceFeed for Jupiter {
     #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
@@ -226,7 +207,7 @@ impl PriceFeed for Jupiter {
         }
         let mint = self.mint_of(asset)?;
         let e = self.price_entry(&mint).await?;
-        let value = decimal(&e["usdPrice"])
+        let value = util::dec(&e["usdPrice"])
             .filter(|p| *p > Decimal::ZERO)
             .ok_or(ProviderError::NotFound)?;
         Ok(Price {
@@ -235,7 +216,7 @@ impl PriceFeed for Jupiter {
             value,
             as_of: Utc::now(),
             source: "jupiter".into(),
-            liquidity_usd: decimal(&e["liquidity"]),
+            liquidity_usd: util::dec(&e["liquidity"]),
         })
     }
 }
@@ -265,6 +246,7 @@ mod tests {
         Mock, MockServer, ResponseTemplate,
     };
     use serde_json::json;
+    use std::str::FromStr;
     use std::time::Duration;
 
     const USDC: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
