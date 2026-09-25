@@ -1,0 +1,37 @@
+# cargo-dist release config. After editing, run `dist generate` to refresh .github/workflows/release.yml
+# (never hand-edit release.yml; `dist plan` fails in CI if it is stale).
+# Release = push a tag like v0.2.0 on a commit of main. Flow: build 5 targets + ci.yml (gate) ->
+# mcpb bundle -> GitHub Release -> Homebrew tap + ghcr image -> MCP Registry.
+[workspace]
+members = ["cargo:."]
+
+[dist]
+cargo-dist-version = "0.33.0"
+ci = "github"
+packages = ["onchain-data-mcp"]
+# Linux gnu builds run on ubuntu-22.04 runners (x86_64 and native arm64): needs glibc >= 2.35.
+# Older distros: use the Docker image.
+targets = [
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-pc-windows-msvc",
+]
+# To add npm later: append "npm" here and to publish-jobs, set npm-scope, add an NPM_TOKEN secret.
+installers = ["shell", "powershell", "homebrew"]
+tap = "madlabs-tech/homebrew-tap"
+publish-jobs = ["homebrew", "./publish-docker"]
+install-path = "CARGO_HOME"
+install-updater = false
+include = ["config/config.example.toml"]
+# ci.yml runs on PRs already; release.yml only runs for tags.
+pr-run-mode = "skip"
+local-artifacts-jobs = ["./ci"]
+global-artifacts-jobs = ["./build-mcpb"]
+post-announce-jobs = ["./publish-registry"]
+
+[dist.github-custom-job-permissions]
+build-mcpb = { contents = "read" }
+publish-docker = { contents = "read", packages = "write" }
+publish-registry = { contents = "read", id-token = "write" }

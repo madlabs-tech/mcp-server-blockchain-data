@@ -466,7 +466,7 @@ impl Store {
         if name.is_empty() || name.len() > 100 {
             return Err(StoreError("client name must be 1..=100 characters".into()));
         }
-        let key = format!("bdm_{}", random_hex(32));
+        let key = format!("odm_{}", random_hex(32));
         let rec = ClientRecord {
             id: format!("c_{}", random_hex(6)),
             name: name.to_owned(),
@@ -971,7 +971,7 @@ mod tests {
             );
             assert_eq!(s.total("alchemy", &month), 46);
             let (rec, key) = s.create_client("acme", None).await.unwrap();
-            assert!(key.starts_with("bdm_") && key.len() > 40);
+            assert!(key.starts_with("odm_") && key.len() > 40);
             assert_eq!(s.client_by_key(&key).unwrap().id, rec.id);
             s.admit_client("c1", now, Some(10), None).unwrap();
             s.log_call(CallRecord::from_result(
@@ -993,7 +993,7 @@ mod tests {
         assert_eq!(rows[0].0.client.as_deref(), Some("c1"));
         let c = s.client_by_key(&key).unwrap();
         assert_eq!(c.name, "acme");
-        assert!(s.client_by_key("bdm_wrong").is_none());
+        assert!(s.client_by_key("odm_wrong").is_none());
         assert_eq!(s.active_client_count(), 1);
         let cu = s.client_counters("c1", &month);
         assert_eq!((cu.requests, cu.credits), (1, 20));

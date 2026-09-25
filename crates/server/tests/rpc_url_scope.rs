@@ -46,12 +46,12 @@ async fn rpc_url_is_ethereum_only() {
         "[chain_overrides.base]\npublic_rpc = [\"http://127.0.0.1:9\"]\n",
     )
     .unwrap();
-    let cmd = Command::new(env!("CARGO_BIN_EXE_blockchain-data-mcp")).configure(|c| {
+    let cmd = Command::new(env!("CARGO_BIN_EXE_onchain-data-mcp")).configure(|c| {
         c.arg("--config-dir")
             .arg(dir.path())
             .env("RPC_URL", &url)
-            .env("BDM__SERVER__DASHBOARD", "false")
-            .env("BDM__SERVER__WARMUP", "false")
+            .env("ODM__SERVER__DASHBOARD", "false")
+            .env("ODM__SERVER__WARMUP", "false")
             .env("RUST_LOG", "error")
             .env_remove("ALCHEMY_API_KEY")
             .env_remove("QN_ENDPOINT_NAME")

@@ -218,7 +218,7 @@ mod tests {
         .unwrap();
         let loader = ConfigLoader::new(
             ConfigDir::new(dir.path()),
-            EnvSource::from_pairs([("BDM__VENDORS__ALCHEMY__CAP__MONTHLY", "100")]),
+            EnvSource::from_pairs([("ODM__VENDORS__ALCHEMY__CAP__MONTHLY", "100")]),
         )
         .unwrap();
         let cur = loader.load().unwrap();
@@ -273,7 +273,7 @@ mod tests {
         .unwrap_err();
         assert!(err[0]
             .message
-            .contains("BDM__VENDORS__ALCHEMY__CAP__MONTHLY"));
+            .contains("ODM__VENDORS__ALCHEMY__CAP__MONTHLY"));
 
         // 3. invalid edit is not written
         let before = std::fs::read_to_string(dir.path().join("config.toml")).unwrap();

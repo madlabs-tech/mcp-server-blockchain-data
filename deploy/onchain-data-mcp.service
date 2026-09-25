@@ -1,26 +1,26 @@
-# /etc/systemd/system/blockchain-data-mcp.service
-# Env (mode, binds, vendor keys, limits) in /etc/blockchain-data-mcp/env (mode 0600).
-# Writable state: /var/lib/blockchain-data-mcp/{config,data}. Put a TLS reverse proxy in front of the
+# /etc/systemd/system/onchain-data-mcp.service
+# Env (mode, binds, vendor keys, limits) in /etc/onchain-data-mcp/env (mode 0600).
+# Writable state: /var/lib/onchain-data-mcp/{config,data}. Put a TLS reverse proxy in front of the
 # public bind; never proxy the admin bind (127.0.0.1:8788), reach it over an SSH tunnel.
 [Unit]
-Description=blockchain-data-mcp (blockchain data for agents: MCP + REST)
+Description=onchain-data-mcp (blockchain data for agents: MCP + REST)
 After=network-online.target
 Wants=network-online.target
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-EnvironmentFile=/etc/blockchain-data-mcp/env
-Environment=BDM__SERVER__DATA_DIR=/var/lib/blockchain-data-mcp/data
+EnvironmentFile=/etc/onchain-data-mcp/env
+Environment=ODM__SERVER__DATA_DIR=/var/lib/onchain-data-mcp/data
 Environment=RUST_LOG=info
-ExecStart=/usr/local/bin/blockchain-data-mcp serve --config-dir /var/lib/blockchain-data-mcp/config
+ExecStart=/usr/local/bin/onchain-data-mcp serve --config-dir /var/lib/onchain-data-mcp/config
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5s
 
 # sandbox
 DynamicUser=yes
-StateDirectory=blockchain-data-mcp
+StateDirectory=onchain-data-mcp
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes

@@ -761,7 +761,7 @@ mod tests {
     async fn effective_budget_window_state_and_locks() {
         // alchemy: limit 30M, cap 15M (env, locked), reserve 20 → min(15M, 24M) = 15M
         let (e, store) = engine(
-            &[("BDM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS", "15000000")],
+            &[("ODM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS", "15000000")],
             "[vendors.alchemy]\nreserve_pct = 20\n",
             None,
         );
@@ -787,7 +787,7 @@ mod tests {
         assert_eq!(m.alerts, vec![75]);
         assert_eq!(
             m.cap_locked_by.as_deref(),
-            Some("BDM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS")
+            Some("ODM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS")
         );
         assert_eq!(m.limit_locked_by, None);
         assert!(a.estimated_only);

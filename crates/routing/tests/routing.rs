@@ -488,6 +488,34 @@ async fn rate_limited_marks_vendor_exhausted() {
     assert!(h.exhausted_until.is_some());
 }
 
+/// The `rpc` pseudo-vendor only relays the underlying RPC vendors' errors (already tracked on
+/// them): a rate limit or a failure streak must not take every rpc-backed capability offline.
+#[tokio::test]
+async fn rpc_pseudo_vendor_is_never_marked_exhausted_or_broken() {
+    let mut script = vec![Err(ProviderError::RateLimited {
+        retry_after: Some(Duration::from_secs(60)),
+    })];
+    script.extend((0..3).map(|_| Err(ProviderError::Transient("inner rpc down".into()))));
+    let a = ScriptedPrice::with_script("rpc", script, Ok(d(1)));
+    let b = ScriptedPrice::new("geckoterminal", Ok(d(2)));
+    let opts = RouterOptions {
+        retries: 0,
+        breaker_threshold: 2,
+        ..fast_opts()
+    };
+    let cfg = "[routing.defaults]\nprice = [\"rpc\", \"geckoterminal\"]\n";
+    let r = router_with(cfg, &[], vec![price_reg(&a), price_reg(&b)], opts);
+    for _ in 0..4 {
+        price_of(&r, req()).await.unwrap(); // rate limited, then three transient failures
+    }
+    let out = price_of(&r, req()).await.unwrap();
+    assert_eq!(out.provenance.provider.as_deref(), Some("rpc"));
+    assert_eq!(a.calls(), 5, "rpc tried on every call");
+    let h = r.health().into_iter().find(|h| h.vendor == "rpc").unwrap();
+    assert!(h.exhausted_until.is_none());
+    assert_eq!(h.failed, 3);
+}
+
 #[tokio::test]
 async fn metering_applies_cost_table_and_dims() {
     let cfg = "[vendors.defillama.costs]\n\"/prices\" = 5\n";

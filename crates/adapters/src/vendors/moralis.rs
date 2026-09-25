@@ -379,7 +379,8 @@ mod tests {
             bdm_config::EnvSource::from_pairs([("MORALIS_API_KEY", "mor_key_123456")]),
         )
         .unwrap()
-        .load_texts("", "")
+        // off by default since the free plan ended (2026-09-01); paid users enable it
+        .load_texts("[vendors.moralis]\nenabled = true\n", "")
         .unwrap();
         let mut out = Vec::new();
         register(&loaded, &mut out);

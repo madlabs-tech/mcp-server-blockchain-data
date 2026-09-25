@@ -1,4 +1,4 @@
-//! The configuration schema (what `config.toml`, `secrets.toml` and `BDM__*` env vars set).
+//! The configuration schema (what `config.toml`, `secrets.toml` and `ODM__*` env vars set).
 
 use crate::{redacted::Redacted, registry::ChainEntry};
 use bdm_ports::Capability;
@@ -107,7 +107,7 @@ pub struct VendorSettings {
 }
 
 /// Ordered vendor list: primary first, then fallbacks. Accepts a TOML/JSON array or a
-/// comma-separated string (`BDM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public`).
+/// comma-separated string (`ODM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public`).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(transparent)]
 pub struct Order(pub Vec<String>);

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.madlabs-tech/onchain-data-mcp",
+  "title": "Onchain Data MCP",
+  "description": "Blockchain data for EVM and Solana: balances, tokens, prices, DeFi and RPC via free-tier vendors",
+  "repository": {
+    "url": "https://github.com/madlabs-tech/onchain-data-mcp",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/madlabs-tech/onchain-data-mcp",
+  "version": "0.2.0",
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/madlabs-tech/onchain-data-mcp:0.2.0",
+      "runtimeHint": "docker",
+      "runtimeArguments": [
+        {
+          "type": "named",
+          "name": "--volume",
+          "value": "onchain-data-mcp-data:/data",
+          "description": "Keeps usage counters and quota state between runs."
+        }
+      ],
+      "packageArguments": [
+        { "type": "positional", "value": "--config-dir" },
+        { "type": "positional", "value": "/config" }
+      ],
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "ALCHEMY_API_KEY",
+          "description": "Optional Alchemy key: EVM RPC, token balances and transfers.",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "HELIUS_API_KEY",
+          "description": "Optional Helius key: Solana RPC and token data.",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "COINGECKO_API_KEY",
+          "description": "Optional CoinGecko key: token prices and market data.",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "MORALIS_API_KEY",
+          "description": "Optional Moralis key: wallet history and token data.",
+          "isSecret": true,
+          "isRequired": false
+        }
+      ]
+    },
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/madlabs-tech/onchain-data-mcp/releases/download/v0.2.0/onchain-data-mcp.mcpb",
+      "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}

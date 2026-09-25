@@ -17,8 +17,10 @@
 //! every REST call is appended to the store's call log (dashboard live stream).
 
 mod admin;
+pub mod password;
 
-pub use admin::{admin_router, ensure_admin_token, AdminState, Rebuild, ADMIN_BODY_LIMIT};
+pub use admin::{admin_router, dashboard_base, AdminState, Rebuild, ADMIN_BODY_LIMIT};
+pub use password::{ensure_dashboard_password, reset_dashboard_password};
 
 use axum::{
     extract::{Path, Request, State},

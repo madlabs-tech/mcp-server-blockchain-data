@@ -328,6 +328,41 @@ impl bdm_app::CallObserver for Recorder {
     }
 }
 
+struct MetaRecorder(std::sync::Mutex<Vec<Value>>);
+
+impl bdm_app::CallObserver for MetaRecorder {
+    fn on_call(&self, _c: &Caller, _op: &str, r: &Result<Value, DomainError>, _l: Duration) {
+        let meta = r.as_ref().ok().and_then(|v| v.get("meta")).cloned();
+        self.0.lock().unwrap().push(meta.unwrap_or(Value::Null));
+    }
+}
+
+/// Legacy aliases return bare data, but the call log still needs their chain and provider.
+#[tokio::test]
+async fn observer_sees_legacy_chain_and_provider() {
+    let mock = Arc::new(MockEvmRpc {
+        chain_id: 1,
+        ..Default::default()
+    });
+    mock.script.push_ok(json!("0x4a817c800"));
+    let rec = Arc::new(MetaRecorder(Default::default()));
+    let (a, _) = app("", vec![public_eth(mock)]);
+    let a = a.with_observer(rec.clone());
+    let out = a
+        .call(
+            "eth_gas_price",
+            json!({"chain": "ethereum"}),
+            Caller::local(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(out["gasPriceGwei"], "20.00", "bare legacy output: {out}");
+    assert!(out.get("meta").is_none());
+    let meta = rec.0.lock().unwrap()[0].clone();
+    assert_eq!(meta["chain"], "eip155:1");
+    assert_eq!(meta["provider"], "rpc");
+}
+
 #[tokio::test]
 async fn observer_sees_every_call_including_cache_hits_and_rejections() {
     let rec = Arc::new(Recorder(Default::default()));

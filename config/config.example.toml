@@ -1,6 +1,6 @@
-# blockchain-data-mcp config. Copy to config/config.toml (the dashboard edits that file).
+# onchain-data-mcp config. Copy to config/config.toml (the dashboard edits that file).
 # API keys belong in env vars or config/secrets.toml (0600, git-ignored), never here.
-# Precedence: built-in registry < this file < secrets.toml < env (BDM__<PATH>, "__" between segments).
+# Precedence: built-in registry < this file < secrets.toml < env (ODM__<PATH>, "__" between segments).
 
 [server]
 mode         = "self_hosted"        # self_hosted | hosted
@@ -8,7 +8,7 @@ http_bind    = "127.0.0.1:8787"     # self_hosted: REST + /mcp + /dashboard
 # public_bind = "0.0.0.0:8787"      # hosted: public MCP/REST (behind TLS proxy)
 # admin_bind  = "127.0.0.1:8788"    # hosted: dashboard + admin API, never public
 dashboard    = true
-tool_profile = "payments"           # payments | trading | neobank | defi | all | custom
+tool_profile = "all"                # payments | trading | neobank | defi | all | custom
 # warmup     = true                 # background eth_chainId check of every active EVM RPC at startup
 
 # ---------------------------------------------------------------------------- vendors
@@ -29,13 +29,13 @@ enabled = true
 # [vendors.helius.cap]
 # rps = 5
 
-[vendors.quicknode]
-enabled = true
+[vendors.quicknode]                 # 1-month trial only since 2026-09, off by default; true if you pay
+enabled = false
 
 [vendors.coingecko]
 enabled = true
 
-[vendors.ankr]                      # free tier unconfirmed, off by default
+[vendors.ankr]                      # free plan needs a signup key; off by default, set true with ANKR_API_KEY
 enabled = false
 
 # ---------------------------------------------------------------------------- routing

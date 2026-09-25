@@ -678,7 +678,7 @@ checksum = "55248b47b0caf0546f7988906588779981c43bb1bc9d0c44087278f80cdb44ba"
 
 [[package]]
 name = "bdm-adapters"
-version = "0.2.0-dev"
+version = "0.2.0"
 dependencies = [
  "alloy-primitives",
  "async-trait",
@@ -702,7 +702,7 @@ dependencies = [
 
 [[package]]
 name = "bdm-app"
-version = "0.2.0-dev"
+version = "0.2.0"
 dependencies = [
  "alloy-primitives",
  "alloy-rpc-types-eth",
@@ -729,7 +729,7 @@ dependencies = [
 
 [[package]]
 name = "bdm-config"
-version = "0.2.0-dev"
+version = "0.2.0"
 dependencies = [
  "bdm-domain",
  "bdm-ports",
@@ -744,7 +744,7 @@ dependencies = [
 
 [[package]]
 name = "bdm-domain"
-version = "0.2.0-dev"
+version = "0.2.0"
 dependencies = [
  "alloy-primitives",
  "bs58",
@@ -758,7 +758,7 @@ dependencies = [
 
 [[package]]
 name = "bdm-ports"
-version = "0.2.0-dev"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "bdm-domain",
@@ -773,7 +773,7 @@ dependencies = [
 
 [[package]]
 name = "bdm-protocols"
-version = "0.2.0-dev"
+version = "0.2.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
@@ -799,7 +799,7 @@ dependencies = [
 
 [[package]]
 name = "bdm-routing"
-version = "0.2.0-dev"
+version = "0.2.0"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -817,36 +817,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "bdm-server"
-version = "0.2.0-dev"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "bdm-adapters",
- "bdm-app",
- "bdm-config",
- "bdm-domain",
- "bdm-ports",
- "bdm-protocols",
- "bdm-routing",
- "bdm-store",
- "bdm-transport-http",
- "bdm-transport-mcp",
- "chrono",
- "futures",
- "reqwest",
- "rmcp",
- "serde_json",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "bdm-store"
-version = "0.2.0-dev"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "bdm-app",
@@ -868,7 +840,7 @@ dependencies = [
 
 [[package]]
 name = "bdm-testkit"
-version = "0.2.0-dev"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -882,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "bdm-transport-http"
-version = "0.2.0-dev"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "axum",
@@ -911,7 +883,7 @@ dependencies = [
 
 [[package]]
 name = "bdm-transport-mcp"
-version = "0.2.0-dev"
+version = "0.2.0"
 dependencies = [
  "bdm-app",
  "bdm-domain",
@@ -2531,6 +2503,35 @@ name = "once_cell"
 version = "1.21.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+
+[[package]]
+name = "onchain-data-mcp"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "bdm-adapters",
+ "bdm-app",
+ "bdm-config",
+ "bdm-domain",
+ "bdm-ports",
+ "bdm-protocols",
+ "bdm-routing",
+ "bdm-store",
+ "bdm-transport-http",
+ "bdm-transport-mcp",
+ "chrono",
+ "futures",
+ "reqwest",
+ "rmcp",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+]
 
 [[package]]
 name = "parity-scale-codec"

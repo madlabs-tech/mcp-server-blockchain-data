@@ -1,19 +1,19 @@
-# Hosted mode: blockchain-data-mcp behind Caddy (automatic TLS). Only Caddy's 80/443 are public.
-# Usage:  cp .env.example .env  (set BDM__SERVER__MODE=hosted + vendor keys)
-#         docker compose -f deploy/docker-compose.yml run --rm blockchain-data-mcp clients create alice
+# Hosted mode: onchain-data-mcp behind Caddy (automatic TLS). Only Caddy's 80/443 are public.
+# Usage:  cp .env.example .env  (set ODM__SERVER__MODE=hosted + vendor keys)
+#         docker compose -f deploy/docker-compose.yml run --rm onchain-data-mcp clients create alice
 #         docker compose -f deploy/docker-compose.yml up -d
 services:
-  blockchain-data-mcp:
+  onchain-data-mcp:
     build: ..
-    image: blockchain-data-mcp:latest
+    image: onchain-data-mcp:latest
     container_name: ems
     restart: unless-stopped
     env_file: ../.env
     environment:
-      BDM__SERVER__MODE: hosted
-      BDM__SERVER__PUBLIC_BIND: 0.0.0.0:8787    # reached only by Caddy on the compose network
-      BDM__SERVER__ADMIN_BIND: 0.0.0.0:8788     # published to the host's loopback only (below)
-      BDM__SERVER__DATA_DIR: /data
+      ODM__SERVER__MODE: hosted
+      ODM__SERVER__PUBLIC_BIND: 0.0.0.0:8787    # reached only by Caddy on the compose network
+      ODM__SERVER__ADMIN_BIND: 0.0.0.0:8788     # published to the host's loopback only (below)
+      ODM__SERVER__DATA_DIR: /data
     volumes:
       - bdm-data:/data
       - bdm-config:/config
@@ -27,7 +27,7 @@ services:
     container_name: bdm-caddy
     restart: unless-stopped
     depends_on:
-      - blockchain-data-mcp
+      - onchain-data-mcp
     ports:
       - "80:80"
       - "443:443"

@@ -357,7 +357,8 @@ fn swap_app() -> App {
         source: "rpc".into(),
     }));
     app(
-        "",
+        // Velora's free tier is 1 rps; these back-to-back mocked calls test swap logic, not quota.
+        "[vendors.velora.limit]\nrps = 100\n",
         vec![
             global("velora", PortHandle::SwapQuote(velora)),
             global("cow", PortHandle::SwapQuote(cow)),

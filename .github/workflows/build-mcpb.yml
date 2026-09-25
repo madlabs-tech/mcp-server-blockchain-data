@@ -1,0 +1,68 @@
+# Called by release.yml (dist global-artifacts-jobs) after the per-target builds.
+# Packs one Claude Desktop bundle (onchain-data-mcp.mcpb) holding a universal macOS binary
+# (lipo of both apple targets) and the Windows exe. It is uploaded as an `artifacts-*`
+# artifact, so dist's host job attaches it to the GitHub Release with everything else.
+name: build-mcpb
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
+
+jobs:
+  mcpb:
+    runs-on: macos-14
+    permissions:
+      contents: read
+    env:
+      PLAN: ${{ inputs.plan }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Fetch build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: artifacts-build-local-*
+          path: dist-in/
+          merge-multiple: true
+      - name: Assemble bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(jq -er '.releases[0].app_version' <<<"$PLAN")
+          for t in aarch64-apple-darwin x86_64-apple-darwin; do
+            mkdir -p "x/$t"
+            tar -xJf "dist-in/onchain-data-mcp-$t.tar.xz" -C "x/$t"
+          done
+          mkdir -p x/win
+          unzip -q dist-in/onchain-data-mcp-x86_64-pc-windows-msvc.zip -d x/win
+
+          mkdir -p bundle/server
+          lipo -create -output bundle/server/onchain-data-mcp \
+            "$(find x/aarch64-apple-darwin -type f -name onchain-data-mcp)" \
+            "$(find x/x86_64-apple-darwin -type f -name onchain-data-mcp)"
+          chmod 755 bundle/server/onchain-data-mcp
+          lipo -info bundle/server/onchain-data-mcp
+          cp "$(find x/win -type f -name onchain-data-mcp.exe)" bundle/server/
+          cp LICENSE bundle/
+          jq --arg v "$VERSION" '.version = $v' mcpb/manifest.json > bundle/manifest.json
+      - name: Pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx -y @anthropic-ai/mcpb@2.1.2 validate bundle/manifest.json
+          npx -y @anthropic-ai/mcpb@2.1.2 pack bundle onchain-data-mcp.mcpb
+          shasum -a 256 onchain-data-mcp.mcpb | tee onchain-data-mcp.mcpb.sha256
+      - name: Upload bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: artifacts-build-mcpb
+          path: |
+            onchain-data-mcp.mcpb
+            onchain-data-mcp.mcpb.sha256

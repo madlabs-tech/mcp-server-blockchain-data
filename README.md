@@ -1,248 +1,539 @@
-# blockchain-data-mcp
+# onchain-data-mcp
 
-Chain- and provider-agnostic blockchain data for AI agents that move money: payments, stablecoin, neobank and trading. One binary, one config, exposed as **MCP** (stdio or streamable HTTP) and **REST**.
+**Give your AI assistant live blockchain data: wallet balances, payments, prices, scam checks and more. Free to start, no sign-ups needed.**
 
-- **Chains:** Ethereum, Base, Arbitrum, Optimism, Polygon, Avalanche, BSC, **Robinhood Chain** and **Solana** (`registry/chains.toml`; add your own with `[[extra_chains]]`).
-- **Vendors:** ~30 data providers, all usable on their free tier. You pick the order per capability; the router fails over, meters quota locally and stops routing to a vendor before it runs out.
-- **Zero-key start:** with no API keys it runs on public RPCs and keyless vendors. Tools that need a key answer `UNSUPPORTED_CAPABILITY` with a hint.
-- **Non-custodial:** the server never holds keys. `tx_build_transfer` / `trade_build_swap_tx` return unsigned transactions; `tx_broadcast` takes an already-signed one.
-- **Two modes:** `self_hosted` (you, your keys, localhost) or `hosted` (an operator serving others with client keys, per-client limits and a separate admin port).
+[![CI](https://github.com/madlabs-tech/onchain-data-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/madlabs-tech/onchain-data-mcp/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/madlabs-tech/onchain-data-mcp)](https://github.com/madlabs-tech/onchain-data-mcp/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+[![Install in Claude Desktop](https://img.shields.io/badge/Claude_Desktop-Install-D97757?style=flat-square&logo=anthropic&logoColor=white)](https://github.com/madlabs-tech/onchain-data-mcp/releases/latest/download/onchain-data-mcp.mcpb)
+[![Install in Cursor](https://img.shields.io/badge/Cursor-Install-000000?style=flat-square&logo=cursor&logoColor=white)](https://cursor.com/en/install-mcp?name=onchain-data&config=eyJjb21tYW5kIjoib25jaGFpbi1kYXRhLW1jcCJ9)
+[![Install in VS Code](https://img.shields.io/badge/VS_Code-Install-0098FF?style=flat-square&logo=visualstudiocode&logoColor=white)](https://insiders.vscode.dev/redirect/mcp/install?name=onchain-data&config=%7B%22command%22%3A%22onchain-data-mcp%22%7D)
+
+> The Claude Desktop button downloads a file you double-click; it has everything inside.
+> The Cursor and VS Code buttons only add the settings, so [install the program](#1-install-the-program) first.
+
+onchain-data-mcp is one small program that lets AI apps like Claude, Cursor and VS Code read the
+blockchain. It works with **Ethereum, Base, Arbitrum, Optimism, Polygon, Avalanche, BNB Chain,
+Robinhood Chain and Solana**.
+
+Behind the scenes it asks about 30 data services ("providers") for you. If one is slow, busy or
+down, it quietly asks the next one. Free services come first, so you can start without paying
+anything and without any sign-ups.
+
+A few words you will see here:
+
+- **MCP** is a standard way for AI apps like Claude to use outside tools. This program is an "MCP server": a tool your AI app can use.
+- **API key** is a free password a data provider gives you when you sign up. You don't need any to start. Adding a couple makes answers faster and more complete.
+- **Wallet address** is the public "account number" of a crypto wallet, like `0xd8dA…6045` or `7xKX…9sHc`.
+
+![A quick tour of the dashboard](docs/screenshots/dashboard-tour.gif)
+
+## Contents
+
+- [What you can do](#what-you-can-do)
+- [Quick start](#quick-start)
+- [Connect to AI apps](#connect-to-ai-apps)
+- [The dashboard](#the-dashboard)
+- [Password and keys](#password-and-keys)
+- [Data providers](#data-providers)
+- [Available tools](#available-tools)
+- [Real-world examples](#real-world-examples)
+- [Running it for others](#running-it-for-others)
+- [Troubleshooting](#troubleshooting)
+- [FAQ](#faq)
+- [For developers](#for-developers) · [Security](#security) · [License](#license)
+
+## What you can do
+
+Ask your AI assistant questions in plain words. It picks the right tool and gets the answer.
+
+- **Check wallets.** See what coins and tokens a wallet holds, on every chain at once.
+  *"What does wallet 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 hold?"*
+- **Confirm payments.** Check that a customer really paid the right amount of USDC to the right address.
+  *"Did transaction 0xabc… on Base pay 25 USDC to my shop address?"*
+- **Stay safe.** Check if a token is a scam, if an address is on a sanctions list, or if a stablecoin is losing its value.
+  *"Is this token on Solana a honeypot?"* · *"Is USDT still worth one dollar?"*
+- **Follow the money.** Get transaction details, fees, and a bank-style statement for a wallet.
+  *"Show me last week's incoming payments to my wallet, with their dollar value."*
+- **Prices and swaps.** Get token prices from several sources, past prices, and swap quotes.
+  *"What's the best price to swap 1 ETH to USDC on Arbitrum right now?"*
+- **Tokenized stocks.** Look up stock tokens on Robinhood Chain and their prices.
+  *"What is the price of the Tesla stock token on Robinhood Chain?"*
+
+It **only reads** data, with one exception: it can send a transaction **that you already signed
+yourself** in your own wallet. It never holds your keys and can never move your money on its own.
 
 ## Quick start
 
+Three steps, about five minutes.
+
+### 1. Install the program
+
+Pick one. You only need to do this once.
+
+**Mac or Linux** (open the Terminal app and paste):
+
 ```bash
-cargo build --release -p bdm-server        # binary: target/release/blockchain-data-mcp (Rust 1.90)
-./target/release/blockchain-data-mcp serve      # REST + MCP + dashboard on http://127.0.0.1:8787
-curl -s http://127.0.0.1:8787/v1/tools | head -c 400
-curl -s -X POST http://127.0.0.1:8787/v1/chain/list -H 'content-type: application/json' -d '{}'
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/madlabs-tech/onchain-data-mcp/releases/latest/download/onchain-data-mcp-installer.sh | sh
 ```
 
-No keys needed for the above. To add vendors, `cp .env.example .env`, fill in the keys you have, and `set -a; source .env; set +a` (or use `config/secrets.toml`, or the dashboard).
+**Windows** (open PowerShell and paste):
 
-**Claude Desktop (MCP over stdio).** Running the binary without a subcommand serves MCP on stdio; logs go to stderr.
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/madlabs-tech/onchain-data-mcp/releases/latest/download/onchain-data-mcp-installer.ps1 | iex"
+```
+
+**Homebrew** (Mac or Linux):
+
+```bash
+brew install madlabs-tech/tap/onchain-data-mcp
+```
+
+**Claude Desktop only, no Terminal needed** (Mac and Windows): download
+[onchain-data-mcp.mcpb](https://github.com/madlabs-tech/onchain-data-mcp/releases/latest/download/onchain-data-mcp.mcpb)
+and double-click it. Claude Desktop asks for an optional dashboard password and optional
+provider keys. You can leave them all empty. Then skip to step 3.
+
+<details>
+<summary>Other ways: Docker, or build it yourself</summary>
+
+**Docker**, for AI apps (Docker is a tool that runs programs in a sealed box):
+
+```bash
+docker run -i --rm -v onchain-data-mcp-data:/data ghcr.io/madlabs-tech/onchain-data-mcp:latest --config-dir /config
+```
+
+**Docker**, running in the background with the dashboard at `http://127.0.0.1:8787/dashboard`:
+
+```bash
+docker run -d --name onchain-data-mcp -p 127.0.0.1:8787:8787 -v onchain-data-mcp-data:/data -v onchain-data-mcp-config:/config ghcr.io/madlabs-tech/onchain-data-mcp:latest
+docker exec onchain-data-mcp onchain-data-mcp password --config-dir /config
+```
+
+**Build it yourself** (needs [Rust](https://rustup.rs) 1.90 or newer):
+
+```bash
+cargo build --release -p onchain-data-mcp
+# the program is now at target/release/onchain-data-mcp
+```
+
+</details>
+
+When it's done, **open a new Terminal window** and check it works:
+
+```bash
+onchain-data-mcp --version
+```
+
+The installers put the program in a folder called `.cargo/bin` inside your home folder
+(for example `/Users/you/.cargo/bin/onchain-data-mcp`, or `C:\Users\you\.cargo\bin\onchain-data-mcp.exe` on Windows).
+
+### 2. Connect your AI app
+
+Follow the steps for your app in [Connect to AI apps](#connect-to-ai-apps) below. Then restart
+the app and ask it something, like *"Which chains can you read?"*
+
+### 3. Open the dashboard
+
+The dashboard is a control panel in your web browser. While your AI app is open, it runs at
+`http://127.0.0.1:8787/dashboard`. It is protected by a password that was made for you.
+To see it, run this in the Terminal (use the same folder you used in step 2):
+
+```bash
+onchain-data-mcp password --config-dir ~/.onchain-data-mcp
+```
+
+You'll see something like:
+
+```text
+Dashboard: http://127.0.0.1:8787/dashboard
+Password:  f8460762fe006afc…
+One-click login: http://127.0.0.1:8787/dashboard#login=f8460762fe006afc…
+Config folder: /Users/you/.onchain-data-mcp
+Source: /Users/you/.onchain-data-mcp/dashboard_password
+```
+
+Open the **one-click login** link and you're in. The **Setup guide** walks you through the rest:
+add keys, pick tools, connect.
+
+> If you used the Claude Desktop bundle, your folder is `~/.onchain-data-mcp` unless you picked another one.
+
+## Connect to AI apps
+
+**Pick one folder for your settings** and use it everywhere. We use `~/.onchain-data-mcp` here
+(a folder called `.onchain-data-mcp` in your home folder). Replace `you` with your user name.
+
+Why the full path? Some apps start programs from a different place, so short paths like `config`
+end up in the wrong folder. A full path always works.
+
+### Claude Desktop
+
+1. Open Claude Desktop, go to **Settings → Developer → Edit Config**. This opens `claude_desktop_config.json`:
+   - Mac: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+2. Paste this in (keep any other servers you already have inside `"mcpServers"`):
+
+   ```json
+   {
+     "mcpServers": {
+       "onchain-data": {
+         "command": "/Users/you/.cargo/bin/onchain-data-mcp",
+         "args": ["--config-dir", "/Users/you/.onchain-data-mcp"],
+         "env": {
+           "ODM__SERVER__DATA_DIR": "/Users/you/.onchain-data-mcp/data",
+           "ALCHEMY_API_KEY": "",
+           "HELIUS_API_KEY": ""
+         }
+       }
+     }
+   }
+   ```
+
+   - `command` is where the program is. Find yours with `which onchain-data-mcp` (Mac/Linux) or `where onchain-data-mcp` (Windows). Homebrew puts it in `/opt/homebrew/bin/onchain-data-mcp`.
+   - On Windows, use paths like `"C:\\Users\\you\\.cargo\\bin\\onchain-data-mcp.exe"` (double backslashes).
+   - The keys are optional. Leave them empty, remove them, or add them later in the dashboard.
+3. Quit Claude Desktop completely and open it again.
+
+### Claude Code
+
+```bash
+claude mcp add onchain-data -e ODM__SERVER__DATA_DIR=$HOME/.onchain-data-mcp/data -- onchain-data-mcp --config-dir $HOME/.onchain-data-mcp
+```
+
+### Cursor
+
+Click the **Install in Cursor** button at the top, or paste this into `~/.cursor/mcp.json`
+(or `.cursor/mcp.json` inside one project), then turn it on in **Cursor Settings → MCP**:
 
 ```json
 {
   "mcpServers": {
-    "blockchain-data": {
-      "command": "/path/to/target/release/blockchain-data-mcp",
-      "args": ["--config-dir", "/path/to/config"],
-      "env": {
-        "BDM__SERVER__DATA_DIR": "/path/to/data",
-        "ALCHEMY_API_KEY": "…",
-        "HELIUS_API_KEY": "…"
-      }
+    "onchain-data": {
+      "command": "/Users/you/.cargo/bin/onchain-data-mcp",
+      "args": ["--config-dir", "/Users/you/.onchain-data-mcp"],
+      "env": { "ODM__SERVER__DATA_DIR": "/Users/you/.onchain-data-mcp/data" }
     }
   }
 }
 ```
 
-While Claude Desktop runs it, the dashboard is also up at `http://127.0.0.1:8787/dashboard` (if the port is free). Use absolute paths: Claude Desktop starts the process with cwd `/`, and without a writable data dir the usage counters live in memory only.
+### VS Code
 
-**MCP over HTTP.** Point any streamable-HTTP MCP client at `http://127.0.0.1:8787/mcp`.
+Click the **Install in VS Code** button at the top. To use your settings folder, open the MCP
+settings in VS Code and add `"args": ["--config-dir", "/Users/you/.onchain-data-mcp"]`.
 
-**CLI**
+### Other apps (over the web address)
 
-```
-blockchain-data-mcp [--config-dir DIR]          MCP on stdio + HTTP on server.http_bind (self-hosted)
-blockchain-data-mcp serve [--config-dir DIR]    HTTP only
-blockchain-data-mcp clients create <name>       hosted mode: mint a client key (printed once)
-blockchain-data-mcp clients list                hosted mode: ids, status, names (never keys)
-```
+If the program is already running (for example started by another app, or with
+`onchain-data-mcp serve`), any app that supports MCP over HTTP can connect to:
 
-`--config-dir` defaults to `./config`.
-
-## Configuration
-
-Layered, later wins:
-
-```
-built-in registry (registry/*.toml, compiled in)
-  < config/config.toml      (the dashboard writes this; start from config/config.example.toml)
-  < config/secrets.toml     (API keys, mode 0600, written by the dashboard)
-  < environment             (BDM__<PATH> with "__" between segments, plus the vendor key vars)
+```text
+http://127.0.0.1:8787/mcp
 ```
 
-Anything set by env is shown as **locked by env** in the dashboard and cannot be edited there. `POST /admin/api/reload` or `kill -HUP <pid>` re-reads the files.
+The dashboard's **Connect** page shows ready-to-copy settings with your real paths filled in.
 
-**Env mapping.** `BDM__SERVER__HTTP_BIND=127.0.0.1:8787` sets `[server] http_bind`; `BDM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS=15000000` sets `[vendors.alchemy.cap] monthly_credits`; `BDM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public` sets an order. Vendor keys use their own names (`ALCHEMY_API_KEY`, `QN_ENDPOINT_NAME`, …; see the vendor table).
+## The dashboard
 
-**Server** (`[server]`): `mode` (`self_hosted` | `hosted`), `http_bind` (self-hosted, default `127.0.0.1:8787`), `public_bind` + `admin_bind` (hosted, admin defaults to `127.0.0.1:8788`), `dashboard` (bool), `tool_profile`, `enabled_tools` / `disabled_tools`, `data_dir` (default `./data`, holds `bdm.db`), `cache_max_entries`, `quota_poll_secs`, `warmup` (default `true`: right after startup, a background task sends one `eth_chainId` to every active EVM RPC and logs endpoints that serve the wrong chain; never blocks startup).
+Your control panel at `http://127.0.0.1:8787/dashboard`. Only your own computer can open it.
 
-**Vendor budget** (`[vendors.<id>]`):
-
-| Field | Meaning |
+| | |
 |---|---|
-| `enabled` | on/off (unverified free tiers ship disabled) |
-| `limit.{rps,per_minute,daily,monthly}` | the vendor's real quota; defaults to its free tier from `registry/vendors.toml` |
-| `cap.{…}` | your own budget below the limit (`monthly_credits` / `daily_requests` are accepted aliases) |
-| `reserve_pct` | stop routing to the vendor at `(100 − reserve_pct)%` of the budget |
-| `on_exhausted` | `skip` (next vendor) or `allow_overage` |
-| `costs.<method>` | override the per-call cost estimate |
-| `alert_pct` | thresholds logged once per window (default 75/90) |
+| ![Login screen](docs/screenshots/login.png) | **Login.** Enter your dashboard password, or use the one-click link from `onchain-data-mcp password`. |
+| ![Setup guide](docs/screenshots/setup.png) | **Setup guide.** Three steps: add keys, pick tools, connect your AI app. |
+| ![Overview](docs/screenshots/overview.png) | **Overview.** Is everything healthy? Plus a live list of calls as they happen (counted since the last start). |
+| ![Providers](docs/screenshots/providers.png) | **Providers.** Each data service with its tier, your key, a **Test** button, usage, budget and a 30-day chart. Export usage as a spreadsheet (CSV). |
+| ![Routing](docs/screenshots/routing.png) | **Routing.** Which provider is asked first for each job. Drag to reorder, or use the up/down arrows. |
+| ![Tools and chains](docs/screenshots/tools-chains.png) | **Tools & Chains.** Turn tools and chains on or off. |
+| ![Clients](docs/screenshots/clients.png) | **Clients.** Only when you run it for others: create and cancel client keys, and set limits. |
+| ![Connect](docs/screenshots/connect.png) | **Connect.** Copy-paste settings for Claude Desktop, Claude Code, Cursor and other apps. |
 
-Effective budget per window = `min(cap, limit × (1 − reserve_pct/100))`.
+## Password and keys
 
-**Routing order.** A list per capability = primary, then fallbacks. Most specific wins:
+There are three kinds of keys. Only the first one is needed, and it is made for you.
 
-```
-[operations.<op>.order]  <capability> = [...]   # one tool
-  > [routing.chains."<caip2>"]  <capability> = [...]   # one chain
-  > [routing.defaults]  <capability> = [...]           # everywhere
-  > built-in order in registry/vendors.toml (global, then per chain)
-```
+| Key | What it is | Who uses it |
+|---|---|---|
+| **Dashboard password** | The password for your control panel. | Only you. |
+| **Client keys** (start with `odm_`) | Only when you [run it for others](#running-it-for-others). One per customer or app. Shown once when created. | Your customers' apps. |
+| **Provider keys** | Your own free accounts at Alchemy, Helius and others. The program uses them on your behalf. | The program. Once saved, the dashboard never shows them again. |
 
-Capabilities: `evm_rpc`, `solana_rpc`, `token_balances`, `transfer_history`, `fee_estimate`, `simulate`, `broadcast`, `private_relay`, `price`, `price_history`, `token_metadata`, `token_risk`, `swap_quote`, `sanctions`, `fx`. Two pseudo-vendors always exist: `public` (keyless RPCs from `chains.toml`) and `rpc` (generic on-chain implementations over whatever RPC is routed).
-
-Per operation you can also set `strategy` (`failover` | `quorum` | `aggregate` | `fan_out` | `hedged`), `quorum`, `fan_out`, `hedge_delay_ms`, `cache_ttl_secs`, `enabled`.
-
-**Tool profiles.** `server.tool_profile` picks which tools an MCP client sees: `payments`, `trading`, `neobank`, `defi`, `all`, or `custom` (then list them in `enabled_tools`). `disabled_tools` always applies. In hosted mode each client key carries its own profile.
-
-**Custom RPC / chains.** `[custom_rpc.<name>] chain = "eip155:1", url = "…"` adds an endpoint as a vendor named `<name>`; `[chain_overrides."eip155:56"] enabled = false`; `[[extra_chains]]` uses the schema of `registry/chains.toml`. Every EVM endpoint is checked against `eth_chainId` on first use and disabled on mismatch.
-
-## Tools
-
-34 tools. REST path = `/v1/<domain>/<name without the domain prefix>` (`wallet_get_balances` → `POST /v1/wallet/get_balances`); tools that don't carry the prefix keep their full name (`POST /v1/wallet/address_validate`). `GET /v1/tools` lists what the caller can see, `GET /openapi.json` has the schemas. MCP and REST return identical JSON.
-
-| Tool | Domain | What it does | Profiles |
-|---|---|---|---|
-| `chain_list` | chain | List the enabled chains (CAIP-2 id, aliases, native asset, block time, finality policy) and, per chain, which capabilities are available and through which vendors in the user's configured order | all |
-| `chain_finality` | chain | Current head and finality checkpoints of a chain | all |
-| `provider_health` | chain | Read-only health of every data vendor | all |
-| `wallet_get_balances` | wallet | Native coin and token balances of one wallet across chains (all EVM chains for a 0x address, Solana for a base58 address, or the `chains` you list) | all |
-| `wallet_get_transfers` | wallet | Incoming and/or outgoing native and token transfers of a wallet on one chain, newest first, paginated with `cursor` (pass `next_cursor` back unchanged) | payments, neobank, trading |
-| `address_validate` | wallet | Check a recipient address before sending funds on a chain | all |
-| `tx_get` | tx | Fetch one transaction, normalized across EVM and Solana | all |
-| `tx_status` | tx | Lightweight status of a transaction | all |
-| `tx_estimate_fee` | tx | Current network fee tiers (slow / standard / fast) for a simple transfer on a chain, with the estimated total in the native coin and in fiat | all |
-| `tx_simulate` | tx | Dry-run an unsigned transaction without broadcasting it | all |
-| `tx_build_transfer` | tx | Build an UNSIGNED transfer of the native coin or a token (ERC-20 on EVM; SPL / Token-2022 on Solana) for the user to sign with their own wallet, then simulate it | payments, neobank, trading |
-| `tx_broadcast` | tx | Broadcast an already-SIGNED transaction to every configured provider at once (the hash is computed locally, so duplicate sends are safe) and return the hash plus which providers accepted it | all |
-| `payments_verify_transfer` | payments | Verify that one on-chain transaction paid an expected amount of a canonical stablecoin to a recipient (EVM or Solana) | payments, neobank |
-| `payments_list_deposits` | payments | List incoming canonical-stablecoin deposits to up to 20 addresses on one chain, with per-address cursors for polling | payments, neobank |
-| `payments_build_request` | payments | Build a payment request for a canonical stablecoin (EIP-681, Solana Pay, x402) | payments, neobank |
-| `stablecoin_resolve` | stablecoin | Resolve a stablecoin against the verified registry | payments, neobank |
-| `stablecoin_check_restrictions` | stablecoin | Check issuer controls for an address on-chain | payments, neobank |
-| `stablecoin_peg` | stablecoin | Check whether a canonical stablecoin is holding its peg | payments, neobank, trading |
-| `compliance_screen_address` | compliance | Screen an address before paying it or accepting its funds | payments, neobank |
-| `neobank_card_funding_status` | neobank | Explain whether a non-custodial stablecoin card (Bridge / Stripe, Baanx and similar just-in-time programs) can be funded, and why an authorization was declined | neobank |
-| `neobank_get_ledger` | neobank | Bank-style statement for a wallet on one chain | neobank |
-| `fiat_get_fx_rate` | neobank | Fiat exchange rate between two ISO 4217 currencies, latest or for a date (YYYY-MM-DD), as an exact decimal | neobank, payments |
-| `market_get_price` | market | Current price of a token from several independent sources | trading, defi, neobank |
-| `market_get_price_at` | market | Historical price of a token at a point in time, from the first source in the price_history order that has data (CoinGecko Demo covers the last 365 days) | trading, defi, neobank |
-| `token_get_metadata` | market | Token decimals, symbol, name and logo | all |
-| `token_check_risk` | market | Scam and honeypot check before buying a token | trading |
-| `trade_get_swap_quote` | trade | Swap quotes from several aggregators in parallel (default 1inch, Velora, CoW; Jupiter on Solana) | trading |
-| `trade_build_swap_tx` | trade | Build an unsigned swap transaction for an external signer (non-custodial) | trading |
-| `rwa_token_info` | rwa | Tokenized-stock facts | trading |
-| `rwa_price` | rwa | Oracle price of a tokenized stock from its Chainlink equity feed (updates 24/5) | trading |
-| `eth_get_balance` | legacy | Get the ETH/native token balance of an address | all |
-| `eth_get_code` | legacy | Detect whether an address is a contract or wallet | all |
-| `eth_gas_price` | legacy | Get the current gas price on the specified chain | all |
-| `eth_get_transaction_by_hash` | legacy | Get transaction details by hash | all |
-
-"all" = payments, trading, neobank, defi. The `defi` domain is reserved and empty. Full descriptions and input schemas: `GET /v1/tools`.
-
-## Vendors
-
-From `registry/vendors.toml`. "Free tier" is the built-in `limit`; "powers" is the capability the built-in routing order uses the vendor for. Vendors with `free_tier_verified = false` are off by default (enable in `[vendors.<id>]`).
-
-| Vendor | Key | Env var(s) | Free tier (built-in limit) | Powers |
-|---|---|---|---|---|
-| `public` (keyless RPCs from `chains.toml`) | no | – | 5 rps, self-limit | evm_rpc, solana_rpc, broadcast (last resort) |
-| `rpc` (on-chain via routed RPC) | no | – | metered on the underlying RPC | token_balances, transfer_history, fee_estimate, simulate, token_metadata |
-| Alchemy | yes | `ALCHEMY_API_KEY` | 30M credits/month | evm_rpc, token_balances, transfer_history, broadcast |
-| QuickNode | yes | `QN_ENDPOINT_NAME`, `QN_TOKEN_ID` | 10M credits/month, 15 rps | evm_rpc, solana_rpc, broadcast, fee_estimate (Solana) |
-| Helius | yes | `HELIUS_API_KEY` | 1M credits/month, 10 rps | solana_rpc, token_balances, fee_estimate, broadcast, token_metadata (Solana) |
-| Moralis | yes | `MORALIS_API_KEY` | 40k CU/day | token_balances, transfer_history (EVM) |
-| Ankr Advanced API | yes | `ANKR_API_KEY` | unverified, disabled | not in the built-in order |
-| CoinGecko (Demo) | yes | `COINGECKO_API_KEY` | 10k/month, 30/min | price, price_history, token_metadata |
-| GeckoTerminal | no | – | 10/min | price |
-| DefiLlama | no | – | 60/min (self-limit) | price, price_history |
-| DexScreener | no | – | 300/min | price |
-| Birdeye | yes | `BIRDEYE_API_KEY` | 30k credits/month, 1 rps | price (Solana) |
-| Jupiter | optional | `JUPITER_API_KEY` | 30/min keyless, 60/min with key | price, token_metadata, swap_quote (Solana) |
-| Pyth (Hermes / Benchmarks) | yes | `PYTH_API_KEY` | 60/min | price_history (native coins) |
-| GoPlus Security | optional | `GOPLUS_APP_KEY`, `GOPLUS_APP_SECRET` | 30/min | token_risk |
-| honeypot.is | no | – | 30/min (self-limit) | token_risk (Ethereum, BSC, Base) |
-| RugCheck | optional | `RUGCHECK_API_KEY` | 60/min, unverified | token_risk (Solana) |
-| 1inch | yes | `ONEINCH_API_KEY` | 100k/month, 1 rps | swap_quote |
-| Velora (ParaSwap) | no | – | 60/min | swap_quote |
-| CoW Protocol | no | – | 60/min | swap_quote (quotes only) |
-| 0x Swap API | yes | `ZEROEX_API_KEY` | no free tier, disabled | not in the built-in order |
-| Uniswap Trading API | yes | `UNISWAP_API_KEY` | 6 rps, unverified, disabled | not in the built-in order |
-| OKX DEX | yes | `OKX_API_KEY`, `OKX_SECRET_KEY`, `OKX_PASSPHRASE` | unverified, disabled | not in the built-in order |
-| Flashbots Protect | no | – | keyless | private_relay (Ethereum) |
-| MEV Blocker | no | – | keyless | private_relay (Ethereum) |
-| Jito block engine | no | – | 1 rps | private_relay (Solana) |
-| Helius Sender | no | – | 50 rps | private_relay (Solana) |
-| Chainalysis sanctions oracle | no | – | on-chain, metered on RPC | sanctions (EVM, not Robinhood Chain) |
-| TRM Labs sanctions API | optional | `TRM_API_KEY` | 100/day, 1 rps keyless | sanctions |
-| Frankfurter (ECB) | no | – | 60/min (self-limit) | fx |
-| Open Exchange Rates | yes | `OPENEXCHANGERATES_APP_ID` | 1,000/month | fx |
-
-Signup URLs and per-method cost tables are in `registry/vendors.toml`. Quota shown in the dashboard is **estimated** from local metering unless the vendor exposes a usage API.
-
-## Dashboard and admin API
-
-`/dashboard` (self-hosted: on `http_bind`; hosted: on `admin_bind` only). Sign in with the token from `<config-dir>/admin_token`, generated on first start (mode 0600) and printed once in the log. Pages: overview (live call log), vendors (keys are write-only), routing, quota (limit / cap / used per vendor, source badge `vendor API` / `headers` / `estimated`, burn rate, CSV export), chains, tools, clients (hosted).
-
-Every `/admin/api/*` call needs `Authorization: Bearer <admin token>` **and** `X-BDM-Admin: 1` (CSRF guard). No response ever contains a key.
-
-| Endpoint | Purpose |
-|---|---|
-| `GET /admin/api/health` | vendor breaker/latency/usage, per-tool call stats |
-| `GET /admin/api/config` | settings (secrets scrubbed), locked-by-env map, key status, effective orders, tools, chains |
-| `PUT /admin/api/config` `{"edits":[{"path":[…],"value":…}]}` | validate, write atomically (`.bak` kept), hot-swap routing; `null` removes; env-locked paths → 422 |
-| `POST /admin/api/config/validate` | same checks, nothing written |
-| `POST /admin/api/reload` | re-read the files (same as `SIGHUP`) |
-| `POST /admin/api/vendors/{id}/test` | one cheap call against the vendor |
-| `POST /admin/api/vendors/{id}/budget` `{"which":"cap","window":"monthly","value":15000000}` | set or clear (`null`) one limit/cap window |
-| `GET /admin/api/quota`, `GET /admin/api/quota.csv`, `POST /admin/api/quota/refresh` | quota report, CSV, poll vendor usage APIs now |
-| `GET/POST /admin/api/clients`, `PATCH/DELETE /admin/api/clients/{id}` | list, create (key returned once), set limits, revoke |
-| `GET /admin/api/calls?limit=N`, `GET /admin/api/calls/stream` | recent calls, live SSE stream |
-
-Public router (both modes): `POST /v1/<domain>/<tool>`, `POST /v1/tools/<name>`, `GET /v1/tools`, `GET /openapi.json`, `/mcp`, `GET /healthz`, `GET /metrics` (Prometheus text).
-
-## Hosted mode
-
-`mode = "hosted"` turns the server into a shared instance run by an operator:
-
-- HTTP only (never stdio). Public REST + `/mcp` on `public_bind`, dashboard + admin API on `admin_bind` (default `127.0.0.1:8788`, never the public port).
-- Every public request needs `Authorization: Bearer <client key>`; unauthenticated requests get 401. Keys are stored as SHA-256 hashes and shown once.
-- **Fails closed:** refuses to start until at least one client key exists (`blockchain-data-mcp clients create <name>`).
-- Per-client limits from `[clients.default]`, overridable per key: `requests_per_minute` (token bucket), `daily_requests` (reset 00:00 UTC), `monthly_credits` (vendor credits spent on the client's behalf, reset on the 1st), `tool_profile`. Over the limit → HTTP 429 `QUOTA_EXCEEDED` with `Retry-After`.
-- Vendor limits/caps still apply on top; set a `cap` below every `limit` the public instance uses.
-
-Client config:
-
-```json
-{ "mcpServers": { "blockchain-data": {
-  "url": "https://your.domain/mcp",
-  "headers": { "Authorization": "Bearer bdm_…" } } } }
-```
-
-Deployment (Docker + Caddy, systemd, backups, security checklist): **[DEPLOYMENT.md](DEPLOYMENT.md)**.
-
-## Legacy compatibility
-
-- The binary is still named `blockchain-data-mcp`, so existing MCP client configs keep working.
-- The four original tools (`eth_get_balance`, `eth_get_code`, `eth_gas_price`, `eth_get_transaction_by_hash`) are kept as aliases in the `legacy` domain with unchanged chain names; prefer `wallet_get_balances`, `address_validate`, `tx_estimate_fee`, `tx_get`.
-- `RPC_URL` is deprecated and now applies to **Ethereum (`eip155:1`) only** (it becomes `[custom_rpc.rpc_url]`, locked by env, with a startup warning). It used to be applied to every chain. Use vendor keys or `[custom_rpc]` per chain instead.
-
-## Development
+**See your dashboard password** at any time:
 
 ```bash
-cargo fmt --all --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo test --workspace --all-features
-cargo hack check -p bdm-adapters --each-feature --no-dev-deps   # every vendor builds alone
+onchain-data-mcp password --config-dir ~/.onchain-data-mcp
 ```
 
-Workspace crates: `domain` (types), `ports` (vendor traits), `config` (registry + layering), `routing` (orders, budgets, breakers), `protocols` (on-chain implementations: Multicall3, getLogs, oracles, Solana wire), `adapters` (one module per vendor, **one cargo feature per vendor**; default = verified free tiers), `app` (tool catalog, `crates/app/src/ops/*`), `store` (sqlite: usage, clients, call log), `transport-mcp`, `transport-http` (REST + dashboard), `server` (binary), `testkit`.
+The program also prints the dashboard address every time it starts, but never the password.
+It is saved in the file `dashboard_password` inside your settings folder.
 
-To add a vendor: a module in `crates/adapters/src/vendors/`, a feature in `crates/adapters/Cargo.toml`, an entry in `registry/vendors.toml`. To add a tool: an `Operation` in `crates/app/src/ops/<domain>.rs` with `NAME`, `DOMAIN`, `DESCRIPTION`, `PROFILES`, registered in that module's `register`.
+> The one-click link contains your password, so it stays in your Terminal history.
+> That's fine on your own computer; just don't paste it into chats or screenshots.
+
+**Choose your own password**: set `DASHBOARD_PASSWORD` to at least 12 characters, with no spaces.
+For Claude Desktop, add it to the `"env"` block, for example `"DASHBOARD_PASSWORD": "my-long-secret-2026"`.
+
+**Make a new random password**:
+
+```bash
+onchain-data-mcp password reset --config-dir ~/.onchain-data-mcp
+```
+
+Then restart your AI app (or the program) so it uses the new password.
+
+**Add provider keys**: in the dashboard go to **Providers**, paste the key and click **Test**.
+Or add it to the `"env"` block of your AI app's settings, like `"ALCHEMY_API_KEY": "your-key"`.
+
+## Data providers
+
+Providers are sorted into four tiers:
+
+| Tier | What it means | Examples |
+|---|---|---|
+| **1** | Free, no sign-up. Works right away. | DefiLlama, DexScreener, CoW Protocol, Frankfurter, public blockchain connections, RugCheck (18 in total) |
+| **2** | Free key, big limit. | Alchemy, Helius |
+| **3** | Free key, small limit. | 1inch, Birdeye, CoinGecko, Open Exchange Rates |
+| **4** | Paid, trial only, or needs a sign-up key. Off unless you turn it on. | QuickNode, Moralis, Pyth, Ankr, 0x, Uniswap API, OKX DEX (7 in total) |
+
+**Our advice:** start with no keys. When you want better results, get free keys from
+[Alchemy](https://dashboard.alchemy.com/signup) and [Helius](https://dashboard.helius.dev/signup)
+and paste them into the dashboard.
+
+The full list, with limits and sign-up links, is in **[docs/VENDORS.md](docs/VENDORS.md)**.
+
+## Available tools
+
+These are the tools your AI app can use. You don't call them yourself; your AI assistant picks
+them. "Profiles" are ready-made tool sets (`payments`, `trading`, `neobank`, `defi`). By default
+you get all of them. You can pick a smaller set on the dashboard's **Tools & Chains** page.
+
+Every tool only reads data, **except `tx_broadcast`**, which sends a transaction you already signed.
+
+### Chains and health
+
+| Tool | What it does | Profiles |
+|---|---|---|
+| `chain_list` | Lists the supported chains and which features work on each | all |
+| `chain_finality` | Shows the latest block and whether it is final (can no longer change) | all |
+| `provider_health` | Shows which data providers are working, and why one was skipped | all |
+
+### Wallets
+
+| Tool | What it does | Profiles |
+|---|---|---|
+| `wallet_get_balances` | Coins and tokens in a wallet, across all chains | all |
+| `wallet_get_transfers` | Money in and out of a wallet, newest first | payments, neobank, trading |
+| `address_validate` | Checks an address before you send money to it | all |
+
+### Transactions
+
+| Tool | What it does | Profiles |
+|---|---|---|
+| `tx_get` | Full details of one transaction | all |
+| `tx_status` | Quick check: pending, done or failed | all |
+| `tx_estimate_fee` | Current network fees (slow, normal, fast), also in dollars | all |
+| `tx_simulate` | Test-runs a transaction without sending it | all |
+| `tx_build_transfer` | Prepares a transfer for **you** to sign in your own wallet | payments, neobank, trading |
+| `tx_broadcast` | Sends a transaction **you already signed**. The only tool that changes anything | all |
+
+### Payments
+
+| Tool | What it does | Profiles |
+|---|---|---|
+| `payments_verify_transfer` | Confirms a payment arrived: right coin, right amount, right address | payments, neobank |
+| `payments_list_deposits` | Lists incoming stablecoin payments to your addresses | payments, neobank |
+| `payments_build_request` | Makes a payment request link or QR code content | payments, neobank |
+
+### Stablecoins
+
+Stablecoins are crypto coins meant to stay worth one dollar (or euro), like USDC and USDT.
+
+| Tool | What it does | Profiles |
+|---|---|---|
+| `stablecoin_resolve` | Finds the real, official contract of a stablecoin and flags fakes | payments, neobank |
+| `stablecoin_check_restrictions` | Checks if the issuer froze or blocked an address | payments, neobank |
+| `stablecoin_peg` | Checks if a stablecoin is still worth one dollar (or euro) | payments, neobank, trading |
+
+### Compliance
+
+| Tool | What it does | Profiles |
+|---|---|---|
+| `compliance_screen_address` | Checks an address against sanctions lists before you pay or accept money | payments, neobank |
+
+### Money (fiat and banking)
+
+| Tool | What it does | Profiles |
+|---|---|---|
+| `fiat_get_fx_rate` | Exchange rate between two currencies, like USD to EUR, today or on a date | neobank, payments |
+| `neobank_get_ledger` | Bank-style statement for a wallet, with the dollar value at the time | neobank |
+| `neobank_card_funding_status` | Explains if a crypto card can be paid from a wallet, and why a payment was declined | neobank |
+
+### Market and tokens
+
+| Tool | What it does | Profiles |
+|---|---|---|
+| `market_get_price` | Current token price, checked against several sources | trading, defi, neobank |
+| `market_get_price_at` | Token price at a past date and time | trading, defi, neobank |
+| `token_get_metadata` | Token name, symbol, logo and how many decimal places it uses | all |
+| `token_check_risk` | Scam check before you buy a token (for example a "honeypot": a token you can buy but never sell) | trading |
+
+### Trading
+
+| Tool | What it does | Profiles |
+|---|---|---|
+| `trade_get_swap_quote` | Swap prices from several exchanges at once | trading |
+| `trade_build_swap_tx` | Prepares a swap for **you** to sign in your own wallet | trading |
+
+### Real-world assets
+
+| Tool | What it does | Profiles |
+|---|---|---|
+| `rwa_token_info` | Facts about a tokenized stock, and whether it is the official one | trading |
+| `rwa_price` | Price of a tokenized stock, aware of stock market hours | trading |
+
+Older setups can still use four legacy tools: `eth_get_balance`, `eth_get_code`, `eth_gas_price`
+and `eth_get_transaction_by_hash`. New setups should use the tools above.
+
+## Real-world examples
+
+Copy any of these into your AI app.
+
+**Wallets**
+
+- *"What tokens does 0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045 hold, on every chain?"*
+- *"Is this address a normal wallet or a smart contract?"*
+
+**Payments**
+
+- *"Did transaction 0x… on Base pay at least 25 USDC to 0x…? Is it final?"*
+- *"List new USDC deposits to my three shop addresses on Polygon since this morning."*
+- *"Make a payment request for 10 USDC on Solana to my address."*
+
+**Safety**
+
+- *"Before I pay this address, check it against sanctions lists."*
+- *"Is USDC on Arbitrum still worth one dollar?"*
+- *"Is this new Solana token a scam?"*
+
+**Money**
+
+- *"What was the EUR to USD rate on 2026-03-15?"*
+- *"Give me a statement of my wallet's transactions this month, with dollar values."*
+- *"Why was my crypto card payment declined?"*
+
+**Trading**
+
+- *"Get me the best quote to swap 500 USDC to ETH on Base."*
+- *"What was the price of SOL on 1 January 2026?"*
+- *"How much is the network fee on Ethereum right now, in dollars?"*
+
+**Tokenized stocks**
+
+- *"Is this Robinhood Chain token the official NVIDIA stock token? What's its price?"*
+
+## Running it for others
+
+By default the program runs **just for you**, on your computer ("self-hosted").
+
+You can also put it on a server and let other people or apps use it ("hosted"). Each customer
+gets their own **client key**, with their own limits. You manage everything from the dashboard.
+
+The step-by-step guide is in **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+## Troubleshooting
+
+**"missing or invalid dashboard password"**
+
+1. Run `onchain-data-mcp password --config-dir <your folder>` and use that password.
+2. Use the **same folder** your AI app uses. A different folder has a different password.
+3. If you changed the password, restart your AI app so it picks up the change.
+
+**"DASHBOARD_PASSWORD is too short" or "DASHBOARD_PASSWORD can only use plain letters…"**
+
+Your own password must be at least 12 characters, with no spaces or accented letters.
+Fix it, or remove `DASHBOARD_PASSWORD` to use a generated one. Until then the dashboard
+stays off (the rest keeps working), and you'll see "dashboard turned off" in the logs.
+
+**"The password comes from the DASHBOARD_PASSWORD setting. Change it there instead."**
+
+You set your own password, so `password reset` can't replace it. Change `DASHBOARD_PASSWORD` instead.
+
+**"HTTP not started (Address already in use); stdio only"** or the dashboard page won't load
+
+Something else is already using port 8787 (a "port" is like a door number on your computer).
+Often it's a second copy of this program, for example two AI apps running it at once.
+Your AI app still works; only the dashboard is missing. Close the other copy, or open the
+dashboard of the copy that is running.
+
+**The AI app doesn't show the tools, or says the server failed to start**
+
+1. Check the `command` path. Run `which onchain-data-mcp` (Mac/Linux) or `where onchain-data-mcp` (Windows) and paste that full path.
+2. Check the settings text (JSON) has no missing commas or quotes.
+3. Quit the app completely and open it again.
+4. Claude Desktop logs: Mac `~/Library/Logs/Claude/`, Windows `%APPDATA%\Claude\logs\`.
+
+**Mac says "onchain-data-mcp cannot be opened" or "developer cannot be verified"**
+
+This only happens if you downloaded the file by hand. Run this once in the folder with the file:
+
+```bash
+xattr -d com.apple.quarantine onchain-data-mcp
+```
+
+**Linux: "GLIBC_2.35 not found"**
+
+Your Linux is older than the ready-made program supports. Use the Docker option instead.
+
+**"hosted mode requires at least one client key"** or **"hosted mode requires public_bind"**
+
+These only appear when running it for others. See [DEPLOYMENT.md](DEPLOYMENT.md).
+
+**A tool says it's not supported on a chain**
+
+That feature needs a provider key you haven't added yet. Ask *"Which chains and features can you use?"*
+(the `chain_list` tool) to see what's missing, then add the key on the **Providers** page.
+
+## FAQ
+
+**Is it free?**
+Yes. The program is free and open source (MIT license). It uses free data services first.
+Some providers have paid plans, but you never need them.
+
+**Do I need any keys?**
+No. It works right away with the free, no-sign-up providers. Free Alchemy and Helius keys make
+it faster and more complete.
+
+**Which chains does it support?**
+Ethereum, Base, Arbitrum, Optimism, Polygon, Avalanche, BNB Chain, Robinhood Chain and Solana.
+
+**Can it move my money?**
+No. It never has your wallet's secret keys. It can prepare a transaction for you to sign in your
+own wallet, and `tx_broadcast` can send one **you already signed**. It can't sign anything itself.
+
+**Is my data safe? Where do my keys go?**
+Everything stays on your computer. Your provider keys are saved in `secrets.toml` in your settings
+folder (only your user can read it on Mac and Linux) and are sent only to that provider.
+The dashboard only accepts connections from your own computer.
+
+**Where are my settings saved?**
+In the folder you chose (for example `~/.onchain-data-mcp`): `config.toml` for settings,
+`secrets.toml` for keys, `dashboard_password`, and a `data` folder with usage numbers.
+
+**How do I update it?**
+Run the install command again (or `brew upgrade onchain-data-mcp`), then restart your AI app.
+For Claude Desktop, download and double-click the new `.mcpb` file.
+
+## For developers
+
+REST API, settings reference, routing, architecture, building, testing and releases:
+**[docs/TECHNICAL.md](docs/TECHNICAL.md)**.
+
+## Security
+
+Found a security problem? Please report it privately, as explained in **[SECURITY.md](SECURITY.md)**.
 
 ## License
 
-MIT
+[MIT](LICENSE). The dashboard fonts are under the SIL Open Font License
+([OFL.txt](crates/transport-http/src/dashboard/fonts/OFL.txt)).

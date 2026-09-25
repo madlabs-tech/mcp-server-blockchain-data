@@ -1,7 +1,7 @@
 //! Admin API (`/admin/api/*`) and the embedded dashboard (`/dashboard`).
 //!
 //! Security:
-//! - every `/admin/api/*` call needs `Authorization: Bearer <admin token>` (401 otherwise) and
+//! - every `/admin/api/*` call needs `Authorization: Bearer <dashboard password>` (401 otherwise) and
 //!   the custom header `X-BDM-Admin: 1` (403 otherwise; browsers can't send it cross-site
 //!   without a CORS preflight, which we never grant, so it blocks CSRF);
 //! - secrets are never returned: key fields are write-only (status only), and config responses
@@ -39,7 +39,6 @@ use serde_json::{json, Value};
 use std::{
     collections::HashMap,
     convert::Infallible,
-    path::Path as FsPath,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -54,6 +53,22 @@ pub type Rebuild = Arc<dyn Fn(&Loaded) -> ProviderRegistry + Send + Sync>;
 const INDEX_HTML: &str = include_str!("dashboard/index.html");
 const APP_JS: &str = include_str!("dashboard/app.js");
 const APP_CSS: &str = include_str!("dashboard/app.css");
+/// Bundled dashboard fonts (SIL OFL 1.1, see `dashboard/fonts/OFL.txt`). Served by name
+/// lookup only: no filesystem access, so no path traversal.
+const FONTS: &[(&str, &[u8])] = &[
+    (
+        "orbitron.woff2",
+        include_bytes!("dashboard/fonts/orbitron.woff2"),
+    ),
+    (
+        "jetbrains-mono.woff2",
+        include_bytes!("dashboard/fonts/jetbrains-mono.woff2"),
+    ),
+    (
+        "share-tech-mono.woff2",
+        include_bytes!("dashboard/fonts/share-tech-mono.woff2"),
+    ),
+];
 
 #[derive(Clone)]
 pub struct AdminState {
@@ -139,26 +154,10 @@ impl AdminState {
     }
 }
 
-fn random_hex(bytes: usize) -> String {
+pub(crate) fn random_hex(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     rand::rng().fill_bytes(&mut buf);
     hex::encode(buf)
-}
-
-/// Read `<dir>/admin_token`, or generate it (32 random bytes, hex, mode 0600).
-/// Returns the token and whether it was just created (print it once in that case).
-pub fn ensure_admin_token(dir: &FsPath) -> std::io::Result<(String, bool)> {
-    let path = dir.join("admin_token");
-    match std::fs::read_to_string(&path) {
-        Ok(t) if t.trim().len() >= 32 => return Ok((t.trim().to_owned(), false)),
-        Ok(_) => {}
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e) => return Err(e),
-    }
-    let token = random_hex(32);
-    bdm_config::write_atomic(&path, &format!("{token}\n"), Some(0o600))
-        .map_err(std::io::Error::other)?;
-    Ok((token, true))
 }
 
 /// Dashboard + admin API router.
@@ -200,12 +199,20 @@ pub fn admin_router(state: AdminState) -> Router {
             "/dashboard/app.css",
             get(|| async { asset("text/css; charset=utf-8", APP_CSS) }),
         )
+        .route("/dashboard/fonts/{name}", get(font))
         .layer(RequestBodyLimitLayer::new(ADMIN_BODY_LIMIT))
         .layer(crate::catch_panic_layer())
         .with_state(state)
 }
 
-fn asset(content_type: &'static str, body: &'static str) -> Response {
+async fn font(Path(name): Path<String>) -> Response {
+    match FONTS.iter().find(|(n, _)| *n == name) {
+        Some((_, bytes)) => asset("font/woff2", *bytes),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+fn asset(content_type: &'static str, body: impl Into<axum::body::Body>) -> Response {
     (
         [
             (header::CONTENT_TYPE, content_type),
@@ -217,7 +224,7 @@ fn asset(content_type: &'static str, body: &'static str) -> Response {
             (header::REFERRER_POLICY, "no-referrer"),
             (header::CACHE_CONTROL, "no-store"),
         ],
-        body,
+        body.into(),
     )
         .into_response()
 }
@@ -234,10 +241,10 @@ async fn admin_auth(State(s): State<AdminState>, req: Request, next: Next) -> Re
         .and_then(|v| v.strip_prefix("Bearer "))
         .unwrap_or_default();
     if !ct_eq(bearer.trim().as_bytes(), s.token.as_bytes()) {
-        return error_response(
-            DomainError::new(ErrorCode::Unauthorized, "missing or invalid admin token")
-                .with_hint("the token is in config/admin_token"),
-        );
+        return error_response(DomainError::new(
+            ErrorCode::Unauthorized,
+            "missing or invalid dashboard password (run `onchain-data-mcp password` to see it)",
+        ));
     }
     if h.get("x-bdm-admin").and_then(|v| v.to_str().ok()) != Some("1") {
         let e = DomainError::new(
@@ -300,21 +307,26 @@ fn bind_url(bind: &str) -> String {
     }
 }
 
+/// Base URL of the dashboard and admin API: `admin_bind` in hosted mode, `http_bind` otherwise.
+pub fn dashboard_base(srv: &bdm_config::ServerSettings) -> String {
+    if srv.mode == bdm_config::Mode::Hosted {
+        bind_url(srv.admin_bind.as_deref().unwrap_or("127.0.0.1:8788"))
+    } else {
+        bind_url(&srv.http_bind)
+    }
+}
+
 /// Facts the dashboard needs to generate MCP/REST client snippets. Secret-free by construction.
 async fn connect(State(s): State<AdminState>) -> Response {
     let cfg = s.router().table().config.clone();
     let srv = &cfg.settings.server;
     let hosted = srv.mode == bdm_config::Mode::Hosted;
-    let http_url = if hosted {
-        bind_url(srv.admin_bind.as_deref().unwrap_or("127.0.0.1:8788"))
-    } else {
-        bind_url(&srv.http_bind)
-    };
+    let http_url = dashboard_base(srv);
     let public_url = hosted.then(|| bind_url(srv.public_bind.as_deref().unwrap_or_default()));
     let mcp_url = format!("{}/mcp", public_url.as_deref().unwrap_or(&http_url));
     let binary_path = std::env::current_exe()
         .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "blockchain-data-mcp".into());
+        .unwrap_or_else(|_| "onchain-data-mcp".into());
     let root = &s.loader.dir.root;
     let config_dir = std::fs::canonicalize(root)
         .unwrap_or_else(|_| root.clone())
@@ -481,6 +493,7 @@ async fn config(State(s): State<AdminState>) -> Response {
                 "signup_url": e.signup_url,
                 "note": e.note,
                 "free_tier_verified": e.free_tier_verified,
+                "tier": e.tier,
                 "unit": e.unit,
                 "status": cfg.vendor_status(id),
                 "enabled": cfg.settings.vendors.get(id).and_then(|v| v.enabled).or(e.enabled).unwrap_or(e.free_tier_verified),
