@@ -3,6 +3,13 @@
 Loaded by `bdm_testkit::vendor_fixture(env!("CARGO_MANIFEST_DIR"), "<vendor>", "<case>")` in each
 vendor module's tests (served through wiremock; tests never touch the network).
 
+## Rules
+
+- Path: `fixtures/<vendor>/<case>.json`.
+- Strip API keys, key-bearing URLs, emails, IPs and any other PII before committing.
+- Keep fixtures minimal: trim arrays to the entries the test asserts on.
+- When a vendor changes its schema, add a new case instead of editing the old one.
+
 ## Provenance
 
 The market-trading fixtures (`coingecko`, `geckoterminal`, `defillama`, `dexscreener`, `birdeye`,
