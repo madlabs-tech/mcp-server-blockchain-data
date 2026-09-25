@@ -53,6 +53,22 @@ pub type Rebuild = Arc<dyn Fn(&Loaded) -> ProviderRegistry + Send + Sync>;
 const INDEX_HTML: &str = include_str!("dashboard/index.html");
 const APP_JS: &str = include_str!("dashboard/app.js");
 const APP_CSS: &str = include_str!("dashboard/app.css");
+/// Bundled dashboard fonts (SIL OFL 1.1, see `dashboard/fonts/OFL.txt`). Served by name
+/// lookup only: no filesystem access, so no path traversal.
+const FONTS: &[(&str, &[u8])] = &[
+    (
+        "orbitron.woff2",
+        include_bytes!("dashboard/fonts/orbitron.woff2"),
+    ),
+    (
+        "jetbrains-mono.woff2",
+        include_bytes!("dashboard/fonts/jetbrains-mono.woff2"),
+    ),
+    (
+        "share-tech-mono.woff2",
+        include_bytes!("dashboard/fonts/share-tech-mono.woff2"),
+    ),
+];
 
 #[derive(Clone)]
 pub struct AdminState {
@@ -183,12 +199,20 @@ pub fn admin_router(state: AdminState) -> Router {
             "/dashboard/app.css",
             get(|| async { asset("text/css; charset=utf-8", APP_CSS) }),
         )
+        .route("/dashboard/fonts/{name}", get(font))
         .layer(RequestBodyLimitLayer::new(ADMIN_BODY_LIMIT))
         .layer(crate::catch_panic_layer())
         .with_state(state)
 }
 
-fn asset(content_type: &'static str, body: &'static str) -> Response {
+async fn font(Path(name): Path<String>) -> Response {
+    match FONTS.iter().find(|(n, _)| *n == name) {
+        Some((_, bytes)) => asset("font/woff2", *bytes),
+        None => StatusCode::NOT_FOUND.into_response(),
+    }
+}
+
+fn asset(content_type: &'static str, body: impl Into<axum::body::Body>) -> Response {
     (
         [
             (header::CONTENT_TYPE, content_type),
@@ -200,7 +224,7 @@ fn asset(content_type: &'static str, body: &'static str) -> Response {
             (header::REFERRER_POLICY, "no-referrer"),
             (header::CACHE_CONTROL, "no-store"),
         ],
-        body,
+        body.into(),
     )
         .into_response()
 }
