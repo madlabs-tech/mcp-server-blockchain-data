@@ -1,5 +1,4 @@
 //! `wallet` tools: `wallet_get_balances`, `wallet_get_transfers`, `address_validate`.
-//! See the ownership table in `ops/mod.rs`.
 
 use super::chain::{
     merge_meta, native_asset, parse_address, resolve_asset, rpc_meta, stablecoin, stablecoins,
@@ -9,13 +8,13 @@ use async_trait::async_trait;
 use bdm_config::ChainEntry;
 use bdm_domain::{
     AccountAddress, Amount, AssetId, AssetRef, ChainFamily, ChainId, DomainError, Provenance,
-    Transfer,
+    SolanaPubkey, Transfer,
 };
 use bdm_ports::{
     Capability, Direction, EvmRpc, Page, SolanaRpc, TokenBalance, TokenBalances, TransferHistory,
     TransferQuery,
 };
-use bdm_protocols::solana::spl;
+use bdm_protocols::solana::{spl, tx::SYSTEM_PROGRAM};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -443,8 +442,6 @@ impl Operation for WalletGetTransfers {
 
 // ------------------------------------------------------------------ address_validate
 
-pub(crate) const SYSTEM_PROGRAM: &str = "11111111111111111111111111111111";
-
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct AddressValidateIn {
     /// Address to check: 0x… (EVM) or base58 (Solana).
@@ -457,12 +454,8 @@ pub struct AddressValidateIn {
     pub token: Option<String>,
     /// EVM: when the address has no code here, look for code on the other EVM chains (catches
     /// Safes/smart accounts deployed on another network). Default true.
-    #[serde(default = "yes")]
+    #[serde(default = "crate::ops::yes")]
     pub check_other_chains: bool,
-}
-
-fn yes() -> bool {
-    true
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
@@ -583,17 +576,7 @@ pub(crate) fn classify_code(code: &[u8]) -> (AddressKind, Option<alloy_primitive
 }
 
 fn hex_bytes(v: &Value) -> Option<Vec<u8>> {
-    hex_decode(v.as_str()?.trim_start_matches("0x"))
-}
-
-pub(crate) fn hex_decode(s: &str) -> Option<Vec<u8>> {
-    if !s.len().is_multiple_of(2) {
-        return None;
-    }
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(s.get(i..i + 2)?, 16).ok())
-        .collect()
+    alloy_primitives::hex::decode(v.as_str()?).ok()
 }
 
 async fn evm_code(rpc: &dyn EvmRpc, a: alloy_primitives::Address) -> Option<Vec<u8>> {
@@ -623,8 +606,27 @@ pub(crate) async fn sol_account(rpc: &dyn SolanaRpc, address: &str) -> Result<Va
     Ok(v.get("value").cloned().unwrap_or(Value::Null))
 }
 
-pub(crate) fn is_token_program(owner: &str) -> bool {
-    owner == spl::TOKEN_PROGRAM || owner == spl::TOKEN_2022_PROGRAM
+/// A mint's token program and decimals; `Invalid` if `mint` is not a token mint on `chain`.
+pub(crate) async fn sol_mint(
+    rpc: &dyn SolanaRpc,
+    mint: &SolanaPubkey,
+    chain: &ChainEntry,
+) -> Result<(SolanaPubkey, u8), DomainError> {
+    let m = sol_account(rpc, &mint.to_string()).await?;
+    let program = m.get("owner").and_then(Value::as_str).unwrap_or_default();
+    let kind = m.pointer("/data/parsed/type").and_then(Value::as_str);
+    if !spl::TOKEN_PROGRAMS.contains(&program) || kind != Some("mint") {
+        return Err(DomainError::invalid(format!(
+            "{mint} is not a token mint on {}",
+            chain.id
+        )));
+    }
+    let decimals = m
+        .pointer("/data/parsed/info/decimals")
+        .and_then(Value::as_u64)
+        .and_then(|d| u8::try_from(d).ok())
+        .ok_or_else(|| DomainError::internal("mint has no decimals"))?;
+    Ok((program.parse()?, decimals))
 }
 
 pub struct AddressValidate;
@@ -806,9 +808,9 @@ async fn validate_solana(
         AddressKind::Program
     } else if owner == SYSTEM_PROGRAM {
         AddressKind::Wallet
-    } else if is_token_program(owner) && parsed["type"] == "account" {
+    } else if spl::TOKEN_PROGRAMS.contains(&owner) && parsed["type"] == "account" {
         AddressKind::TokenAccount
-    } else if is_token_program(owner) && parsed["type"] == "mint" {
+    } else if spl::TOKEN_PROGRAMS.contains(&owner) && parsed["type"] == "mint" {
         AddressKind::Mint
     } else {
         AddressKind::ProgramOwned
@@ -922,7 +924,8 @@ async fn check_token(
             .await
             .ok()
             .map(|a| {
-                is_token_program(a.get("owner").and_then(Value::as_str).unwrap_or_default())
+                spl::TOKEN_PROGRAMS
+                    .contains(&a.get("owner").and_then(Value::as_str).unwrap_or_default())
                     && a.pointer("/data/parsed/type").and_then(Value::as_str) == Some("mint")
             }),
     };
@@ -1026,12 +1029,5 @@ mod tests {
         assert_eq!(rows[1].amount, Amount::from_u128(4_000_001, 6));
         assert_eq!(rows[1].amount.format_units(), "4.000001");
         assert_eq!(rows[1].token_accounts.len(), 2);
-    }
-
-    #[test]
-    fn hex_decoding() {
-        assert_eq!(hex_decode("00ff10"), Some(vec![0, 255, 16]));
-        assert_eq!(hex_decode("0"), None);
-        assert_eq!(hex_decode("zz"), None);
     }
 }

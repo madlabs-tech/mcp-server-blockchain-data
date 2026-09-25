@@ -12,8 +12,24 @@ sol! {
         function decimals() external view returns (uint8);
         function symbol() external view returns (string);
         function name() external view returns (string);
+        function transfer(address to, uint256 amount) external returns (bool);
+        function approve(address spender, uint256 amount) external returns (bool);
         event Transfer(address indexed from, address indexed to, uint256 value);
     }
+}
+
+/// `transfer(to, amount)` calldata.
+pub fn transfer_calldata(to: Address, amount: U256) -> Vec<u8> {
+    IERC20::transferCall { to, amount }.abi_encode()
+}
+
+/// `(spender, amount)` of exactly one `approve(spender, amount)` call, else `None`.
+pub fn decode_approve(data: &[u8]) -> Option<(Address, U256)> {
+    if data.len() != 4 + 64 {
+        return None;
+    }
+    let c = IERC20::approveCall::abi_decode(data).ok()?;
+    Some((c.spender, c.amount))
 }
 
 async fn call<C: SolCall>(

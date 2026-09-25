@@ -1,4 +1,4 @@
-//! `stablecoin` tools. See the ownership table in `ops/mod.rs`.
+//! `stablecoin` tools.
 //!
 //! Also hosts the helpers shared with `payments` and `compliance`: the built-in registry,
 //! canonical-token resolution, and issuer-restriction checks over the routed chain RPC.
@@ -63,10 +63,6 @@ pub(crate) fn resolve_canonical(
             format!("registered here: {}", known.join(", "))
         })
     })
-}
-
-pub(crate) fn parse_account(chain: &ChainEntry, s: &str) -> Result<AccountAddress, DomainError> {
-    AccountAddress::parse(chain.family, s)
 }
 
 /// Entries on `chain` that have any issuer control worth reading.
@@ -320,7 +316,7 @@ Caveats: an address can be frozen after this check (re-check right before sendin
         input: CheckRestrictionsIn,
     ) -> Result<OpOutput<CheckRestrictionsOut>, DomainError> {
         let chain = ctx.chain(&input.chain)?;
-        let address = parse_account(chain, &input.address)?;
+        let address = AccountAddress::parse(chain.family, &input.address)?;
         let entries = match &input.token {
             Some(t) => vec![resolve_canonical(chain, t)?],
             None => controlled(chain)?,

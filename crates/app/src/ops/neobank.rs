@@ -1,11 +1,11 @@
 //! `neobank` tools: `fiat_get_fx_rate`, `neobank_card_funding_status`, `neobank_get_ledger`.
-//! See the ownership table in `ops/mod.rs`.
 
 use super::chain::{fiat_value, hex_u64, parse_address, resolve_asset, rpc_meta, stablecoin};
+use super::currency_code;
 use super::tx::lookup_tx;
 use super::wallet::{
-    fetch_transfers, is_token_program, sol_account, stablecoin_info, transfer_query,
-    StablecoinInfo, TransferFilter,
+    fetch_transfers, sol_account, sol_mint, stablecoin_info, transfer_query, StablecoinInfo,
+    TransferFilter,
 };
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use alloy_primitives::U256;
@@ -32,17 +32,6 @@ pub fn register(c: &mut Catalog) {
 
 const NEOBANK: &[Profile] = &[Profile::Neobank];
 const FIAT: &[Profile] = &[Profile::Neobank, Profile::Payments];
-
-fn currency(c: &str) -> Result<String, DomainError> {
-    let c = c.trim().to_ascii_uppercase();
-    if c.len() == 3 && c.bytes().all(|b| b.is_ascii_alphabetic()) {
-        Ok(c)
-    } else {
-        Err(DomainError::invalid(format!(
-            "'{c}' is not an ISO 4217 currency code"
-        )))
-    }
-}
 
 // ------------------------------------------------------------------ fiat_get_fx_rate
 
@@ -125,7 +114,7 @@ impl Operation for FiatGetFxRate {
     }
 
     async fn execute(&self, ctx: &Ctx, input: FxIn) -> Result<OpOutput<FxOut>, DomainError> {
-        let (base, quote) = (currency(&input.base)?, currency(&input.quote)?);
+        let (base, quote) = (currency_code(&input.base)?, currency_code(&input.quote)?);
         let date = input
             .date
             .as_deref()
@@ -398,21 +387,8 @@ async fn sol_funding(
     spender: SolanaPubkey,
 ) -> Result<FundingReads, DomainError> {
     let rpc = ctx.solana_rpc(chain)?;
-    let m = sol_account(&rpc, &mint.to_string()).await?;
-    let program = m.get("owner").and_then(Value::as_str).unwrap_or_default();
-    let kind = m.pointer("/data/parsed/type").and_then(Value::as_str);
-    if !is_token_program(program) || kind != Some("mint") {
-        return Err(DomainError::invalid(format!(
-            "{mint} is not a token mint on {}",
-            chain.id
-        )));
-    }
-    let decimals = m
-        .pointer("/data/parsed/info/decimals")
-        .and_then(Value::as_u64)
-        .and_then(|d| u8::try_from(d).ok())
-        .ok_or_else(|| DomainError::internal("mint has no decimals"))?;
-    let ata = spl::associated_token_address(&owner, &mint, &program.parse()?)?;
+    let (program, decimals) = sol_mint(&rpc, &mint, chain).await?;
+    let ata = spl::associated_token_address(&owner, &mint, &program)?;
     let acct = sol_account(&rpc, &ata.to_string()).await?;
     let mut r = FundingReads {
         decimals,
@@ -447,14 +423,10 @@ pub struct LedgerIn {
     #[serde(default)]
     pub currency: Option<String>,
     /// Look up the network fee of outgoing transactions (one extra lookup per transaction).
-    #[serde(default = "yes")]
+    #[serde(default = "crate::ops::yes")]
     pub include_fees: bool,
     #[serde(flatten)]
     pub filter: TransferFilter,
-}
-
-fn yes() -> bool {
-    true
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
@@ -594,7 +566,7 @@ impl Operation for GetLedger {
     ) -> Result<OpOutput<LedgerOut>, DomainError> {
         let chain = ctx.chain(&input.chain)?;
         let owner = parse_address(chain, &input.address)?;
-        let cur = currency(input.currency.as_deref().unwrap_or("USD"))?;
+        let cur = currency_code(input.currency.as_deref().unwrap_or("USD"))?;
         let page = fetch_transfers(ctx, chain, transfer_query(chain, owner, input.filter)?).await?;
 
         // Historical prices, one lookup per (asset, block time).

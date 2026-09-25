@@ -1,5 +1,4 @@
-//! `trade` tools (T1.M3): `trade_get_swap_quote`, `trade_build_swap_tx`.
-//! See the ownership table in `ops/mod.rs`.
+//! `trade` tools: `trade_get_swap_quote`, `trade_build_swap_tx`.
 
 use crate::{
     ops::market::{fan_out, parse_asset, resolve_decimals},
@@ -296,12 +295,8 @@ pub(crate) fn decode_approve(tx: &UnsignedTx) -> Option<(Address, Address, U256)
     let UnsignedTx::Evm { to, data, .. } = tx else {
         return None;
     };
-    let hex = data.strip_prefix("0x")?;
-    if hex.len() != 8 + 128 || !hex.starts_with("095ea7b3") {
-        return None;
-    }
-    let spender: Address = format!("0x{}", &hex[8 + 24..8 + 64]).parse().ok()?;
-    let amount = U256::from_str_radix(&hex[8 + 64..], 16).ok()?;
+    let bytes = alloy_primitives::hex::decode(data.strip_prefix("0x")?).ok()?;
+    let (spender, amount) = bdm_protocols::evm::erc20::decode_approve(&bytes)?;
     Some((to.parse().ok()?, spender, amount))
 }
 
@@ -486,5 +481,24 @@ mod tests {
                 .unwrap()
         );
         assert_eq!(amount, U256::from(1_000_000u64));
+
+        // Anything that is not exactly one approve call is left alone, never a panic.
+        let UnsignedTx::Evm { data: good, .. } = &tx else {
+            panic!("EVM tx")
+        };
+        let mut multibyte = good.clone();
+        multibyte.replace_range(33..35, "é"); // straddles the old spender slice start
+        for bad in [
+            good.replace("0x095ea7b3", "0xa9059cbb"),
+            format!("{good}00"),
+            good[..good.len() - 2].to_owned(),
+            multibyte,
+        ] {
+            let mut tx = tx.clone();
+            if let UnsignedTx::Evm { data, .. } = &mut tx {
+                *data = bad;
+            }
+            assert_eq!(decode_approve(&tx), None);
+        }
     }
 }

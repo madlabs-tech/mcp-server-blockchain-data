@@ -5,7 +5,8 @@ use super::chain::{
     fiat_value, hex_u64, merge_meta, native_asset, parse_address, resolve_asset, rpc_meta,
     stablecoin,
 };
-use super::wallet::{hex_decode, is_token_program, sol_account, SYSTEM_PROGRAM};
+use super::currency_code;
+use super::wallet::{sol_account, sol_mint};
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use alloy_primitives::{keccak256, Address, U256};
 use async_trait::async_trait;
@@ -19,7 +20,10 @@ use bdm_ports::{
     BroadcastReceipt, Broadcaster, Capability, EvmRpc, FeeOracle, PriceFeed, ProviderError,
     SimulationResult, Simulator, SolanaRpc,
 };
-use bdm_protocols::{evm, solana, solana::spl};
+use bdm_protocols::{
+    evm, solana,
+    solana::{spl, tx::SYSTEM_PROGRAM},
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -272,17 +276,6 @@ pub(crate) async fn fee_estimate(
         .map_err(|e| e.error)
 }
 
-fn currency_code(c: Option<&str>) -> Result<String, DomainError> {
-    let c = c.unwrap_or("USD").trim().to_ascii_uppercase();
-    if c.len() == 3 && c.bytes().all(|b| b.is_ascii_alphabetic()) {
-        Ok(c)
-    } else {
-        Err(DomainError::invalid(format!(
-            "'{c}' is not an ISO 4217 currency code"
-        )))
-    }
-}
-
 pub struct TxEstimateFee;
 
 #[async_trait]
@@ -304,7 +297,7 @@ impl Operation for TxEstimateFee {
 
     async fn execute(&self, ctx: &Ctx, input: FeeIn) -> Result<OpOutput<FeeOut>, DomainError> {
         let chain = ctx.chain(&input.chain)?;
-        let currency = currency_code(input.currency.as_deref())?;
+        let currency = currency_code(input.currency.as_deref().unwrap_or("USD"))?;
         let (fee, price) = tokio::join!(
             fee_estimate(ctx, chain),
             native_price(ctx, chain, &currency)
@@ -425,12 +418,8 @@ pub struct BuildIn {
     pub memo: Option<String>,
     /// Solana: create the recipient's associated token account if missing (sender pays rent).
     /// Default true.
-    #[serde(default = "yes")]
+    #[serde(default = "crate::ops::yes")]
     pub create_recipient_account: bool,
-}
-
-fn yes() -> bool {
-    true
 }
 
 #[derive(Debug, Serialize, JsonSchema)]
@@ -536,11 +525,10 @@ struct Built {
 
 /// ERC-20 `transfer(address,uint256)` calldata.
 pub(crate) fn erc20_transfer_data(to: Address, amount: U256) -> String {
-    format!("0xa9059cbb{:0>64}{amount:064x}", hex_str(to.as_slice()))
-}
-
-fn hex_str(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
+    format!(
+        "0x{}",
+        alloy_primitives::hex::encode(evm::erc20::transfer_calldata(to, amount))
+    )
 }
 
 async fn build_evm(
@@ -638,10 +626,6 @@ fn rpc_chain_id(chain: &ChainEntry) -> Result<u64, DomainError> {
         .ok_or_else(|| DomainError::internal(format!("{} has no EIP-155 id", chain.id)))
 }
 
-fn pubkey(s: &str) -> Result<SolanaPubkey, DomainError> {
-    s.parse()
-}
-
 async fn build_solana(
     ctx: &Ctx,
     chain: &ChainEntry,
@@ -657,7 +641,7 @@ async fn build_solana(
         .get("owner")
         .and_then(Value::as_str)
         .unwrap_or_default();
-    if is_token_program(rowner) {
+    if spl::TOKEN_PROGRAMS.contains(&rowner) {
         return Err(DomainError::invalid(format!(
             "{to} is a token account or mint, not a wallet: pass the owner wallet"
         )));
@@ -667,7 +651,7 @@ async fn build_solana(
             "recipient is owned by program {rowner}, not a wallet key"
         ));
     }
-    let system = pubkey(SYSTEM_PROGRAM)?;
+    let system: SolanaPubkey = SYSTEM_PROGRAM.parse()?;
     let mut ixs = Vec::new();
     let mut recipient_token_account = None;
     let mut creates_account = false;
@@ -679,7 +663,7 @@ async fn build_solana(
                 return Err(DomainError::invalid("memo is longer than 256 bytes"));
             }
             Ok(SolIx {
-                program: pubkey(MEMO_PROGRAM)?,
+                program: MEMO_PROGRAM.parse()?,
                 accounts: vec![],
                 data: m.as_bytes().to_vec(),
             })
@@ -701,23 +685,9 @@ async fn build_solana(
             amount
         }
         AssetRef::SplToken(mint) => {
-            let m = sol_account(&rpc, &mint.to_string()).await?;
-            let program_s = m.get("owner").and_then(Value::as_str).unwrap_or_default();
-            let info = m.pointer("/data/parsed/info").unwrap_or(&Value::Null);
-            let kind = m.pointer("/data/parsed/type").and_then(Value::as_str);
-            if !is_token_program(program_s) || kind != Some("mint") {
-                return Err(DomainError::invalid(format!(
-                    "{mint} is not a token mint on {}",
-                    chain.id
-                )));
-            }
-            let decimals = info["decimals"]
-                .as_u64()
-                .and_then(|d| u8::try_from(d).ok())
-                .ok_or_else(|| DomainError::internal("mint has no decimals"))?;
+            let (program, decimals) = sol_mint(&rpc, mint, chain).await?;
             let amount = Amount::parse_units(&input.amount, decimals)?;
             let raw = to_u64(&amount)?;
-            let program = pubkey(program_s)?;
             let src = spl::associated_token_address(&from, mint, &program)?;
             let dst = spl::associated_token_address(&to, mint, &program)?;
             recipient_token_account = Some(dst.to_string());
@@ -729,7 +699,7 @@ async fn build_solana(
                 }
                 creates_account = true;
                 ixs.push(SolIx {
-                    program: pubkey(spl::ASSOCIATED_TOKEN_PROGRAM)?,
+                    program: spl::ASSOCIATED_TOKEN_PROGRAM.parse()?,
                     accounts: vec![
                         AcctMeta::signer(from),
                         AcctMeta::writable(dst),
@@ -759,7 +729,7 @@ async fn build_solana(
                 ],
                 data,
             });
-            if program_s == spl::TOKEN_2022_PROGRAM {
+            if program.to_string() == spl::TOKEN_2022_PROGRAM {
                 warnings.push(
                     "Token-2022 mint: extensions (transfer fee, hook, memo-required) are checked \
                      only by the simulation"
@@ -785,7 +755,7 @@ async fn build_solana(
         .pointer("/value/lastValidBlockHeight")
         .and_then(Value::as_u64)
         .ok_or_else(|| DomainError::internal("getLatestBlockhash: no lastValidBlockHeight"))?;
-    let message = compile_message(from, &ixs, pubkey(blockhash)?.0)?;
+    let message = compile_message(from, &ixs, blockhash.parse::<SolanaPubkey>()?.0)?;
     Ok(Built {
         tx: UnsignedTx::Solana {
             message_base64: B64.encode(message),
@@ -962,7 +932,7 @@ pub(crate) fn local_tx_hash(family: ChainFamily, signed: &str) -> Result<String,
         ChainFamily::Evm => {
             let bytes = t
                 .strip_prefix("0x")
-                .and_then(hex_decode)
+                .and_then(|h| alloy_primitives::hex::decode(h).ok())
                 .filter(|b| b.len() > 64)
                 .ok_or_else(|| {
                     DomainError::invalid("signed_tx must be 0x-prefixed raw transaction hex")
@@ -1110,7 +1080,10 @@ mod tests {
         let h = local_tx_hash(ChainFamily::Evm, &raw).unwrap();
         assert_eq!(
             h,
-            format!("{:#x}", keccak256(hex_decode(&raw[2..]).unwrap()))
+            format!(
+                "{:#x}",
+                keccak256(alloy_primitives::hex::decode(&raw[2..]).unwrap())
+            )
         );
         assert!(local_tx_hash(ChainFamily::Evm, "0x1234").is_err());
 

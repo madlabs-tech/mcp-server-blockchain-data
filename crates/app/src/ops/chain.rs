@@ -14,7 +14,7 @@ use bdm_protocols::stablecoins::{StablecoinEntry, StablecoinRegistry};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::{collections::BTreeMap, sync::OnceLock};
+use std::{collections::BTreeMap, sync::LazyLock};
 
 pub fn register(c: &mut Catalog) {
     c.register(ChainList);
@@ -24,15 +24,11 @@ pub fn register(c: &mut Catalog) {
 
 // ------------------------------------------------------------------ shared helpers
 
-/// Canonical stablecoin registry, loaded once.
+/// Canonical stablecoin registry, or an empty one if the built-in file is invalid (the
+/// stablecoin tools report that error; lookups here just find nothing).
 pub(crate) fn stablecoins() -> &'static StablecoinRegistry {
-    static REG: OnceLock<StablecoinRegistry> = OnceLock::new();
-    REG.get_or_init(|| {
-        StablecoinRegistry::builtin().unwrap_or_else(|e| {
-            tracing::warn!("stablecoin registry unavailable: {e}");
-            StablecoinRegistry::default()
-        })
-    })
+    static EMPTY: LazyLock<StablecoinRegistry> = LazyLock::new(StablecoinRegistry::default);
+    super::stablecoin::registry().unwrap_or(&EMPTY)
 }
 
 pub(crate) fn native_asset(c: &ChainEntry) -> AssetId {

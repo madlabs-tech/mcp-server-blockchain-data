@@ -1,5 +1,5 @@
-//! `market` tools (T1.M1, T1.M2): `market_get_price`, `market_get_price_at`,
-//! `token_get_metadata`, `token_check_risk`. See the ownership table in `ops/mod.rs`.
+//! `market` tools: `market_get_price`, `market_get_price_at`,
+//! `token_get_metadata`, `token_check_risk`.
 
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use async_trait::async_trait;

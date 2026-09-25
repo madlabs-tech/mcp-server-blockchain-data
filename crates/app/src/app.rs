@@ -22,13 +22,13 @@ use std::{
 use tracing::Instrument;
 
 /// Admission hook (hosted mode: client auth is done by the transport; per-client rate limits and
-/// quotas are enforced here by the platform module, T1.D3).
+/// quotas are enforced here by `bdm-store`).
 #[async_trait]
 pub trait CallGuard: Send + Sync {
     async fn admit(&self, caller: &Caller, op: &str) -> Result<(), DomainError>;
 }
 
-/// Hosted-mode client authentication (implemented by the platform module, T1.D3). Transports
+/// Hosted-mode client authentication (implemented in `bdm-store`). Transports
 /// call it with the bearer token and attach the resulting [`Caller`] to the request.
 #[async_trait]
 pub trait ClientAuth: Send + Sync {
@@ -185,12 +185,7 @@ impl App {
             chrono::Utc::now().timestamp_millis(),
             self.seq.fetch_add(1, Ordering::Relaxed)
         );
-        let ctx = Ctx::new(
-            self.router.clone(),
-            op.name(),
-            caller.clone(),
-            request_id.clone(),
-        );
+        let ctx = Ctx::new(self.router.clone(), op.name());
         let call_ctx = CallContext {
             tool: Some(name.to_owned()),
             client: caller.client.clone(),
