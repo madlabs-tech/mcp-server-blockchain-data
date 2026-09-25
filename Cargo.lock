@@ -2042,6 +2042,7 @@ dependencies = [
  "bdm-protocols",
  "bdm-routing",
  "bdm-store",
+ "bdm-testkit",
  "bdm-transport-http",
  "bdm-transport-mcp",
  "chrono",
