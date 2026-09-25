@@ -56,7 +56,7 @@ rust_decimal = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 # optional: trm (base64), goplus (sha1 sign), okx_dex (HMAC-SHA256 + base64)
-base64 = { version = "0.22", optional = true }
+base64 = { workspace = true, optional = true }
 sha1 = { version = "0.10", optional = true }
 hmac = { version = "0.12", optional = true }
 sha2 = { workspace = true, optional = true }
@@ -64,7 +64,7 @@ sha2 = { workspace = true, optional = true }
 [dev-dependencies]
 bdm-testkit = { workspace = true }
 # solana vendor tests build signed wire transactions
-base64 = "0.22"
+base64 = { workspace = true }
 bs58 = { workspace = true }
 tokio = { workspace = true }
 

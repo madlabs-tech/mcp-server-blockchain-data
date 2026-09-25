@@ -28,12 +28,12 @@ bdm-testkit = { path = "crates/testkit" }
 alloy-primitives = { version = "1.4", features = ["serde"] }
 alloy-sol-types = "1.4"
 bs58 = "0.5"
+base64 = "0.22"
 
 # mcp / http
 rmcp = { version = "0.8.3", features = ["server", "transport-io"] }
 axum = "0.8"
-tower = "0.5"
-tower-http = { version = "0.6", features = ["limit", "trace", "timeout", "catch-panic"] }
+tower-http = { version = "0.6", features = ["limit", "trace", "catch-panic"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 http = "1"
 url = "2"
@@ -60,6 +60,7 @@ rand = "0.9"
 
 # test
 wiremock = "0.6"
+tempfile = "3"
 
 [profile.release]
 lto = "thin"

@@ -31,7 +31,7 @@ async-trait = { workspace = true }
 schemars = { workspace = true }
 rmcp = { workspace = true, features = ["client", "transport-streamable-http-client-reqwest"] }
 reqwest = { workspace = true }
-tempfile = "3"
+tempfile = { workspace = true }
 
 [lints]
 workspace = true

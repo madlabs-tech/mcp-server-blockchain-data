@@ -34,11 +34,9 @@ tracing-subscriber = { workspace = true }
 url = { workspace = true }
 
 [dev-dependencies]
-axum = { workspace = true }
 chrono = { workspace = true }
 rmcp = { workspace = true, features = ["client", "transport-child-process"] }
-serde_json = { workspace = true }
-tempfile = "3"
+tempfile = { workspace = true }
 tokio = { workspace = true, features = ["process"] }
 reqwest = { workspace = true }
 

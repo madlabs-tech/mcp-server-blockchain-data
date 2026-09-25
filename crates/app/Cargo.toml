@@ -14,7 +14,7 @@ bdm-routing = { workspace = true }
 bdm-protocols = { workspace = true }
 alloy-primitives = { workspace = true }
 async-trait = { workspace = true }
-base64 = "0.22"
+base64 = { workspace = true }
 bs58 = { workspace = true }
 futures = { workspace = true }
 chrono = { workspace = true }
