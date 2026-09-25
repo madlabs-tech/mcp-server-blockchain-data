@@ -12,11 +12,9 @@ use bdm_ports::{
     ProviderError,
 };
 use chrono::{DateTime, Utc};
-use governor::{DefaultDirectRateLimiter, Quota, RateLimiter};
 use serde::Serialize;
 use std::{
     collections::HashMap,
-    num::NonZeroU32,
     sync::{Arc, Mutex},
     time::Duration,
 };
@@ -106,20 +104,82 @@ pub struct VendorHealth {
     pub usage: UsageSnapshot,
 }
 
-struct Limiters {
-    params: (Option<u64>, Option<u64>),
-    rps: Option<DefaultDirectRateLimiter>,
-    per_minute: Option<DefaultDirectRateLimiter>,
+/// Token bucket: holds up to `cap` tokens (the burst), refilled continuously at `per_sec`.
+/// Shared by the router's per-vendor limits and the hosted per-client limit.
+#[derive(Debug, Clone, Copy)]
+pub struct TokenBucket {
+    tokens: f64,
+    last: std::time::Instant,
 }
 
-fn limiter(n: Option<u64>, per_minute: bool) -> Option<DefaultDirectRateLimiter> {
-    let n = NonZeroU32::new(u32::try_from(n?).unwrap_or(u32::MAX))?;
-    let quota = if per_minute {
-        Quota::per_minute(n)
-    } else {
-        Quota::per_second(n)
-    };
-    Some(RateLimiter::direct(quota))
+impl TokenBucket {
+    pub fn full(cap: f64, now: std::time::Instant) -> Self {
+        Self {
+            tokens: cap,
+            last: now,
+        }
+    }
+
+    /// Take one token, or `Err(wait)` until the next one is due (nothing is taken then).
+    pub fn take(
+        &mut self,
+        cap: f64,
+        per_sec: f64,
+        now: std::time::Instant,
+    ) -> Result<(), Duration> {
+        let refill = now.saturating_duration_since(self.last).as_secs_f64() * per_sec;
+        self.tokens = (self.tokens + refill).min(cap);
+        self.last = self.last.max(now);
+        if self.tokens >= 1.0 {
+            self.tokens -= 1.0;
+            Ok(())
+        } else {
+            Err(Duration::try_from_secs_f64((1.0 - self.tokens) / per_sec).unwrap_or(Duration::MAX))
+        }
+    }
+}
+
+/// `n` requests per `period_secs`, burst `n`. `None`/0 = no limit.
+struct Limit {
+    cap: f64,
+    per_sec: f64,
+    bucket: Mutex<TokenBucket>,
+}
+
+impl Limit {
+    fn new(n: Option<u64>, period_secs: f64) -> Option<Self> {
+        let cap = n.filter(|&n| n > 0)? as f64;
+        Some(Self {
+            cap,
+            per_sec: cap / period_secs,
+            bucket: Mutex::new(TokenBucket::full(cap, Instant::now().into_std())),
+        })
+    }
+
+    /// Wait for a token while the wait fits in `max_wait`; `false` = it would not.
+    async fn acquire(&self, max_wait: Duration) -> bool {
+        let start = Instant::now();
+        loop {
+            let taken = self.bucket.lock().unwrap_or_else(|e| e.into_inner()).take(
+                self.cap,
+                self.per_sec,
+                Instant::now().into_std(),
+            );
+            match taken {
+                Ok(()) => return true,
+                Err(wait) if wait.saturating_add(start.elapsed()) <= max_wait => {
+                    tokio::time::sleep(wait).await
+                }
+                Err(_) => return false,
+            }
+        }
+    }
+}
+
+struct Limiters {
+    params: (Option<u64>, Option<u64>),
+    rps: Option<Limit>,
+    per_minute: Option<Limit>,
 }
 
 pub(crate) struct RuntimeState {
@@ -203,27 +263,21 @@ impl RuntimeState {
         }
         let lim = {
             let mut map = self.limiters.lock().unwrap_or_else(|e| e.into_inner());
-            let entry = map.entry(vendor.to_owned()).or_insert_with(|| {
-                Arc::new(Limiters {
-                    params,
-                    rps: limiter(params.0, false),
-                    per_minute: limiter(params.1, true),
-                })
-            });
-            if entry.params != params {
-                *entry = Arc::new(Limiters {
-                    params,
-                    rps: limiter(params.0, false),
-                    per_minute: limiter(params.1, true),
-                });
+            match map.get(vendor) {
+                Some(l) if l.params == params => l.clone(),
+                _ => {
+                    let l = Arc::new(Limiters {
+                        params,
+                        rps: Limit::new(params.0, 1.0),
+                        per_minute: Limit::new(params.1, 60.0),
+                    });
+                    map.insert(vendor.to_owned(), l.clone());
+                    l
+                }
             }
-            entry.clone()
         };
         for l in [&lim.rps, &lim.per_minute].into_iter().flatten() {
-            if tokio::time::timeout(max_wait, l.until_ready())
-                .await
-                .is_err()
-            {
+            if !l.acquire(max_wait).await {
                 return false;
             }
         }

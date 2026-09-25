@@ -31,5 +31,5 @@ pub use router::{
     RoutingTable, PUBLIC_ATTEMPT_TIMEOUT,
 };
 pub use rpc::{RoutedEvmRpc, RoutedSolanaRpc};
-pub use state::{BreakerState, UsageSnapshot, VendorHealth};
+pub use state::{BreakerState, TokenBucket, UsageSnapshot, VendorHealth};
 pub use store::{CounterStore, Dims, InMemoryCounterStore, WindowKey};
