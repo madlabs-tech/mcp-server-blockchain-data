@@ -11,18 +11,18 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --system --uid 10001 --home-dir /data --shell /usr/sbin/nologin ems \
  && mkdir -p /data /config && chown ems:ems /data /config
-COPY --from=builder /src/target/release/blockchain-data-mcp /usr/local/bin/blockchain-data-mcp
+COPY --from=builder /src/target/release/onchain-data-mcp /usr/local/bin/onchain-data-mcp
 
 USER ems
 # /data: sqlite bdm.db (usage counters, client keys, call log)
 # /config: config.toml + secrets.toml (written by the dashboard) + admin_token (created on first start)
 VOLUME ["/data", "/config"]
-ENV BDM__SERVER__DATA_DIR=/data \
-    BDM__SERVER__HTTP_BIND=0.0.0.0:8787 \
+ENV ODM__SERVER__DATA_DIR=/data \
+    ODM__SERVER__HTTP_BIND=0.0.0.0:8787 \
     RUST_LOG=info
 EXPOSE 8787 8788
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -fsS http://127.0.0.1:8787/healthz || exit 1
 
-ENTRYPOINT ["blockchain-data-mcp"]
+ENTRYPOINT ["onchain-data-mcp"]
 CMD ["serve", "--config-dir", "/config"]

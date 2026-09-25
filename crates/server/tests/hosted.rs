@@ -21,16 +21,16 @@ fn free_port() -> u16 {
 }
 
 fn bin(dir: &Path) -> Command {
-    let mut c = Command::new(env!("CARGO_BIN_EXE_blockchain-data-mcp"));
+    let mut c = Command::new(env!("CARGO_BIN_EXE_onchain-data-mcp"));
     c.arg("--config-dir")
         .arg(dir)
         .env("RUST_LOG", "error")
-        .env("BDM__SERVER__WARMUP", "false")
+        .env("ODM__SERVER__WARMUP", "false")
         .env_remove("RPC_URL")
         .env_remove("ALCHEMY_API_KEY")
         .env_remove("QN_ENDPOINT_NAME")
         .env_remove("QN_TOKEN_ID")
-        .env_remove("BDM__SERVER__MODE")
+        .env_remove("ODM__SERVER__MODE")
         .kill_on_drop(true);
     c
 }
@@ -130,7 +130,7 @@ async fn hosted_mode_auth_limits_and_admin_bind() {
     let base = format!("http://127.0.0.1:{public}");
 
     // 401 without a key and with a bad key (REST and MCP)
-    for auth in [None, Some("bdm_not_a_key")] {
+    for auth in [None, Some("odm_not_a_key")] {
         let mut r = http.get(format!("{base}/v1/tools"));
         if let Some(k) = auth {
             r = r.bearer_auth(k);

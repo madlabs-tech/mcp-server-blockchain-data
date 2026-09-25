@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Renamed to onchain-data-mcp. Settings env vars now start with ODM__ (old BDM__ still works for now). New client keys start with odm_ (old keys keep working).
+
 ## 0.2.0 (unreleased)
 
 The single-file EVM MCP server became **blockchain-data-mcp**: a chain- and provider-agnostic

@@ -78,7 +78,7 @@ pub fn build(loaded: Loaded, store: Store) -> Result<Built> {
         // Fail closed: never serve shared vendor quotas without client keys.
         bail!(
             "hosted mode requires at least one client key; create one with \
-             `blockchain-data-mcp clients create <name>` (or in the dashboard) and restart"
+             `onchain-data-mcp clients create <name>` (or in the dashboard) and restart"
         );
     }
     let loaded = Arc::new(loaded);

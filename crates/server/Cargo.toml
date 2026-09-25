@@ -7,7 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "blockchain-data-mcp"   # kept for compatibility with existing MCP client configs
+name = "onchain-data-mcp"
 path = "src/main.rs"
 
 [dependencies]

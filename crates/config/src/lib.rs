@@ -11,7 +11,8 @@
 //!
 //! Precedence (lowest → highest): built-in registry (`registry/*.toml`, embedded) →
 //! `config.toml` (what the dashboard writes) → `secrets.toml` → environment variables.
-//! Env vars use `BDM__<PATH>` with `__` between segments, plus the vendor key names from the
+//! Env vars use `ODM__<PATH>` with `__` between segments (deprecated `BDM__` is still read;
+//! `ODM__` wins), plus the vendor key names from the
 //! registry (`ALCHEMY_API_KEY`, `QN_ENDPOINT_NAME`, …) and the legacy `RPC_URL` (Ethereum only).
 //! Anything set by env is *locked*: the dashboard shows it read-only and edits are refused.
 

@@ -202,7 +202,7 @@ mod tests {
         let (store, router) = setup("");
         let auth = ClientKeyAuth::new(store.clone(), router);
         let (rec, key) = store.create_client("acme", None).await.unwrap();
-        for bad in [None, Some(""), Some("bdm_nope")] {
+        for bad in [None, Some(""), Some("odm_nope")] {
             assert_eq!(
                 auth.authenticate(bad).await.unwrap_err().code,
                 ErrorCode::Unauthorized

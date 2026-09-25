@@ -1,4 +1,4 @@
-// Dashboard for blockchain-data-mcp. Vanilla JS, no external resources (works offline).
+// Dashboard for onchain-data-mcp. Vanilla JS, no external resources (works offline).
 // All data comes from /admin/api/* with the admin token + X-BDM-Admin header.
 // DOM is built with textContent only (no innerHTML with data).
 "use strict";
@@ -486,8 +486,8 @@ async function connectPanel() {
   const hosted = c.mode === "hosted";
   const base = c.public_url || c.http_url;
   const tool = c.sample_tool || "<tool>";
-  const stdio = { mcpServers: { "blockchain-data-mcp": { command: c.binary_path, args: ["--config-dir", c.config_dir] } } };
-  const httpCfg = { mcpServers: { "blockchain-data-mcp": hosted ? { url: c.mcp_url, headers: { Authorization: "Bearer <client key>" } } : { url: c.mcp_url } } };
+  const stdio = { mcpServers: { "onchain-data-mcp": { command: c.binary_path, args: ["--config-dir", c.config_dir] } } };
+  const httpCfg = { mcpServers: { "onchain-data-mcp": hosted ? { url: c.mcp_url, headers: { Authorization: "Bearer <client key>" } } : { url: c.mcp_url } } };
   const q = (x) => `'${String(x).replace(/'/g, "'\\''")}'`;
   const curl = [`curl -X POST ${q(`${base}/v1/tools/${tool}`)}`, "  -H 'content-type: application/json'", hosted ? "  -H 'Authorization: Bearer <client key>'" : null, "  -d '{}'"].filter(Boolean).join(" \\\n");
   return h("div", {},
@@ -501,8 +501,8 @@ async function connectPanel() {
     h("h2", { style: "margin-top:24px" }, "Claude Desktop (stdio)"),
     snippet("claude_desktop_config.json", JSON.stringify(stdio, null, 2), "json"),
     h("h2", {}, "Claude Code"),
-    snippet("claude mcp add (stdio)", `claude mcp add blockchain-data-mcp -- ${q(c.binary_path)} --config-dir ${q(c.config_dir)}`, "sh"),
-    snippet("claude mcp add (HTTP)", `claude mcp add --transport http blockchain-data-mcp ${q(c.mcp_url)}${hosted ? " --header 'Authorization: Bearer <client key>'" : ""}`, "sh"),
+    snippet("claude mcp add (stdio)", `claude mcp add onchain-data-mcp -- ${q(c.binary_path)} --config-dir ${q(c.config_dir)}`, "sh"),
+    snippet("claude mcp add (HTTP)", `claude mcp add --transport http onchain-data-mcp ${q(c.mcp_url)}${hosted ? " --header 'Authorization: Bearer <client key>'" : ""}`, "sh"),
     h("h2", {}, "Cursor / any HTTP MCP client"),
     snippet(".cursor/mcp.json", JSON.stringify(httpCfg, null, 2), "json"),
     h("h2", {}, "REST"),

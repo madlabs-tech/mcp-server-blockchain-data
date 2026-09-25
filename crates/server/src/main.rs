@@ -7,15 +7,15 @@
         clippy::panic
     )
 )]
-//! `blockchain-data-mcp`: blockchain data aggregator.
+//! `onchain-data-mcp`: blockchain data aggregator.
 //!
 //! Usage:
-//!   blockchain-data-mcp [--config-dir DIR]          self-hosted: MCP over stdio (Claude Desktop); also
+//!   onchain-data-mcp [--config-dir DIR]        self-hosted: MCP over stdio (Claude Desktop); also
 //!                                              serves REST + dashboard on `server.http_bind` if free
-//!   blockchain-data-mcp serve [--config-dir DIR]    HTTP only (self-hosted: `http_bind`; hosted:
+//!   onchain-data-mcp serve [--config-dir DIR]  HTTP only (self-hosted: `http_bind`; hosted:
 //!                                              public router on `public_bind`, admin on `admin_bind`)
-//!   blockchain-data-mcp clients create <name>       create a client key (printed once) for hosted mode
-//!   blockchain-data-mcp clients list                list client keys (ids and names, never keys)
+//!   onchain-data-mcp clients create <name>     create a client key (printed once) for hosted mode
+//!   onchain-data-mcp clients list              list client keys (ids and names, never keys)
 //!
 //! `mode = "hosted"` always runs HTTP (never stdio) and refuses to start without client keys.
 
@@ -42,7 +42,7 @@ struct Args {
 }
 
 const USAGE: &str =
-    "usage: blockchain-data-mcp [serve | clients create <name> | clients list] [--config-dir DIR]";
+    "usage: onchain-data-mcp [serve | clients create <name> | clients list] [--config-dir DIR]";
 
 fn parse_args() -> Result<Args> {
     let mut command = Command::Run { serve: false };
@@ -191,7 +191,7 @@ async fn run(loader: ConfigLoader, loaded: Loaded, serve: bool) -> Result<()> {
         version = env!("CARGO_PKG_VERSION"),
         tools = built.app.catalog().len(),
         mode = ?settings.mode,
-        "starting blockchain-data-mcp"
+        "starting onchain-data-mcp"
     );
     if settings.warmup {
         wiring::spawn_warmup(router.clone());

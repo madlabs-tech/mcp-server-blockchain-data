@@ -5,7 +5,7 @@ your.domain {
 	encode gzip
 	@public path /v1/* /mcp /mcp/* /openapi.json /healthz
 	handle @public {
-		reverse_proxy blockchain-data-mcp:8787 {
+		reverse_proxy onchain-data-mcp:8787 {
 			flush_interval -1
 		}
 	}

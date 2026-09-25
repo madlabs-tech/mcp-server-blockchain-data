@@ -5,7 +5,7 @@
     clippy::panic
 )]
 //! Characterization tests (T0.3): lock the observable behavior of the 4 legacy MCP tools.
-//! Black-box: spawns the real `blockchain-data-mcp` binary over stdio against a fake JSON-RPC node.
+//! Black-box: spawns the real `onchain-data-mcp` binary over stdio against a fake JSON-RPC node.
 //! These tests must pass unchanged after the workspace refactor (T0.13).
 
 use axum::{routing::post, Json, Router};
@@ -80,10 +80,10 @@ async fn start() -> RunningService<RoleClient, ()> {
     let url = format!("http://{}", listener.local_addr().unwrap());
     tokio::spawn(async move { axum::serve(listener, Router::new().route("/", post(rpc))).await });
 
-    let cmd = Command::new(env!("CARGO_BIN_EXE_blockchain-data-mcp")).configure(|c| {
+    let cmd = Command::new(env!("CARGO_BIN_EXE_onchain-data-mcp")).configure(|c| {
         c.env("RPC_URL", &url)
             .env("RUST_LOG", "error")
-            .env("BDM__SERVER__WARMUP", "false")
+            .env("ODM__SERVER__WARMUP", "false")
             .env_remove("QN_ENDPOINT_NAME")
             .env_remove("QN_TOKEN_ID");
     });

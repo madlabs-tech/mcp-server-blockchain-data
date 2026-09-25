@@ -34,7 +34,7 @@ use rmcp::{
 use serde_json::Value;
 use std::sync::Arc;
 
-pub const SERVER_NAME: &str = "blockchain-data-mcp";
+pub const SERVER_NAME: &str = "onchain-data-mcp";
 
 const INSTRUCTIONS: &str = "Chain- and provider-agnostic blockchain data for payments, stablecoin, \
 neobank and trading agents (EVM chains incl. Robinhood Chain, and Solana). Chains accept CAIP-2 ids \

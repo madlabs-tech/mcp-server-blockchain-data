@@ -1,4 +1,4 @@
-# blockchain-data-mcp
+# onchain-data-mcp
 
 Chain- and provider-agnostic blockchain data for AI agents that move money: payments, stablecoin, neobank and trading. One binary, one config, exposed as **MCP** (stdio or streamable HTTP) and **REST**.
 
@@ -11,8 +11,8 @@ Chain- and provider-agnostic blockchain data for AI agents that move money: paym
 ## Quick start
 
 ```bash
-cargo build --release -p bdm-server        # binary: target/release/blockchain-data-mcp (Rust 1.90)
-./target/release/blockchain-data-mcp serve      # REST + MCP + dashboard on http://127.0.0.1:8787
+cargo build --release -p bdm-server        # binary: target/release/onchain-data-mcp (Rust 1.90)
+./target/release/onchain-data-mcp serve      # REST + MCP + dashboard on http://127.0.0.1:8787
 curl -s http://127.0.0.1:8787/v1/tools | head -c 400
 curl -s -X POST http://127.0.0.1:8787/v1/chain/list -H 'content-type: application/json' -d '{}'
 ```
@@ -24,11 +24,11 @@ No keys needed for the above. To add vendors, `cp .env.example .env`, fill in th
 ```json
 {
   "mcpServers": {
-    "blockchain-data": {
-      "command": "/path/to/target/release/blockchain-data-mcp",
+    "onchain-data": {
+      "command": "/path/to/target/release/onchain-data-mcp",
       "args": ["--config-dir", "/path/to/config"],
       "env": {
-        "BDM__SERVER__DATA_DIR": "/path/to/data",
+        "ODM__SERVER__DATA_DIR": "/path/to/data",
         "ALCHEMY_API_KEY": "…",
         "HELIUS_API_KEY": "…"
       }
@@ -44,10 +44,10 @@ While Claude Desktop runs it, the dashboard is also up at `http://127.0.0.1:8787
 **CLI**
 
 ```
-blockchain-data-mcp [--config-dir DIR]          MCP on stdio + HTTP on server.http_bind (self-hosted)
-blockchain-data-mcp serve [--config-dir DIR]    HTTP only
-blockchain-data-mcp clients create <name>       hosted mode: mint a client key (printed once)
-blockchain-data-mcp clients list                hosted mode: ids, status, names (never keys)
+onchain-data-mcp [--config-dir DIR]           MCP on stdio + HTTP on server.http_bind (self-hosted)
+onchain-data-mcp serve [--config-dir DIR]     HTTP only
+onchain-data-mcp clients create <name>        hosted mode: mint a client key (printed once)
+onchain-data-mcp clients list                 hosted mode: ids, status, names (never keys)
 ```
 
 `--config-dir` defaults to `./config`.
@@ -60,12 +60,12 @@ Layered, later wins:
 built-in registry (registry/*.toml, compiled in)
   < config/config.toml      (the dashboard writes this; start from config/config.example.toml)
   < config/secrets.toml     (API keys, mode 0600, written by the dashboard)
-  < environment             (BDM__<PATH> with "__" between segments, plus the vendor key vars)
+  < environment             (ODM__<PATH> with "__" between segments, plus the vendor key vars)
 ```
 
 Anything set by env is shown as **locked by env** in the dashboard and cannot be edited there. `POST /admin/api/reload` or `kill -HUP <pid>` re-reads the files.
 
-**Env mapping.** `BDM__SERVER__HTTP_BIND=127.0.0.1:8787` sets `[server] http_bind`; `BDM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS=15000000` sets `[vendors.alchemy.cap] monthly_credits`; `BDM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public` sets an order. Vendor keys use their own names (`ALCHEMY_API_KEY`, `QN_ENDPOINT_NAME`, …; see the vendor table).
+**Env mapping.** `ODM__SERVER__HTTP_BIND=127.0.0.1:8787` sets `[server] http_bind`; `ODM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS=15000000` sets `[vendors.alchemy.cap] monthly_credits`; `ODM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public` sets an order. Vendor keys use their own names (`ALCHEMY_API_KEY`, `QN_ENDPOINT_NAME`, …; see the vendor table).
 
 **Server** (`[server]`): `mode` (`self_hosted` | `hosted`), `http_bind` (self-hosted, default `127.0.0.1:8787`), `public_bind` + `admin_bind` (hosted, admin defaults to `127.0.0.1:8788`), `dashboard` (bool), `tool_profile`, `enabled_tools` / `disabled_tools`, `data_dir` (default `./data`, holds `bdm.db`), `cache_max_entries`, `quota_poll_secs`, `warmup` (default `true`: right after startup, a background task sends one `eth_chainId` to every active EVM RPC and logs endpoints that serve the wrong chain; never blocks startup).
 
@@ -210,23 +210,23 @@ Public router (both modes): `POST /v1/<domain>/<tool>`, `POST /v1/tools/<name>`,
 
 - HTTP only (never stdio). Public REST + `/mcp` on `public_bind`, dashboard + admin API on `admin_bind` (default `127.0.0.1:8788`, never the public port).
 - Every public request needs `Authorization: Bearer <client key>`; unauthenticated requests get 401. Keys are stored as SHA-256 hashes and shown once.
-- **Fails closed:** refuses to start until at least one client key exists (`blockchain-data-mcp clients create <name>`).
+- **Fails closed:** refuses to start until at least one client key exists (`onchain-data-mcp clients create <name>`).
 - Per-client limits from `[clients.default]`, overridable per key: `requests_per_minute` (token bucket), `daily_requests` (reset 00:00 UTC), `monthly_credits` (vendor credits spent on the client's behalf, reset on the 1st), `tool_profile`. Over the limit → HTTP 429 `QUOTA_EXCEEDED` with `Retry-After`.
 - Vendor limits/caps still apply on top; set a `cap` below every `limit` the public instance uses.
 
 Client config:
 
 ```json
-{ "mcpServers": { "blockchain-data": {
+{ "mcpServers": { "onchain-data": {
   "url": "https://your.domain/mcp",
-  "headers": { "Authorization": "Bearer bdm_…" } } } }
+  "headers": { "Authorization": "Bearer odm_…" } } } }
 ```
 
 Deployment (Docker + Caddy, systemd, backups, security checklist): **[DEPLOYMENT.md](DEPLOYMENT.md)**.
 
 ## Legacy compatibility
 
-- The binary is still named `blockchain-data-mcp`, so existing MCP client configs keep working.
+- The binary is still named `onchain-data-mcp`, so existing MCP client configs keep working.
 - The four original tools (`eth_get_balance`, `eth_get_code`, `eth_gas_price`, `eth_get_transaction_by_hash`) are kept as aliases in the `legacy` domain with unchanged chain names; prefer `wallet_get_balances`, `address_validate`, `tx_estimate_fee`, `tx_get`.
 - `RPC_URL` is deprecated and now applies to **Ethereum (`eip155:1`) only** (it becomes `[custom_rpc.rpc_url]`, locked by env, with a startup warning). It used to be applied to every chain. Use vendor keys or `[custom_rpc]` per chain instead.
 

@@ -130,7 +130,9 @@ pub struct ConfigLoader {
     registry: Registry,
 }
 
-const ENV_PREFIX: &str = "BDM__";
+const ENV_PREFIX: &str = "ODM__";
+/// Pre-rename prefix, still read (below `ENV_PREFIX`) so existing installs keep working.
+const LEGACY_ENV_PREFIX: &str = "BDM__";
 
 impl ConfigLoader {
     pub fn new(dir: ConfigDir, env: EnvSource) -> Result<Self, Vec<Issue>> {
@@ -204,17 +206,28 @@ impl ConfigLoader {
         let mut root = serde_json::Map::new();
         let mut locked = BTreeMap::new();
 
-        for (var, raw) in &self.env.0 {
-            let Some(rest) = var.strip_prefix(ENV_PREFIX) else {
-                continue;
-            };
-            let path: Vec<String> = rest.split("__").map(str::to_lowercase).collect();
-            if path.iter().any(String::is_empty) {
-                issues.push(Issue::warning(var.clone(), "ignored: empty path segment"));
-                continue;
+        // Legacy prefix first so `ODM__` wins when both set the same key.
+        let mut legacy_used = false;
+        for prefix in [LEGACY_ENV_PREFIX, ENV_PREFIX] {
+            for (var, raw) in &self.env.0 {
+                let Some(rest) = var.strip_prefix(prefix) else {
+                    continue;
+                };
+                let path: Vec<String> = rest.split("__").map(str::to_lowercase).collect();
+                if path.iter().any(String::is_empty) {
+                    issues.push(Issue::warning(var.clone(), "ignored: empty path segment"));
+                    continue;
+                }
+                legacy_used |= prefix == LEGACY_ENV_PREFIX;
+                insert(&mut root, &path, typed(raw));
+                locked.insert(path, var.clone());
             }
-            insert(&mut root, &path, typed(raw));
-            locked.insert(path, var.clone());
+        }
+        if legacy_used {
+            issues.push(Issue::warning(
+                LEGACY_ENV_PREFIX,
+                "environment variables with prefix BDM__ are deprecated; rename them to ODM__",
+            ));
         }
 
         for (vendor, entry) in &self.registry.vendors {
@@ -480,7 +493,7 @@ mod tests {
 
     #[test]
     fn precedence_env_over_config_and_locking() {
-        let (_d, l) = loader(&[("BDM__ROUTING__DEFAULTS__EVM_RPC", "public,alchemy")]);
+        let (_d, l) = loader(&[("ODM__ROUTING__DEFAULTS__EVM_RPC", "public,alchemy")]);
         let cfg = "[routing.defaults]\nevm_rpc = [\"quicknode\", \"alchemy\"]\n";
         let loaded = l.load_texts(cfg, "").unwrap();
         let r = loaded.order(Capability::EvmRpc, Some(&eth()), None);
@@ -491,13 +504,36 @@ mod tests {
             .to_vec();
         assert_eq!(
             loaded.locked_by(&path),
-            Some("BDM__ROUTING__DEFAULTS__EVM_RPC")
+            Some("ODM__ROUTING__DEFAULTS__EVM_RPC")
         );
         assert_eq!(
             loaded.locked_by(&["routing".to_string()]),
-            Some("BDM__ROUTING__DEFAULTS__EVM_RPC")
+            Some("ODM__ROUTING__DEFAULTS__EVM_RPC")
         );
         assert_eq!(loaded.locked_by(&["vendors".to_string()]), None);
+    }
+
+    #[test]
+    fn legacy_bdm_prefix_still_read_but_odm_wins() {
+        let (_d, l) = loader(&[
+            ("BDM__SERVER__DASHBOARD", "false"),
+            ("BDM__SERVER__HTTP_BIND", "127.0.0.1:1111"),
+            ("ODM__SERVER__HTTP_BIND", "127.0.0.1:2222"),
+        ]);
+        let loaded = l.load().unwrap();
+        assert!(!loaded.settings.server.dashboard);
+        assert_eq!(loaded.settings.server.http_bind, "127.0.0.1:2222");
+        let bind: Vec<String> = ["server", "http_bind"].map(String::from).to_vec();
+        assert_eq!(loaded.locked_by(&bind), Some("ODM__SERVER__HTTP_BIND"));
+        let deprecated: Vec<_> = loaded
+            .warnings
+            .iter()
+            .filter(|w| w.path == "BDM__")
+            .collect();
+        assert_eq!(deprecated.len(), 1);
+
+        let (_d2, l2) = loader(&[("ODM__SERVER__DASHBOARD", "false")]);
+        assert!(l2.load().unwrap().warnings.is_empty());
     }
 
     #[test]
@@ -541,10 +577,10 @@ price = ["geckoterminal"]
     #[test]
     fn env_numbers_aliases_and_keys() {
         let (_d, l) = loader(&[
-            ("BDM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS", "15000000"),
-            ("BDM__VENDORS__ALCHEMY__RESERVE_PCT", "20"),
+            ("ODM__VENDORS__ALCHEMY__CAP__MONTHLY_CREDITS", "15000000"),
+            ("ODM__VENDORS__ALCHEMY__RESERVE_PCT", "20"),
             ("ALCHEMY_API_KEY", "alc_secret_123"),
-            ("BDM__SERVER__DASHBOARD", "false"),
+            ("ODM__SERVER__DASHBOARD", "false"),
         ]);
         let loaded = l.load().unwrap();
         assert_eq!(

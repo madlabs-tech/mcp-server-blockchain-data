@@ -314,7 +314,7 @@ async fn connect(State(s): State<AdminState>) -> Response {
     let mcp_url = format!("{}/mcp", public_url.as_deref().unwrap_or(&http_url));
     let binary_path = std::env::current_exe()
         .map(|p| p.display().to_string())
-        .unwrap_or_else(|_| "blockchain-data-mcp".into());
+        .unwrap_or_else(|_| "onchain-data-mcp".into());
     let root = &s.loader.dir.root;
     let config_dir = std::fs::canonicalize(root)
         .unwrap_or_else(|_| root.clone())

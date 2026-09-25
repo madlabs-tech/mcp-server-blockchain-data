@@ -116,7 +116,7 @@ impl Harness {
         std::fs::write(dir.path().join("config.toml"), config).unwrap();
         let loader = ConfigLoader::new(
             ConfigDir::new(dir.path()),
-            EnvSource::from_pairs([("BDM__VENDORS__ALCHEMY__CAP__MONTHLY", "100")]),
+            EnvSource::from_pairs([("ODM__VENDORS__ALCHEMY__CAP__MONTHLY", "100")]),
         )
         .unwrap();
         let loaded = loader.load().unwrap();
@@ -233,7 +233,7 @@ async fn locked_by_env_edit_is_refused() {
         .await;
     assert_eq!(status, 422);
     assert!(
-        body.contains("BDM__VENDORS__ALCHEMY__CAP__MONTHLY"),
+        body.contains("ODM__VENDORS__ALCHEMY__CAP__MONTHLY"),
         "{body}"
     );
     // budget endpoint too
@@ -257,7 +257,7 @@ async fn locked_by_env_edit_is_refused() {
         .as_array()
         .unwrap()
         .iter()
-        .any(|l| l["env"] == "BDM__VENDORS__ALCHEMY__CAP__MONTHLY"));
+        .any(|l| l["env"] == "ODM__VENDORS__ALCHEMY__CAP__MONTHLY"));
 }
 
 #[tokio::test]
@@ -373,7 +373,7 @@ async fn clients_crud_and_quota_views() {
     let created: Value = r.json().await.unwrap();
     let key = created["key"].as_str().unwrap().to_owned();
     let id = created["client"]["id"].as_str().unwrap().to_owned();
-    assert!(key.starts_with("bdm_"));
+    assert!(key.starts_with("odm_"));
 
     let r = h
         .admin(reqwest::Method::PATCH, &format!("/admin/api/clients/{id}"))
@@ -439,7 +439,7 @@ async fn clients_crud_and_quota_views() {
     assert_eq!(monthly["effective"], 100);
     assert_eq!(
         monthly["cap_locked_by"],
-        "BDM__VENDORS__ALCHEMY__CAP__MONTHLY"
+        "ODM__VENDORS__ALCHEMY__CAP__MONTHLY"
     );
 
     let r = h
