@@ -473,7 +473,8 @@ async fn served_by(r: &Router) -> (String, Option<String>) {
     (out.provenance.provider.unwrap(), skipped)
 }
 
-#[tokio::test]
+// Paused clock: time only moves on sleep, so slow CI machines can't refill tokens mid-test.
+#[tokio::test(start_paused = true)]
 async fn rate_limit_burst_equals_limit_then_skips_without_waiting() {
     let a = ScriptedPrice::new("defillama", Ok(d(1)));
     let b = ScriptedPrice::new("geckoterminal", Ok(d(2)));
@@ -483,7 +484,7 @@ async fn rate_limit_burst_equals_limit_then_skips_without_waiting() {
     for _ in 0..5 {
         assert_eq!(served_by(&r).await.0, "defillama");
     }
-    let t = std::time::Instant::now();
+    let t = tokio::time::Instant::now();
     let (provider, reason) = served_by(&r).await;
     assert_eq!(provider, "geckoterminal");
     assert_eq!(reason.as_deref(), Some("local_rate_limit"));
@@ -502,7 +503,8 @@ async fn rate_limit_burst_equals_limit_then_skips_without_waiting() {
     assert_eq!(served_by(&r).await.0, "defillama");
 }
 
-#[tokio::test]
+// Paused clock: time only moves on sleep, so slow CI machines can't refill tokens mid-test.
+#[tokio::test(start_paused = true)]
 async fn rate_limit_waits_within_max_rate_wait() {
     let a = ScriptedPrice::new("defillama", Ok(d(1)));
     let b = ScriptedPrice::new("geckoterminal", Ok(d(2)));
@@ -516,7 +518,7 @@ async fn rate_limit_waits_within_max_rate_wait() {
     for _ in 0..5 {
         assert_eq!(served_by(&r).await.0, "defillama");
     }
-    let t = std::time::Instant::now();
+    let t = tokio::time::Instant::now();
     assert_eq!(served_by(&r).await, ("defillama".into(), None));
     // One token refills every 200ms at 5 rps.
     assert!(
@@ -531,7 +533,8 @@ async fn rate_limit_waits_within_max_rate_wait() {
     );
 }
 
-#[tokio::test]
+// Paused clock: time only moves on sleep, so slow CI machines can't refill tokens mid-test.
+#[tokio::test(start_paused = true)]
 async fn skipped_request_does_not_use_up_a_token() {
     let a = ScriptedPrice::new("defillama", Ok(d(1)));
     let b = ScriptedPrice::new("geckoterminal", Ok(d(2)));
@@ -551,7 +554,8 @@ async fn skipped_request_does_not_use_up_a_token() {
     assert_eq!(served_by(&r).await.0, "defillama");
 }
 
-#[tokio::test]
+// Paused clock: time only moves on sleep, so slow CI machines can't refill tokens mid-test.
+#[tokio::test(start_paused = true)]
 async fn per_minute_limit_has_a_burst_of_its_count() {
     let a = ScriptedPrice::new("defillama", Ok(d(1)));
     let b = ScriptedPrice::new("geckoterminal", Ok(d(2)));
