@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.2.1 — 2026-09-26
+
+A cleanup release. No new features, and nothing you need to change in your setup.
+
+### More reliable
+
+- Fixed six places where unexpected data from a provider could crash the program or give a
+  wrong number (Pyth prices, GoPlus scam checks, price math and token approvals). Each one now
+  has a test.
+- When a provider has hit its limit, the next provider is used right away instead of after a
+  short wait.
+
+### Lighter
+
+- The program now uses 215 building blocks (libraries) instead of 244. We replaced a few that
+  we only used a little (the rate limiter and the cache) with small versions of our own.
+- Docker builds use much less memory and no longer copy local junk folders.
+- A quick build option for developers: `cargo build --profile fast`.
+
+### Paid providers
+
+- Ankr, 0x, Uniswap API and OKX DEX are now included in the program. They stay off until you
+  turn them on in your config — useful if you pay for them.
+
+### Small changes
+
+- `RUST_LOG`: simple values like `info` or `onchain_data_mcp=debug` work as before. Advanced
+  filters (by span, field or pattern) are no longer supported.
+- The wording of a few error messages for badly formed transaction data from a node changed.
+- The docs now say plainly that only the `quorum` routing strategy (used for payment checks)
+  has an effect. `hedged` and the others are accepted but ignored.
+
 ## 0.2.0 — 2026-09-25
 
 The first public release under the name **onchain-data-mcp**.

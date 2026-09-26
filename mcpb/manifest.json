@@ -3,7 +3,7 @@
   "manifest_version": "0.3",
   "name": "onchain-data-mcp",
   "display_name": "Onchain Data MCP",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Blockchain data for EVM chains and Solana: balances, tokens, prices, DeFi, safety checks and RPC.",
   "long_description": "Self-hosted MCP server that routes each request across free-tier data vendors (public RPCs, Alchemy, Helius, CoinGecko and more), tracks their quotas, and fails over automatically. Works with no API keys; add keys to unlock more data. A local dashboard runs at http://127.0.0.1:8787/dashboard while Claude is open.",
   "author": {
