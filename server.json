@@ -8,11 +8,11 @@
     "source": "github"
   },
   "websiteUrl": "https://github.com/madlabs-tech/onchain-data-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/madlabs-tech/onchain-data-mcp:0.2.0",
+      "identifier": "ghcr.io/madlabs-tech/onchain-data-mcp:0.2.1",
       "runtimeHint": "docker",
       "runtimeArguments": [
         {
@@ -56,7 +56,7 @@
     },
     {
       "registryType": "mcpb",
-      "identifier": "https://github.com/madlabs-tech/onchain-data-mcp/releases/download/v0.2.0/onchain-data-mcp.mcpb",
+      "identifier": "https://github.com/madlabs-tech/onchain-data-mcp/releases/download/v0.2.1/onchain-data-mcp.mcpb",
       "fileSha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "transport": { "type": "stdio" }
     }
