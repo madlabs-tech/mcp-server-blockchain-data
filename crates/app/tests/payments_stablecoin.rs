@@ -7,42 +7,19 @@
 //! payments / stablecoin / compliance operations through the App (mock ports, no network).
 
 use async_trait::async_trait;
-use bdm_app::{App, Caller, Catalog, Profile, ProfileSelection};
-use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+use bdm_app::{App, Caller, Profile, ProfileSelection};
 use bdm_domain::{AccountId, ChainId, ErrorCode};
-use bdm_ports::{
-    PortHandle, PortResult, Registration, SanctionsScreener, ScreenResult, VendorMeta,
-};
-use bdm_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
+use bdm_ports::{PortHandle, PortResult, Registration, SanctionsScreener, ScreenResult};
 use bdm_testkit::mocks::MockEvmRpc;
 use chrono::Utc;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
-fn meta(id: &str) -> VendorMeta {
-    VendorMeta {
-        id: id.into(),
-        display_name: id.into(),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    }
-}
+mod common;
+use common::meta;
 
 fn app(regs: Vec<Registration>) -> App {
-    let loader = ConfigLoader::new(ConfigDir::new("/nonexistent"), EnvSource::default()).unwrap();
-    let config = Arc::new(loader.load_texts("", "").unwrap());
-    let router = Router::new(
-        RoutingTable {
-            config,
-            registry: ProviderRegistry::new(regs),
-        },
-        Arc::new(InMemoryCounterStore::default()),
-        RouterOptions::default(),
-    );
-    let mut catalog = Catalog::new();
-    bdm_app::ops::register_all(&mut catalog);
-    App::new(catalog, router, 100)
+    common::app(&[], "", regs)
 }
 
 struct FixedScreen(bool, &'static str);

@@ -1,4 +1,4 @@
-//! `jito` vendor adapter. Owner: `solana` (T1.S4).
+//! `jito` vendor adapter.
 //!
 //! Jito block engine `sendTransaction` with `bundleOnly=true` → `private_relay`: the tx travels
 //! only as a single-tx bundle (revert protection, never the public TPU path). A bundle is only
@@ -15,9 +15,9 @@ use crate::{
 use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
 use bdm_ports::{
-    BroadcastReceipt, Broadcaster, PortHandle, PortResult, ProviderError, Registration, VendorMeta,
+    BroadcastReceipt, Broadcaster, PortHandle, PortResult, ProviderError, Registration,
 };
-use bdm_protocols::solana::{fees::JITO_MIN_TIP_LAMPORTS, tx, SOLANA_MAINNET};
+use bdm_protocols::solana::{fees::JITO_MIN_TIP_LAMPORTS, tx};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -41,22 +41,10 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status("jito") != VendorStatus::Active {
         return;
     }
-    let Some(chain) = loaded
-        .registry
-        .chains
-        .enabled()
-        .find(|c| c.id.to_string() == SOLANA_MAINNET)
-    else {
+    let Some(chain) = bdm_protocols::solana::enabled_mainnet(loaded) else {
         return;
     };
-    let e = loaded.registry.vendors.get("jito");
-    let meta = VendorMeta {
-        id: "jito".into(),
-        display_name: e.map_or_else(|| "Jito".into(), |e| e.display_name.clone()),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    };
+    let meta = loaded.vendor_meta("jito");
     let rpc = JsonRpcClient::new(
         HttpClient::new("jito", DEFAULT_TIMEOUT),
         Redacted::new(TX_URL.to_owned()),

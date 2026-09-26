@@ -8,7 +8,7 @@
     clippy::panic
 )]
 
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{hex, Address, Bytes, U256};
 use alloy_sol_types::{SolCall, SolEvent, SolValue};
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, ConfigDir, ConfigLoader, EnvSource, Loaded, Registry};
@@ -722,9 +722,7 @@ fn public_reg(fake: &Arc<FakeEvm>) -> Registration {
     Registration::new(VendorMeta {
         id: "public".into(),
         display_name: "fake".into(),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
+        ..Default::default()
     })
     .chain_port(
         bdm_domain::ChainId::evm(fake.chain_id),

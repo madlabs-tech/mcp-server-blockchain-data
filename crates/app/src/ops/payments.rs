@@ -1,4 +1,4 @@
-//! `payments` tools. See the ownership table in `ops/mod.rs`.
+//! `payments` tools.
 //!
 //! Matching rules (PLAN.md "Cross-cutting rules → Payments"):
 //! - amounts come from the recipient's **balance change**, never the instruction/event amount;
@@ -9,7 +9,7 @@
 //! [`eip681_uri`], [`solana_pay_url`], [`x402_payment_required`]) so it is unit-tested with
 //! hand-built domain values; the operations only fetch data and call them.
 
-use super::stablecoin::{parse_account, registry, resolve_canonical};
+use super::stablecoin::{registry, resolve_canonical};
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use alloy_primitives::U256;
 use async_trait::async_trait;
@@ -432,7 +432,7 @@ Solana recipient must be the owner wallet. A NOT_FOUND error means two providers
     ) -> Result<OpOutput<PaymentCheck>, DomainError> {
         let chain = ctx.chain(&input.chain)?;
         let entry = resolve_canonical(chain, &input.token)?;
-        let recipient = parse_account(chain, &input.recipient)?;
+        let recipient = AccountAddress::parse(chain.family, &input.recipient)?;
         let amount = parse_amount(
             input.amount.as_deref(),
             input.amount_raw.as_deref(),
@@ -578,7 +578,7 @@ Caveats: amounts are transfer amounts and the block may not be final: call payme
         let mut meta: Option<Provenance> = None;
         // ponytail: addresses are scanned sequentially; join them if 20-address polls get slow.
         for raw in &input.addresses {
-            let owner = parse_account(chain, raw)?;
+            let owner = AccountAddress::parse(chain.family, raw)?;
             let query = TransferQuery {
                 owner,
                 direction: Direction::In,
@@ -786,7 +786,7 @@ Caveats: EIP-681 has no memo, so use a unique deposit address per invoice on EVM
     ) -> Result<OpOutput<PaymentRequestOut>, DomainError> {
         let chain = ctx.chain(&input.chain)?;
         let entry = resolve_canonical(chain, &input.token)?;
-        let to = parse_account(chain, &input.recipient)?;
+        let to = AccountAddress::parse(chain.family, &input.recipient)?;
         let amount = parse_amount(
             input.amount.as_deref(),
             input.amount_raw.as_deref(),

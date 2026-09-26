@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use bdm_app::{CallGuard, Caller, ClientAuth, ProfileSelection};
 use bdm_config::{ClientLimits, Loaded};
 use bdm_domain::{DomainError, ErrorCode};
-use bdm_routing::{Router, WindowKey};
+use bdm_routing::{Router, TokenBucket, WindowKey};
 use chrono::Utc;
 use std::{
     collections::HashMap,
@@ -18,12 +18,7 @@ pub fn effective_client_limits(cfg: &Loaded, rec: &ClientRecord) -> ClientLimits
     let base = cfg.client_limits(&rec.id);
     match &rec.limits {
         None => base,
-        Some(o) => ClientLimits {
-            requests_per_minute: o.requests_per_minute.or(base.requests_per_minute),
-            daily_requests: o.daily_requests.or(base.daily_requests),
-            monthly_credits: o.monthly_credits.or(base.monthly_credits),
-            tool_profile: o.tool_profile.clone().or(base.tool_profile),
-        },
+        Some(o) => o.or(base),
     }
 }
 
@@ -69,17 +64,12 @@ impl ClientAuth for ClientKeyAuth {
     }
 }
 
-struct Bucket {
-    tokens: f64,
-    last: Instant,
-}
-
 /// Per-client admission: requests/minute (token bucket), daily requests, monthly credits.
 /// Local callers (`client = None`) are never limited here.
 pub struct ClientGuard {
     store: Store,
     router: Arc<Router>,
-    buckets: Mutex<HashMap<String, Bucket>>,
+    buckets: Mutex<HashMap<String, TokenBucket>>,
 }
 
 impl ClientGuard {
@@ -100,18 +90,10 @@ impl ClientGuard {
         let per_sec = cap / 60.0;
         let now = Instant::now();
         let mut map = self.buckets.lock().unwrap_or_else(|e| e.into_inner());
-        let b = map.entry(client.to_owned()).or_insert(Bucket {
-            tokens: cap,
-            last: now,
-        });
-        b.tokens = (b.tokens + now.duration_since(b.last).as_secs_f64() * per_sec).min(cap);
-        b.last = now;
-        if b.tokens >= 1.0 {
-            b.tokens -= 1.0;
-            Ok(())
-        } else {
-            Err(((1.0 - b.tokens) / per_sec).ceil().max(1.0) as u64)
-        }
+        map.entry(client.to_owned())
+            .or_insert(TokenBucket::full(cap, now))
+            .take(cap, per_sec, now)
+            .map_err(|wait| wait.as_secs_f64().ceil().max(1.0) as u64)
     }
 }
 

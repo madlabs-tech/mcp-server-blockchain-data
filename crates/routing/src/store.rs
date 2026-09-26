@@ -1,4 +1,4 @@
-//! Usage counters behind a trait: in-memory here, sqlite in `bdm-store` (T1.D1).
+//! Usage counters behind a trait: in-memory here, sqlite in `bdm-store`.
 
 use chrono::{DateTime, Datelike, Utc};
 use serde::Serialize;
@@ -26,14 +26,9 @@ impl WindowKey {
         let date = now.date_naive();
         let next = match self {
             Self::Day(_) => date.succ_opt(),
-            Self::Month(_) => {
-                let (y, m) = if date.month() == 12 {
-                    (date.year() + 1, 1)
-                } else {
-                    (date.year(), date.month() + 1)
-                };
-                chrono::NaiveDate::from_ymd_opt(y, m, 1)
-            }
+            Self::Month(_) => date
+                .with_day(1)
+                .and_then(|d| d.checked_add_months(chrono::Months::new(1))),
         };
         // Only fails at the edge of chrono's date range; `now` is the harmless fallback.
         next.and_then(|d| d.and_hms_opt(0, 0, 0))

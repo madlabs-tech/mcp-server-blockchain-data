@@ -10,12 +10,9 @@ use async_trait::async_trait;
 use bdm_app::{
     App, CallGuard, Caller, Catalog, Ctx, Domain, OpOutput, Operation, Profile, ProfileSelection,
 };
-use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
 use bdm_domain::{ChainId, DomainError, ErrorCode};
-use bdm_ports::{metering, PortHandle, Registration, VendorMeta};
-use bdm_routing::{
-    InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable, WindowKey,
-};
+use bdm_ports::{metering, PortHandle, Registration};
+use bdm_routing::WindowKey;
 use bdm_testkit::mocks::MockEvmRpc;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -27,6 +24,8 @@ use std::{
     },
     time::Duration,
 };
+
+mod common;
 
 #[derive(Deserialize, JsonSchema)]
 struct EchoIn {
@@ -97,23 +96,18 @@ impl Operation for Panicking {
 }
 
 fn app(cfg: &str, regs: Vec<Registration>) -> (App, Arc<AtomicUsize>) {
-    let loader = ConfigLoader::new(ConfigDir::new("/nonexistent"), EnvSource::default()).unwrap();
-    let config = Arc::new(loader.load_texts(cfg, "").unwrap());
-    let router = Router::new(
-        RoutingTable {
-            config,
-            registry: ProviderRegistry::new(regs),
-        },
-        Arc::new(InMemoryCounterStore::default()),
-        RouterOptions::default(),
-    );
+    app_with_cache(cfg, regs, 1000)
+}
+
+fn app_with_cache(cfg: &str, regs: Vec<Registration>, cache_max: u64) -> (App, Arc<AtomicUsize>) {
+    let router = common::router(&[], cfg, regs);
     let count = Arc::new(AtomicUsize::new(0));
     let mut catalog = Catalog::new();
     bdm_app::ops::register_all(&mut catalog);
     catalog.register(Echo(count.clone()));
     catalog.register(TradingOnly);
     catalog.register(Panicking);
-    (App::new(catalog, router, 1000), count)
+    (App::new(catalog, router, cache_max), count)
 }
 
 #[tokio::test]
@@ -185,6 +179,70 @@ async fn config_cache_ttl_zero_disables_cache() {
         .await
         .unwrap();
     assert_eq!(count.load(Ordering::SeqCst), 2);
+}
+
+async fn echo(app: &App, msg: &str) -> Value {
+    app.call("test_echo", json!({ "msg": msg }), Caller::local())
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn cache_entry_expires_after_its_ttl() {
+    let (app, count) = app("[operations.test_echo]\ncache_ttl_secs = 1\n", vec![]);
+    echo(&app, "x").await;
+    assert_eq!(echo(&app, "x").await["meta"]["cached"], json!(true));
+    tokio::time::sleep(Duration::from_millis(1100)).await;
+    assert_eq!(echo(&app, "x").await["meta"]["cached"], json!(false));
+    assert_eq!(count.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn cache_capacity_zero_caches_nothing() {
+    let (app, count) = app_with_cache("", vec![], 0);
+    echo(&app, "x").await;
+    assert_eq!(echo(&app, "x").await["meta"]["cached"], json!(false));
+    assert_eq!(count.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn cache_holds_at_most_cache_max_entries() {
+    let (app, count) = app_with_cache("", vec![], 2);
+    for i in 0..10 {
+        echo(&app, &i.to_string()).await;
+    }
+    let before = count.load(Ordering::SeqCst);
+    let mut hits = 0;
+    for i in 0..10 {
+        hits += usize::from(echo(&app, &i.to_string()).await["meta"]["cached"] == json!(true));
+    }
+    assert!(hits <= 2, "{hits} hits with room for 2");
+    assert_eq!(count.load(Ordering::SeqCst), before + 10 - hits);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn cache_is_consistent_under_concurrent_calls() {
+    let (app, _) = app("", vec![]);
+    let app = Arc::new(app);
+    let tasks: Vec<_> = (0..64)
+        .map(|i| {
+            let app = app.clone();
+            tokio::spawn(async move {
+                let msg = (i % 8).to_string();
+                (echo(&app, &msg).await, msg)
+            })
+        })
+        .collect();
+    for t in tasks {
+        let (out, msg) = t.await.unwrap();
+        assert_eq!(out["data"]["msg"], json!(msg));
+    }
+    for i in 0..8 {
+        assert_eq!(
+            echo(&app, &i.to_string()).await["meta"]["cached"],
+            json!(true)
+        );
+    }
 }
 
 #[tokio::test]
@@ -274,14 +332,7 @@ async fn schemas_are_generated() {
 }
 
 fn public_eth(mock: Arc<MockEvmRpc>) -> Registration {
-    let meta = VendorMeta {
-        id: "public".into(),
-        display_name: "public".into(),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    };
-    Registration::new(meta).chain_port(ChainId::evm(1), PortHandle::EvmRpc(mock))
+    Registration::new(common::meta("public")).chain_port(ChainId::evm(1), PortHandle::EvmRpc(mock))
 }
 
 #[tokio::test]

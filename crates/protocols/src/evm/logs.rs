@@ -1,4 +1,4 @@
-//! `eth_getLogs` transfer scanning with adaptive chunking. Owner: `evm` (T1.E1).
+//! `eth_getLogs` transfer scanning with adaptive chunking.
 //! Cap `toBlock` at the head of the same node; split ranges on `Invalid` (range/size errors).
 
 use super::{block_number, block_tag, decode_transfer_log, to_transfers, token_decimals};

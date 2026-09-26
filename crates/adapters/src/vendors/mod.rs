@@ -1,4 +1,4 @@
-//! Vendor modules (one per vendor, each behind its cargo feature). Owners per module doc.
+//! Vendor modules (one per vendor, each behind its cargo feature).
 
 #[cfg(feature = "alchemy")]
 pub mod alchemy;
@@ -14,8 +14,6 @@ pub mod cow;
 pub mod defillama;
 #[cfg(feature = "dexscreener")]
 pub mod dexscreener;
-#[cfg(feature = "flashbots")]
-pub mod flashbots;
 #[cfg(feature = "frankfurter")]
 pub mod frankfurter;
 #[cfg(feature = "geckoterminal")]
@@ -30,8 +28,6 @@ pub mod honeypot_is;
 pub mod jito;
 #[cfg(feature = "jupiter")]
 pub mod jupiter;
-#[cfg(feature = "mev_blocker")]
-pub mod mev_blocker;
 #[cfg(feature = "moralis")]
 pub mod moralis;
 #[cfg(feature = "okx_dex")]
@@ -40,10 +36,10 @@ pub mod okx_dex;
 pub mod oneinch;
 #[cfg(feature = "openexchangerates")]
 pub mod openexchangerates;
+#[cfg(any(feature = "flashbots", feature = "mev_blocker"))]
+pub mod private_relay;
 #[cfg(feature = "pyth")]
 pub mod pyth;
-#[cfg(feature = "quicknode")]
-pub mod quicknode;
 #[cfg(feature = "quicknode_sol")]
 pub mod quicknode_sol;
 #[cfg(feature = "rugcheck")]
@@ -57,24 +53,7 @@ pub mod velora;
 #[cfg(feature = "zeroex")]
 pub mod zeroex;
 
-#[cfg(any(
-    feature = "birdeye",
-    feature = "coingecko",
-    feature = "cow",
-    feature = "defillama",
-    feature = "dexscreener",
-    feature = "geckoterminal",
-    feature = "goplus",
-    feature = "honeypot_is",
-    feature = "okx_dex",
-    feature = "oneinch",
-    feature = "pyth",
-    feature = "rugcheck",
-    feature = "uniswap_api",
-    feature = "velora",
-    feature = "zeroex"
-))]
-pub(crate) mod market_util;
+pub(crate) mod util;
 
 use bdm_config::Loaded;
 use bdm_ports::Registration;
@@ -85,16 +64,14 @@ pub fn registrations(loaded: &Loaded) -> Vec<Registration> {
     let mut out = Vec::new();
     #[cfg(feature = "alchemy")]
     alchemy::register(loaded, &mut out);
-    #[cfg(feature = "quicknode")]
-    quicknode::register(loaded, &mut out);
     #[cfg(feature = "moralis")]
     moralis::register(loaded, &mut out);
     #[cfg(feature = "ankr")]
     ankr::register(loaded, &mut out);
     #[cfg(feature = "flashbots")]
-    flashbots::register(loaded, &mut out);
+    private_relay::register(loaded, &mut out, private_relay::FLASHBOTS);
     #[cfg(feature = "mev_blocker")]
-    mev_blocker::register(loaded, &mut out);
+    private_relay::register(loaded, &mut out, private_relay::MEV_BLOCKER);
     #[cfg(feature = "helius")]
     helius::register(loaded, &mut out);
     #[cfg(feature = "jito")]
@@ -141,4 +118,56 @@ pub fn registrations(loaded: &Loaded) -> Vec<Registration> {
     openexchangerates::register(loaded, &mut out);
     let _ = loaded;
     out
+}
+
+#[cfg(all(
+    test,
+    feature = "ankr",
+    feature = "zeroex",
+    feature = "uniswap_api",
+    feature = "okx_dex"
+))]
+mod tests {
+    use super::*;
+
+    const PAID: [&str; 4] = ["ankr", "zeroex", "uniswap_api", "okx_dex"];
+
+    fn ids(config: &str) -> Vec<String> {
+        let env = [
+            ("ANKR_API_KEY", "ankr-key-123"),
+            ("ZEROEX_API_KEY", "zeroex-key-123"),
+            ("UNISWAP_API_KEY", "uniswap-key-123"),
+            ("OKX_API_KEY", "okx-key-123"),
+            ("OKX_SECRET_KEY", "okx-secret-123"),
+            ("OKX_PASSPHRASE", "okx-pass-123"),
+        ];
+        let loaded = bdm_config::ConfigLoader::new(
+            bdm_config::ConfigDir::new("/nonexistent"),
+            bdm_config::EnvSource::from_pairs(env),
+        )
+        .unwrap()
+        .load_texts(config, "")
+        .unwrap();
+        registrations(&loaded)
+            .into_iter()
+            .map(|r| r.vendor.id)
+            .filter(|id| PAID.contains(&id.as_str()))
+            .collect()
+    }
+
+    /// Paid vendors ship in the binary but stay off until config turns them on (keys alone
+    /// are not enough).
+    #[test]
+    fn paid_vendors_are_built_in_but_off_until_enabled() {
+        assert!(ids("").is_empty(), "{:?}", ids(""));
+        let on: String = PAID
+            .iter()
+            .map(|v| format!("[vendors.{v}]\nenabled = true\n"))
+            .collect();
+        let mut got = ids(&on);
+        got.sort();
+        let mut want = PAID.map(String::from).to_vec();
+        want.sort();
+        assert_eq!(got, want);
+    }
 }

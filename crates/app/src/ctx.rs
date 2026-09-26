@@ -25,20 +25,12 @@ pub struct Ctx {
     router: Arc<Router>,
     table: Arc<RoutingTable>,
     pub op: &'static str,
-    pub caller: Caller,
-    pub request_id: String,
 }
 
 impl Ctx {
-    pub fn new(router: Arc<Router>, op: &'static str, caller: Caller, request_id: String) -> Self {
+    pub fn new(router: Arc<Router>, op: &'static str) -> Self {
         let table = router.table();
-        Self {
-            router,
-            table,
-            op,
-            caller,
-            request_id,
-        }
+        Self { router, table, op }
     }
 
     pub fn router(&self) -> &Arc<Router> {

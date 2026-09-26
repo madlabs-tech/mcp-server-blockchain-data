@@ -1,9 +1,11 @@
-//! `compliance` tools. See the ownership table in `ops/mod.rs`.
+//! `compliance` tools.
 
-use super::stablecoin::{controlled, parse_account, restrictions_for, TokenError};
+use super::stablecoin::{controlled, restrictions_for, TokenError};
 use crate::{Catalog, Ctx, Domain, OpOutput, Operation, Profile};
 use async_trait::async_trait;
-use bdm_domain::{AccountId, Attempt, AttemptOutcome, DomainError, Provenance, SourceKind};
+use bdm_domain::{
+    AccountAddress, AccountId, Attempt, AttemptOutcome, DomainError, Provenance, SourceKind,
+};
 use bdm_ports::{Capability, ProviderError, SanctionsScreener, ScreenResult};
 use bdm_protocols::issuer::Restrictions;
 use chrono::{DateTime, Utc};
@@ -186,7 +188,7 @@ Caveats: sanctions lists only (not KYT risk scoring); the Chainalysis oracle may
         input: ScreenIn,
     ) -> Result<OpOutput<ScreenOut>, DomainError> {
         let chain = ctx.chain(&input.chain)?;
-        let address = parse_account(chain, &input.address)?;
+        let address = AccountAddress::parse(chain.family, &input.address)?;
         let subject = AccountId::new(chain.id.clone(), address)?;
 
         let req = ctx.route(Capability::Sanctions).chain(chain.id.clone());

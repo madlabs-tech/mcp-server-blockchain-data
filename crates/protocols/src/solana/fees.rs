@@ -1,18 +1,16 @@
-//! Priority-fee percentiles + Jito tip. Owner: `solana` (T1.S2).
+//! Priority-fee percentiles + Jito tip.
 //!
 //! `getRecentPrioritizationFees` returns, per recent slot (≤150), the *minimum* fee paid by a
 //! landed tx that locked the given accounts: often 0, so these percentiles are a floor, not a
 //! market price. Vendor oracles (Helius `getPriorityFeeEstimate`, QuickNode
 //! `qn_estimatePriorityFees`) sit before `rpc` in the default order for that reason.
-//! Prices are micro-lamports per compute unit. Total for a tx: [`total_fee_lamports`].
+//! Prices are micro-lamports per compute unit.
 
 use bdm_config::ChainEntry;
 use bdm_domain::{Amount, FeeEstimate, FeeSpeed, FeeTier};
 use bdm_ports::{PortResult, ProviderError, SolanaRpc};
 use serde_json::json;
 
-/// Base fee per signature. <https://solana.com/docs/core/fees>
-pub const BASE_FEE_LAMPORTS_PER_SIGNATURE: u64 = 5_000;
 /// Jito minimum tip. <https://docs.jito.wtf/lowlatencytxnsend/>
 pub const JITO_MIN_TIP_LAMPORTS: u64 = 1_000;
 /// Helius Sender minimum tip (default dual-route mode, 0.001 SOL).
@@ -55,17 +53,37 @@ pub fn tiers_from_samples(mut samples: Vec<u64>) -> Vec<FeeTier> {
     .collect()
 }
 
-/// Lamports for a tx: base fee per signature + `ceil(price × cu_limit / 1e6)` priority fee.
-pub fn total_fee_lamports(signatures: u64, cu_limit: u64, micro_lamports_per_cu: u64) -> u64 {
-    let priority = (micro_lamports_per_cu as u128 * cu_limit as u128).div_ceil(1_000_000);
-    BASE_FEE_LAMPORTS_PER_SIGNATURE
-        .saturating_mul(signatures)
-        .saturating_add(u64::try_from(priority).unwrap_or(u64::MAX))
-}
-
 /// Suggested Jito/Sender tip as a 9-decimal SOL amount.
 pub fn suggested_tip(chain: &ChainEntry) -> Amount {
     Amount::from_u128(SUGGESTED_TIP_LAMPORTS.into(), chain.native.decimals)
+}
+
+/// Fee estimate from a vendor oracle's low / medium / high levels (Slow / Standard / Fast).
+/// `level(k)` reads one level; a missing one is `Transient("{what}.{k} missing")`.
+pub fn estimate_from_levels(
+    chain: &ChainEntry,
+    what: &str,
+    level: impl Fn(&str) -> Option<u64>,
+) -> PortResult<FeeEstimate> {
+    let tiers = [
+        (FeeSpeed::Slow, "low"),
+        (FeeSpeed::Standard, "medium"),
+        (FeeSpeed::Fast, "high"),
+    ]
+    .into_iter()
+    .map(|(s, k)| {
+        level(k)
+            .map(|p| tier(s, p))
+            .ok_or_else(|| ProviderError::Transient(format!("{what}.{k} missing")))
+    })
+    .collect::<PortResult<Vec<_>>>()?;
+    Ok(FeeEstimate {
+        chain: chain.id.clone(),
+        tiers,
+        l1_data_fee: None,
+        tip: Some(suggested_tip(chain)),
+        as_of: chrono::Utc::now(),
+    })
 }
 
 /// Fee estimate from `getRecentPrioritizationFees` over `accounts` (empty = global).
@@ -112,13 +130,6 @@ mod tests {
         assert_eq!(percentile(&s, 100), 10);
         assert_eq!(percentile(&s, 0), 1);
         assert_eq!(percentile(&[], 50), 0);
-    }
-
-    #[test]
-    fn totals() {
-        assert_eq!(total_fee_lamports(1, 200_000, 0), 5_000);
-        assert_eq!(total_fee_lamports(2, 200_000, 50_000), 10_000 + 10_000);
-        assert_eq!(total_fee_lamports(1, 1, 1), 5_001); // rounds up
     }
 
     #[tokio::test]

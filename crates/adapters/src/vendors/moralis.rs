@@ -1,4 +1,4 @@
-//! `moralis` vendor adapter. Owner: `evm` (T1.E4).
+//! `moralis` vendor adapter.
 //!
 //! Web3 Data API v2.2 (REST, `X-API-Key` header):
 //! - `token_balances`: `GET /wallets/{address}/tokens`
@@ -8,14 +8,16 @@
 //!
 //! No `QuotaReporter`: no credit-free usage endpoint is confirmed.
 
-use crate::http::{HttpClient, DEFAULT_TIMEOUT};
+use super::util;
+
+use crate::http::HttpClient;
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
 use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef, BlockRef, Transfer, TransferKind};
 use bdm_ports::{
     Direction, Page, PortHandle, PortResult, ProviderError, Registration, TokenBalance,
-    TokenBalances, TransferHistory, TransferQuery, VendorMeta,
+    TokenBalances, TransferHistory, TransferQuery,
 };
 use serde_json::Value;
 use std::sync::Arc;
@@ -33,20 +35,11 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status(VENDOR) != VendorStatus::Active {
         return;
     }
-    let (Some(entry), Some(key)) = (
-        loaded.registry.vendors.get(VENDOR),
-        loaded.key(VENDOR, "api_key"),
-    ) else {
+    let Some(key) = loaded.key(VENDOR, "api_key") else {
         return;
     };
-    let http = HttpClient::new(VENDOR, DEFAULT_TIMEOUT).with_secrets(loaded.secret_values());
-    let mut reg = Registration::new(VendorMeta {
-        id: VENDOR.into(),
-        display_name: entry.display_name.clone(),
-        requires_key: entry.requires_key,
-        signup_url: entry.signup_url.clone(),
-        rpc_features: Default::default(),
-    });
+    let http = util::http(loaded, VENDOR);
+    let mut reg = Registration::new(loaded.vendor_meta(VENDOR));
     for chain in loaded.registry.chains.enabled() {
         if !chain
             .id
@@ -90,12 +83,11 @@ impl Moralis {
     /// `GET {base}{path}?chain=0x…&{query}`; `label` is the metering / cost-table key.
     async fn get(&self, path: &str, query: &[(&str, String)], label: &str) -> PortResult<Value> {
         let chain = format!("0x{:x}", self.chain.id.evm_chain_id().unwrap_or(0));
-        let qs: String = std::iter::once(("chain", chain))
-            .chain(query.iter().map(|(k, v)| (*k, v.clone())))
-            .map(|(k, v)| format!("{k}={}", encode(&v)))
-            .collect::<Vec<_>>()
-            .join("&");
-        let url = Redacted::new(format!("{}{path}?{qs}", self.base));
+        let pairs = std::iter::once(("chain", chain.as_str()))
+            .chain(query.iter().map(|(k, v)| (*k, v.as_str())));
+        let url = reqwest::Url::parse_with_params(&format!("{}{path}", self.base), pairs)
+            .map_err(|e| ProviderError::Fatal(format!("moralis url: {e}")))?;
+        let url = Redacted::new(url.to_string());
         self.http
             .get_json(&url, label, &[("X-API-Key", self.key.expose())])
             .await
@@ -110,25 +102,6 @@ impl Moralis {
             chain: self.chain.id.clone(),
             asset: AssetRef::Erc20(a),
         }
-    }
-}
-
-/// Percent-encode a query value (addresses, numbers and opaque cursors).
-fn encode(v: &str) -> String {
-    v.bytes()
-        .map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
-                (b as char).to_string()
-            }
-            _ => format!("%{b:02X}"),
-        })
-        .collect()
-}
-
-fn evm(owner: &AccountAddress) -> PortResult<Address> {
-    match owner {
-        AccountAddress::Evm(a) => Ok(*a),
-        AccountAddress::Solana(_) => Err(ProviderError::Invalid("expected an EVM address".into())),
     }
 }
 
@@ -156,7 +129,7 @@ impl TokenBalances for Moralis {
         owner: &AccountAddress,
         assets: Option<&[AssetId]>,
     ) -> PortResult<Vec<TokenBalance>> {
-        let who = evm(owner)?;
+        let who = bdm_protocols::evm::evm_owner(owner)?;
         let v = self
             .get(&format!("/wallets/{who:#x}/tokens"), &[], "wallet_tokens")
             .await?;
@@ -188,7 +161,7 @@ impl TransferHistory for Moralis {
     /// page may hold fewer than `limit` rows. Native-only queries are `Unsupported`.
     #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn transfers(&self, q: &TransferQuery) -> PortResult<Page<Transfer>> {
-        let who = evm(&q.owner)?;
+        let who = bdm_protocols::evm::evm_owner(&q.owner)?;
         if q.assets
             .as_ref()
             .is_some_and(|a| a.iter().all(AssetId::is_native))
@@ -265,6 +238,7 @@ impl Moralis {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http::DEFAULT_TIMEOUT;
     use bdm_config::Registry;
     use bdm_testkit::{
         vendor_fixture,

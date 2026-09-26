@@ -1,23 +1,15 @@
 //! Base registrations: chain RPC (+ broadcast) for every active vendor with an endpoint.
 
-use crate::{
-    chain_rpc::{EvmRpcClient, SolanaRpcClient},
-    http::{HttpClient, DEFAULT_TIMEOUT},
-};
+use crate::chain_rpc::{EvmRpcClient, SolanaRpcClient};
 use bdm_config::{Loaded, VendorStatus};
 use bdm_domain::ChainFamily;
-use bdm_ports::{PortHandle, Registration, VendorMeta};
+use bdm_ports::{PortHandle, Registration};
 use std::sync::Arc;
 
 /// Register `EvmRpc`/`SolanaRpc` + `Broadcast` for every enabled chain and every active vendor
 /// that has an RPC URL for it: registry vendors with `rpc_urls` (alchemy, quicknode, helius…),
 /// operator `custom_rpc` endpoints (incl. legacy `rpc_url`) and `public`.
 pub fn base_registrations(loaded: &Loaded) -> Vec<Registration> {
-    let secrets: Vec<String> = loaded
-        .secret_values()
-        .into_iter()
-        .map(str::to_owned)
-        .collect();
     let registry_vendors = loaded
         .registry
         .vendors
@@ -30,9 +22,12 @@ pub fn base_registrations(loaded: &Loaded) -> Vec<Registration> {
         .chain(custom)
         .filter(|v| loaded.vendor_status(v) == VendorStatus::Active)
         .filter_map(|vendor| {
-            let http = HttpClient::new(vendor.clone(), DEFAULT_TIMEOUT)
-                .with_secrets(secrets.iter().cloned());
-            let mut reg = Registration::new(vendor_meta(loaded, &vendor));
+            let http = crate::vendors::util::http(loaded, &vendor);
+            let mut meta = loaded.vendor_meta(&vendor);
+            if !loaded.registry.vendors.contains_key(&vendor) {
+                meta.display_name = format!("Custom RPC ({vendor})");
+            }
+            let mut reg = Registration::new(meta);
             for chain in loaded.registry.chains.enabled() {
                 // ponytail: `public` uses the first public URL only; round-robin across all when needed.
                 let Some(url) = loaded.rpc_url(&vendor, &chain.id) else {
@@ -57,25 +52,6 @@ pub fn base_registrations(loaded: &Loaded) -> Vec<Registration> {
             (!reg.ports.is_empty()).then_some(reg)
         })
         .collect()
-}
-
-fn vendor_meta(loaded: &Loaded, vendor: &str) -> VendorMeta {
-    match loaded.registry.vendors.get(vendor) {
-        Some(e) => VendorMeta {
-            id: vendor.to_owned(),
-            display_name: e.display_name.clone(),
-            requires_key: e.requires_key,
-            signup_url: e.signup_url.clone(),
-            rpc_features: e.rpc_features.clone(),
-        },
-        None => VendorMeta {
-            id: vendor.to_owned(),
-            display_name: format!("Custom RPC ({vendor})"),
-            requires_key: false,
-            signup_url: None,
-            rpc_features: Default::default(),
-        },
-    }
 }
 
 #[cfg(test)]

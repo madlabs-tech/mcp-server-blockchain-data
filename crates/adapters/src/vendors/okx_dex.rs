@@ -1,12 +1,12 @@
-//! `okx_dex` aggregator API v6 (key + secret + passphrase, HMAC-SHA256). Owner: `market-trading`
-//! (T1.M3). Disabled by default: free tier unverified.
+//! `okx_dex` aggregator API v6 (key + secret + passphrase, HMAC-SHA256).
+//! Disabled by default: free tier unverified.
 //!
 //! Signing: `OK-ACCESS-SIGN = base64(HMAC_SHA256(secret, timestamp + "GET" + path?query))` with
 //! `OK-ACCESS-KEY`, `OK-ACCESS-TIMESTAMP` (ISO-8601 ms) and `OK-ACCESS-PASSPHRASE`.
 //! `quote` → `/quote` (EVM + Solana); `build` → `/swap` + approval to the spender from
 //! `/approve-transaction` (EVM only; Solana builds are not supported yet).
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -39,7 +39,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     };
     let a = Arc::new(OkxDex::new(util::http(loaded, ID), BASE, key, secret, pass));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::SwapQuote(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::SwapQuote(a)));
 }
 
 pub struct OkxDex {
@@ -67,13 +67,7 @@ fn route(req: &SwapRequest) -> PortResult<(String, String, String)> {
         };
         return Ok((SOLANA_INDEX.into(), t(&req.sell_asset)?, t(&req.buy_asset)?));
     }
-    let chain = util::evm_chain_id(&req.chain)?;
-    if !EVM_CHAINS.contains(&chain) {
-        return Err(ProviderError::Unsupported(format!(
-            "okx dex does not cover {}",
-            req.chain
-        )));
-    }
+    let chain = util::covered_evm_chain(&req.chain, EVM_CHAINS, "okx dex")?;
     Ok((
         chain.to_string(),
         util::evm_token_or_native(&req.sell_asset)?,

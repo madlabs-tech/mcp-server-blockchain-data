@@ -1,13 +1,13 @@
 //! `rpc` pseudo-vendor for EVM chains: `token_balances` (Multicall3), `transfer_history` (logs),
 //! `fee_estimate`, `simulate` (`eth_simulateV1` → `debug_traceCall` → `eth_call`), `token_metadata`.
-//! Owner: `evm` (T1.E1–E3). Every port sits on `bdm_routing::RoutedEvmRpc`, so it inherits the
+//! Every port sits on `bdm_routing::RoutedEvmRpc`, so it inherits the
 //! user's `evm_rpc` order, failover, breakers and quota guard.
 //!
 //! Private relays (Flashbots Protect, MEV Blocker; Ethereum mainnet only) need HTTP, so they live
-//! in `bdm-adapters` (`vendors::{flashbots, mev_blocker}`).
+//! in `bdm-adapters` (`vendors::private_relay`).
 
 use super::{
-    block_number, block_tag, decode_transfer_log, erc20, fees, hex_u64, logs,
+    block_number, block_tag, decode_transfer_log, erc20, evm_owner, fees, hex_u64, logs,
     multicall3::{self, Call},
     RawTransfer,
 };
@@ -22,7 +22,7 @@ use bdm_domain::{
 use bdm_ports::{
     Capability, EvmRpc, FeeOracle, Page, PortHandle, PortResult, ProviderError, Registration,
     SimulationResult, Simulator, TokenBalance, TokenBalances, TokenInfo, TokenMetadata,
-    TransferHistory, TransferQuery, VendorMeta, RPC_VENDOR,
+    TransferHistory, TransferQuery, RPC_VENDOR,
 };
 use bdm_routing::{RoutedEvmRpc, Router};
 use serde_json::{json, Map, Value};
@@ -34,17 +34,7 @@ const NATIVE_TRANSFER_EMITTER: Address = address!("EeeeeEeeeEeEeeEeEeEeeEEEeeeeE
 
 pub fn registrations(loaded: &Loaded, router: &Arc<Router>) -> Vec<Registration> {
     let stables = StablecoinRegistry::builtin().unwrap_or_default();
-    let meta = VendorMeta {
-        id: RPC_VENDOR.to_owned(),
-        display_name: loaded.registry.vendors.get(RPC_VENDOR).map_or_else(
-            || "On-chain via routed RPC".into(),
-            |e| e.display_name.clone(),
-        ),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    };
-    let mut reg = Registration::new(meta);
+    let mut reg = Registration::new(loaded.vendor_meta(RPC_VENDOR));
     for chain in loaded
         .registry
         .chains
@@ -118,13 +108,6 @@ impl ChainRpc {
             )));
         }
         Ok(())
-    }
-}
-
-fn evm_owner(owner: &AccountAddress) -> PortResult<Address> {
-    match owner {
-        AccountAddress::Evm(a) => Ok(*a),
-        AccountAddress::Solana(_) => Err(ProviderError::Invalid("expected an EVM address".into())),
     }
 }
 

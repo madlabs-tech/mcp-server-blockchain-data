@@ -8,7 +8,6 @@ config/dashboard_password
 *.db-wal
 *.db-shm
 /data
-/crates/*/data
 
 # local planning docs only (not shipped)
 /plan/

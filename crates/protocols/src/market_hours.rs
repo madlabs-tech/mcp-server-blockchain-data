@@ -1,5 +1,5 @@
 //! US equity market sessions + NYSE holiday calendar, for judging tokenized-equity price
-//! staleness by session instead of a fixed timeout. Owner: `market-trading` (T1.M4).
+//! staleness by session instead of a fixed timeout.
 //!
 //! Sessions (America/New_York): overnight 20:00–04:00 (belongs to the next trading day),
 //! pre-market 04:00–09:30, regular 09:30–16:00, post-market 16:00–20:00. Early-close days end the
@@ -11,10 +11,9 @@
 // the rule changes by law.
 
 use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, NaiveTime, Utc, Weekday};
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+/// The app maps each session to its output name (`ops::rwa::session_name`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Session {
     PreMarket,
     Regular,

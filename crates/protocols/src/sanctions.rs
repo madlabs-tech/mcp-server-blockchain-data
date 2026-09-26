@@ -1,5 +1,5 @@
 //! Chainalysis on-chain sanctions oracle as the `chainalysis_oracle` vendor (`sanctions` port,
-//! EVM only). Owner: `payments-stablecoin` (T1.P2).
+//! EVM only).
 //!
 //! Addresses from <https://go.chainalysis.com/chainalysis-oracle-docs.html> (verified
 //! 2026-09-23). Base uses a different address; Robinhood Chain and Solana are not listed, so the
@@ -13,7 +13,6 @@ use bdm_config::{Loaded, VendorStatus};
 use bdm_domain::{AccountAddress, AccountId, ChainId};
 use bdm_ports::{
     EvmRpc, PortHandle, PortResult, ProviderError, Registration, SanctionsScreener, ScreenResult,
-    VendorMeta,
 };
 use bdm_routing::{RoutedEvmRpc, Router};
 use chrono::Utc;
@@ -86,15 +85,7 @@ pub fn registrations(loaded: &Loaded, router: &Arc<Router>) -> Vec<Registration>
     if rpcs.is_empty() {
         return Vec::new();
     }
-    let entry = loaded.registry.vendors.get(VENDOR);
-    let meta = VendorMeta {
-        id: VENDOR.into(),
-        display_name: entry.map_or_else(|| VENDOR.into(), |e| e.display_name.clone()),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    };
-    vec![Registration::new(meta)
+    vec![Registration::new(loaded.vendor_meta(VENDOR))
         .global_port(PortHandle::Sanctions(Arc::new(ChainalysisOracle { rpcs })))]
 }
 

@@ -1,10 +1,9 @@
 //! Tokenized-stock issuer registry (`registry/rwa.toml`) and small RWA contract reads.
-//! Owner: `market-trading` (T1.M4).
 //!
 //! Only addresses copied from issuer or oracle docs are listed, each with a `source_url`.
 //! A token whose ticker matches but whose address is not on the issuer's list is a lookalike.
 
-use alloy_primitives::{keccak256, Address};
+use alloy_primitives::{hex, keccak256, Address};
 use bdm_domain::{AssetId, AssetRef, ChainId};
 use bdm_ports::{EvmRpc, PortResult, ProviderError};
 use serde::Deserialize;

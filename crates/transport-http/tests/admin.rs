@@ -41,9 +41,7 @@ fn registry(_: &Loaded) -> ProviderRegistry {
         Registration::new(VendorMeta {
             id: id.into(),
             display_name: id.into(),
-            requires_key: false,
-            signup_url: None,
-            rpc_features: Default::default(),
+            ..Default::default()
         })
         .chain_port(eth.clone(), PortHandle::EvmRpc(Arc::new(Named(id))))
     };

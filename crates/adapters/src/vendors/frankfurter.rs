@@ -1,18 +1,19 @@
-//! `frankfurter` vendor adapter (ECB reference rates, keyless). Owner: `neobank-wallet`.
+//! `frankfurter` vendor adapter (ECB reference rates, keyless).
 //!
 //! `GET {base}/{YYYY-MM-DD|latest}?base=EUR&symbols=USD` →
 //! `{"amount":1.0,"base":"EUR","date":"2026-09-18","rates":{"USD":1.0956}}`.
 //! The ECB publishes on TARGET business days only (~16:00 CET); a weekend/holiday date returns
 //! the previous business day, reported as `business_date`. Docs: https://frankfurter.dev/
 
+use super::util;
+
 use crate::http::{HttpClient, DEFAULT_TIMEOUT};
 use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
-use bdm_ports::{FxRate, FxRates, PortHandle, PortResult, ProviderError, Registration, VendorMeta};
+use bdm_ports::{FxRate, FxRates, PortHandle, PortResult, ProviderError, Registration};
 use chrono::{NaiveDate, NaiveTime};
-use rust_decimal::Decimal;
 use serde_json::Value;
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 const ID: &str = "frankfurter";
 pub const BASE_URL: &str = "https://api.frankfurter.dev/v1";
@@ -24,20 +25,9 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     }
     let http = HttpClient::new(ID, DEFAULT_TIMEOUT);
     out.push(
-        Registration::new(meta(loaded))
+        Registration::new(loaded.vendor_meta(ID))
             .global_port(PortHandle::Fx(Arc::new(Frankfurter::new(http, BASE_URL)))),
     );
-}
-
-fn meta(loaded: &Loaded) -> VendorMeta {
-    let e = loaded.registry.vendors.get(ID);
-    VendorMeta {
-        id: ID.into(),
-        display_name: e.map_or("Frankfurter (ECB)".into(), |e| e.display_name.clone()),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    }
 }
 
 pub struct Frankfurter {
@@ -85,22 +75,13 @@ impl FxRates for Frankfurter {
     }
 }
 
-/// JSON number → exact decimal via its shortest round-trip text (ECB rates have ≤ 6 significant
-/// digits, so no precision is lost; no float arithmetic is done).
-fn json_decimal(v: &Value) -> Option<Decimal> {
-    let s = v.as_number()?.to_string();
-    Decimal::from_str(&s)
-        .or_else(|_| Decimal::from_scientific(&s))
-        .ok()
-}
-
 #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
 fn parse(v: &Value, base: &str, quote: &str) -> PortResult<FxRate> {
     let business_date = v["date"]
         .as_str()
         .and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok())
         .ok_or_else(|| ProviderError::Transient("frankfurter: response has no date".into()))?;
-    let rate = json_decimal(&v["rates"][quote]).ok_or_else(|| {
+    let rate = util::dec(&v["rates"][quote]).ok_or_else(|| {
         ProviderError::Unsupported(format!("ECB does not publish {base}/{quote}"))
     })?;
     Ok(FxRate {
@@ -120,7 +101,9 @@ mod tests {
         matchers::{method, path, query_param},
         Mock, MockServer, ResponseTemplate,
     };
+    use rust_decimal::Decimal;
     use serde_json::json;
+    use std::str::FromStr;
 
     #[test]
     fn parses_exact_decimal_and_business_date() {

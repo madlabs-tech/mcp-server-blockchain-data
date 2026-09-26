@@ -1,7 +1,7 @@
 //! `honeypot_is` (keyless). Buy/sell simulation for Ethereum, BSC and Base only.
-//! Owner: `market-trading` (T1.M2). Port: `TokenRisk`.
+//! Port: `TokenRisk`.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -21,21 +21,12 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     }
     let a = Arc::new(HoneypotIs::new(util::http(loaded, ID), BASE));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::TokenRisk(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::TokenRisk(a)));
 }
 
 pub struct HoneypotIs {
     http: HttpClient,
     base: String,
-}
-
-fn flag(code: &str, severity: Severity, detail: Option<String>) -> RiskFlag {
-    RiskFlag {
-        code: code.into(),
-        severity,
-        source: ID.into(),
-        detail,
-    }
 }
 
 /// Tax in percent (5 = 5%).
@@ -48,7 +39,12 @@ fn tax_flag(code: &str, v: &Value) -> Option<RiskFlag> {
     } else {
         Severity::Low
     };
-    Some(flag(code, sev, Some(format!("{}%", t.normalize()))))
+    Some(util::risk_flag(
+        ID,
+        code,
+        sev,
+        Some(format!("{}%", t.normalize())),
+    ))
 }
 
 fn severity(s: &str) -> Severity {
@@ -68,10 +64,15 @@ fn flags(v: &Value) -> Vec<RiskFlag> {
         let reason = v["honeypotResult"]["honeypotReason"]
             .as_str()
             .map(str::to_owned);
-        out.push(flag("honeypot", Severity::Critical, reason));
+        out.push(util::risk_flag(ID, "honeypot", Severity::Critical, reason));
     }
     if v["simulationSuccess"].as_bool() == Some(false) {
-        out.push(flag("simulation_failed", Severity::Medium, None));
+        out.push(util::risk_flag(
+            ID,
+            "simulation_failed",
+            Severity::Medium,
+            None,
+        ));
     }
     let sim = &v["simulationResult"];
     out.extend(tax_flag("buy_tax", &sim["buyTax"]));
@@ -79,7 +80,8 @@ fn flags(v: &Value) -> Vec<RiskFlag> {
     out.extend(tax_flag("transfer_tax", &sim["transferTax"]));
     for f in v["summary"]["flags"].as_array().into_iter().flatten() {
         if let Some(code) = f["flag"].as_str() {
-            out.push(flag(
+            out.push(util::risk_flag(
+                ID,
                 code,
                 severity(f["severity"].as_str().unwrap_or("")),
                 f["description"].as_str().map(str::to_owned),

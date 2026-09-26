@@ -1,16 +1,15 @@
-//! `geckoterminal` public API (keyless, ~10–30 req/min ⚠). Owner: `market-trading` (T1.M1).
+//! `geckoterminal` public API (keyless, ~10–30 req/min ⚠).
 //! Ports: `PriceFeed` (USD, tokens only, with pool reserve as liquidity), `TokenMetadata`.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
-use bdm_domain::{AssetId, ChainId, Price};
+use bdm_domain::{AssetId, Price};
 use bdm_ports::{
     PortHandle, PortResult, PriceFeed, ProviderError, Registration, TokenInfo, TokenMetadata,
 };
-use chrono::Utc;
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -24,7 +23,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     }
     let a = Arc::new(GeckoTerminal::new(util::http(loaded, ID), BASE));
     out.push(
-        Registration::new(util::meta(loaded, ID))
+        Registration::new(loaded.vendor_meta(ID))
             .global_port(PortHandle::Price(a.clone()))
             .global_port(PortHandle::TokenMetadata(a)),
     );
@@ -35,36 +34,13 @@ pub struct GeckoTerminal {
     base: String,
 }
 
-fn network(chain: &ChainId) -> Option<&'static str> {
-    if util::is_solana_mainnet(chain) {
-        return Some("solana");
-    }
-    Some(match chain.evm_chain_id()? {
-        1 => "eth",
-        8453 => "base",
-        42161 => "arbitrum",
-        10 => "optimism",
-        137 => "polygon_pos",
-        43114 => "avax",
-        56 => "bsc",
-        _ => return None,
-    })
-}
-
 fn target(asset: &AssetId) -> PortResult<(&'static str, String)> {
     let unsupported =
         || ProviderError::Unsupported(format!("geckoterminal does not cover {asset}"));
     Ok((
-        network(&asset.chain).ok_or_else(unsupported)?,
+        util::gecko_network(&asset.chain).ok_or_else(unsupported)?,
         util::token_address(asset).ok_or_else(unsupported)?,
     ))
-}
-
-fn get_ci<'a>(obj: &'a Value, key: &str) -> Option<&'a Value> {
-    obj.as_object()?
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case(key))
-        .map(|(_, v)| v)
 }
 
 impl GeckoTerminal {
@@ -99,15 +75,7 @@ impl PriceFeed for GeckoTerminal {
                 "/simple/token_price",
             )
             .await?;
-        let attrs = &v["data"]["attributes"];
-        Ok(Price {
-            asset: asset.clone(),
-            currency: "USD".into(),
-            value: util::price(get_ci(&attrs["token_prices"], &addr).unwrap_or(&Value::Null))?,
-            as_of: Utc::now(),
-            source: ID.into(),
-            liquidity_usd: get_ci(&attrs["total_reserve_in_usd"], &addr).and_then(util::dec),
-        })
+        util::gecko_token_price(asset, ID, &v, &addr)
     }
 }
 
@@ -119,21 +87,7 @@ impl TokenMetadata for GeckoTerminal {
         let v = self
             .get(&format!("/networks/{net}/tokens/{addr}"), "/tokens")
             .await?;
-        let a = &v["data"]["attributes"];
-        let s = |k: &str| a.get(k).and_then(Value::as_str).map(str::to_owned);
-        Ok(TokenInfo {
-            asset: asset.clone(),
-            decimals: a
-                .get("decimals")
-                .and_then(Value::as_u64)
-                .and_then(|d| u8::try_from(d).ok())
-                .ok_or(ProviderError::NotFound)?,
-            symbol: s("symbol"),
-            name: s("name"),
-            logo_url: s("image_url").filter(|u| u.starts_with("https://")),
-            verified: None,
-            source: ID.into(),
-        })
+        util::gecko_token_info(asset, ID, &v)
     }
 }
 

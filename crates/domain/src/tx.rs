@@ -1,4 +1,4 @@
-use crate::{AccountAddress, Amount, AssetId, ChainId, Fiat};
+use crate::{serde_str, AccountAddress, Amount, AssetId, ChainId, Fiat};
 use alloy_primitives::U256;
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
@@ -131,10 +131,18 @@ pub enum FeeSpeed {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct FeeTier {
     pub speed: FeeSpeed,
-    #[serde(default, skip_serializing_if = "Option::is_none", with = "opt_u256")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_str::opt"
+    )]
     #[schemars(with = "Option<String>")]
     pub max_fee_per_gas: Option<U256>,
-    #[serde(default, skip_serializing_if = "Option::is_none", with = "opt_u256")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_str::opt"
+    )]
     #[schemars(with = "Option<String>")]
     pub max_priority_fee_per_gas: Option<U256>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -185,24 +193,6 @@ pub enum UnsignedTx {
         recent_blockhash: String,
         last_valid_block_height: u64,
     },
-}
-
-mod opt_u256 {
-    use alloy_primitives::U256;
-    use serde::{Deserialize, Deserializer, Serializer};
-
-    pub fn serialize<S: Serializer>(v: &Option<U256>, s: S) -> Result<S::Ok, S::Error> {
-        match v {
-            Some(v) => s.collect_str(v),
-            None => s.serialize_none(),
-        }
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<U256>, D::Error> {
-        Option::<String>::deserialize(d)?
-            .map(|s| U256::from_str_radix(&s, 10).map_err(serde::de::Error::custom))
-            .transpose()
-    }
 }
 
 #[cfg(test)]

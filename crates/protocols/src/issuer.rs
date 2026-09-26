@@ -1,4 +1,4 @@
-//! Issuer controls (blacklist / freeze / pause / deprecated). Owner: `payments-stablecoin` (T1.P2).
+//! Issuer controls (blacklist / freeze / pause / deprecated).
 //!
 //! EVM reads are pinned to one block (`eth_getBlockByNumber("latest")`) and the block is reported,
 //! because an address can be frozen between the check and the payment landing. Solana checks the
@@ -6,7 +6,7 @@
 //! (permanent delegate, Token-2022 `pausable`, frozen default account state).
 
 use crate::stablecoins::{FreezeCheck, PauseCheck, StablecoinEntry};
-use alloy_primitives::{Address, B256};
+use alloy_primitives::{hex, Address, B256};
 use alloy_sol_types::{sol, SolCall};
 use bdm_domain::{AccountAddress, AssetId, AssetRef, BlockRef};
 use bdm_ports::{EvmRpc, PortResult, ProviderError, SolanaRpc};

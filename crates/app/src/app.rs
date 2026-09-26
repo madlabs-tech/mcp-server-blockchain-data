@@ -11,23 +11,24 @@ use bdm_routing::Router;
 use futures::FutureExt;
 use serde_json::Value;
 use std::{
+    collections::HashMap,
     panic::AssertUnwindSafe,
     sync::{
         atomic::{AtomicU64, Ordering},
-        Arc,
+        Arc, Mutex,
     },
     time::{Duration, Instant},
 };
 use tracing::Instrument;
 
 /// Admission hook (hosted mode: client auth is done by the transport; per-client rate limits and
-/// quotas are enforced here by the platform module, T1.D3).
+/// quotas are enforced here by `bdm-store`).
 #[async_trait]
 pub trait CallGuard: Send + Sync {
     async fn admit(&self, caller: &Caller, op: &str) -> Result<(), DomainError>;
 }
 
-/// Hosted-mode client authentication (implemented by the platform module, T1.D3). Transports
+/// Hosted-mode client authentication (implemented in `bdm-store`). Transports
 /// call it with the bearer token and attach the resulting [`Caller`] to the request.
 #[async_trait]
 pub trait ClientAuth: Send + Sync {
@@ -50,7 +51,7 @@ pub trait CallObserver: Send + Sync {
 pub struct App {
     catalog: Arc<Catalog>,
     router: Arc<Router>,
-    cache: moka::future::Cache<String, Value>,
+    cache: TtlCache,
     guard: Option<Arc<dyn CallGuard>>,
     observer: Option<Arc<dyn CallObserver>>,
     metrics: Arc<OpMetrics>,
@@ -59,14 +60,13 @@ pub struct App {
 
 impl App {
     pub fn new(catalog: Catalog, router: Arc<Router>, cache_max_entries: u64) -> Self {
-        let cache = moka::future::Cache::builder()
-            .max_capacity(cache_max_entries)
-            .expire_after(PerEntryTtl)
-            .build();
         Self {
             catalog: Arc::new(catalog),
             router,
-            cache,
+            cache: TtlCache {
+                cap: usize::try_from(cache_max_entries).unwrap_or(usize::MAX),
+                map: Mutex::default(),
+            },
             guard: None,
             observer: None,
             metrics: Arc::new(OpMetrics::default()),
@@ -173,7 +173,7 @@ impl App {
             .filter(|t| !t.is_zero());
         let cache_key = ttl.map(|_| format!("{name}:{input}"));
         if let Some(key) = &cache_key {
-            if let Some(mut hit) = self.cache.get(key).await {
+            if let Some(mut hit) = self.cache.get(key) {
                 mark_cached(&mut hit);
                 self.metrics.record(name, true, true, started.elapsed());
                 return Ok(hit);
@@ -185,12 +185,7 @@ impl App {
             chrono::Utc::now().timestamp_millis(),
             self.seq.fetch_add(1, Ordering::Relaxed)
         );
-        let ctx = Ctx::new(
-            self.router.clone(),
-            op.name(),
-            caller.clone(),
-            request_id.clone(),
-        );
+        let ctx = Ctx::new(self.router.clone(), op.name());
         let call_ctx = CallContext {
             tool: Some(name.to_owned()),
             client: caller.client.clone(),
@@ -209,9 +204,9 @@ impl App {
         self.metrics
             .record(name, result.is_ok(), false, started.elapsed());
         if let (Ok(v), Some(key), Some(ttl)) = (&result, cache_key, ttl) {
-            self.cache.insert(key, with_ttl(v.clone(), ttl)).await;
+            self.cache.insert(key, v.clone(), ttl);
         }
-        result.map(strip_ttl)
+        result
     }
 }
 
@@ -224,44 +219,60 @@ pub fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
         .unwrap_or_else(|| "non-string panic payload".to_owned())
 }
 
-// The cache stores the TTL alongside the value so each entry can expire on its own schedule.
-const TTL_KEY: &str = "__ems_cache_ttl_ms";
-
-fn with_ttl(mut v: Value, ttl: Duration) -> Value {
-    if let Value::Object(m) = &mut v {
-        m.insert(TTL_KEY.into(), Value::from(ttl.as_millis() as u64));
-    }
-    v
-}
-
-fn strip_ttl(mut v: Value) -> Value {
-    if let Value::Object(m) = &mut v {
-        m.remove(TTL_KEY);
-    }
-    v
-}
-
 fn mark_cached(v: &mut Value) {
-    if let Value::Object(m) = v {
-        m.remove(TTL_KEY);
-        if let Some(Value::Object(meta)) = m.get_mut("meta") {
-            meta.insert("cached".into(), Value::Bool(true));
-            meta.insert("source".into(), Value::String("cache".into()));
+    if let Some(Value::Object(meta)) = v.get_mut("meta") {
+        meta.insert("cached".into(), Value::Bool(true));
+        meta.insert("source".into(), Value::String("cache".into()));
+    }
+}
+
+/// Response cache: each entry expires on its own TTL; at most `cap` entries.
+struct TtlCache {
+    cap: usize,
+    map: Mutex<HashMap<String, (Value, Instant)>>,
+}
+
+impl TtlCache {
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, (Value, Instant)>> {
+        self.map.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn get(&self, key: &str) -> Option<Value> {
+        let mut map = self.lock();
+        match map.get(key) {
+            Some((v, expires)) if *expires > Instant::now() => Some(v.clone()),
+            Some(_) => {
+                map.remove(key);
+                None
+            }
+            None => None,
         }
     }
-}
 
-struct PerEntryTtl;
-
-impl moka::Expiry<String, Value> for PerEntryTtl {
-    fn expire_after_create(
-        &self,
-        _k: &String,
-        v: &Value,
-        _now: std::time::Instant,
-    ) -> Option<Duration> {
-        v.get(TTL_KEY)
-            .and_then(Value::as_u64)
-            .map(Duration::from_millis)
+    fn insert(&self, key: String, v: Value, ttl: Duration) {
+        let now = Instant::now();
+        // A TTL too large for the clock is not cached rather than panicking.
+        let Some(expires) = now.checked_add(ttl) else {
+            return;
+        };
+        if self.cap == 0 {
+            return;
+        }
+        let mut map = self.lock();
+        if map.len() >= self.cap && !map.contains_key(&key) {
+            // ponytail: O(n) scan, only when full (cache_max_entries, default 20k); an expiry
+            // heap if it ever shows in a profile.
+            map.retain(|_, (_, e)| *e > now);
+            if map.len() >= self.cap {
+                let soonest = map
+                    .iter()
+                    .min_by_key(|(_, (_, e))| *e)
+                    .map(|(k, _)| k.clone());
+                if let Some(k) = soonest {
+                    map.remove(&k);
+                }
+            }
+        }
+        map.insert(key, (v, expires));
     }
 }

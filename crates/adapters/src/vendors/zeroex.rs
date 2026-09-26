@@ -1,10 +1,10 @@
-//! `zeroex` Swap API v2 (AllowanceHolder). Owner: `market-trading` (T1.M3).
+//! `zeroex` Swap API v2 (AllowanceHolder).
 //! Disabled by default: 0x pricing lists no free tier (Standard $1000/mo, checked 2026-09-23).
 //! `quote` → `/swap/allowance-holder/price` (indicative); `build` → `/quote` (firm, needs
 //! `taker`) + approval to `issues.allowance.spender` when the current allowance is short.
 //! Supports Robinhood Chain (4663).
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -26,7 +26,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     };
     let a = Arc::new(ZeroEx::new(util::http(loaded, ID), BASE, key));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::SwapQuote(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::SwapQuote(a)));
 }
 
 pub struct ZeroEx {
@@ -51,13 +51,7 @@ impl ZeroEx {
         endpoint: &str,
         taker: Option<&str>,
     ) -> PortResult<Value> {
-        let chain = util::evm_chain_id(&req.chain)?;
-        if !CHAINS.contains(&chain) {
-            return Err(ProviderError::Unsupported(format!(
-                "0x does not cover {}",
-                req.chain
-            )));
-        }
+        let chain = util::covered_evm_chain(&req.chain, CHAINS, "0x")?;
         let taker = taker.map(|t| format!("&taker={t}")).unwrap_or_default();
         let url = Redacted::new(format!(
             "{}/swap/allowance-holder/{endpoint}?chainId={chain}&sellToken={}&buyToken={}&sellAmount={}&slippageBps={}{taker}",

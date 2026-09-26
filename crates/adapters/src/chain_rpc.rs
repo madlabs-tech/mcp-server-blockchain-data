@@ -21,27 +21,6 @@ impl EvmRpcClient {
             rpc: JsonRpcClient::new(http, url),
         }
     }
-
-    pub fn vendor(&self) -> &str {
-        self.rpc.vendor()
-    }
-
-    /// Assert the endpoint serves the configured chain (`eth_chainId`).
-    pub async fn verify_chain_id(&self) -> Result<(), ProviderError> {
-        let v = self.rpc.request("eth_chainId", json!([])).await?;
-        let got = v
-            .as_str()
-            .and_then(|s| u64::from_str_radix(s.trim_start_matches("0x"), 16).ok())
-            .ok_or_else(|| ProviderError::Fatal(format!("unparseable eth_chainId {v}")))?;
-        if got != self.chain_id {
-            return Err(ProviderError::Fatal(format!(
-                "{} endpoint serves chain {got}, expected {}",
-                self.vendor(),
-                self.chain_id
-            )));
-        }
-        Ok(())
-    }
 }
 
 #[async_trait]
@@ -85,10 +64,6 @@ impl SolanaRpcClient {
         Self {
             rpc: JsonRpcClient::new(http, url),
         }
-    }
-
-    pub fn vendor(&self) -> &str {
-        self.rpc.vendor()
     }
 }
 
@@ -149,20 +124,6 @@ mod tests {
             TIMEOUT,
         )
         .await;
-    }
-
-    #[tokio::test]
-    async fn verify_chain_id_match_and_mismatch() {
-        let server = FakeJsonRpc::start().await;
-        server.on("eth_chainId", json!("0x2105"));
-        let ok = EvmRpcClient::new(http(), 8453, Redacted::new(server.url()));
-        ok.verify_chain_id().await.unwrap();
-        let wrong = EvmRpcClient::new(http(), 1, Redacted::new(server.url()));
-        let e = wrong.verify_chain_id().await.unwrap_err();
-        assert!(
-            matches!(e, ProviderError::Fatal(ref m) if m.contains("8453")),
-            "{e:?}"
-        );
     }
 
     #[tokio::test]

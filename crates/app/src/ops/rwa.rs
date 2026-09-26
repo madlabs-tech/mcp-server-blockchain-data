@@ -1,4 +1,4 @@
-//! `rwa` tools (T1.M4): `rwa_token_info`, `rwa_price`. See the ownership table in `ops/mod.rs`.
+//! `rwa` tools: `rwa_token_info`, `rwa_price`.
 //!
 //! Tokenized stocks (Robinhood first): the issuer list lives in `registry/rwa.toml`; prices come
 //! from the per-token Chainlink feed, judged stale by US market session (24/5), not a fixed

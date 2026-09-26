@@ -8,55 +8,30 @@
 
 use alloy_primitives::U256;
 use async_trait::async_trait;
-use bdm_app::{App, Caller, Catalog};
-use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+use bdm_app::App;
 use bdm_domain::{Amount, AssetId, ChainId, Price, RiskFlag, Severity, SwapQuote, UnsignedTx};
 use bdm_ports::{
     PortHandle, PortResult, ProviderError, Registration, RiskAssessment, SwapQuoter, SwapRequest,
-    TokenInfo, TokenMetadata, TokenRisk, VendorMeta,
+    TokenInfo, TokenMetadata, TokenRisk,
 };
-use bdm_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
 use bdm_testkit::mocks::{MockEvmRpc, MockPriceFeed, Scripted};
 use chrono::{Duration, Utc};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
-fn app(cfg: &str, regs: Vec<Registration>) -> App {
-    let loader = ConfigLoader::new(ConfigDir::new("/nonexistent"), EnvSource::default()).unwrap();
-    let config = Arc::new(
-        loader
-            .load_texts(&format!("[server]\ntool_profile = \"all\"\n{cfg}"), "")
-            .unwrap(),
-    );
-    let router = Router::new(
-        RoutingTable {
-            config,
-            registry: ProviderRegistry::new(regs),
-        },
-        Arc::new(InMemoryCounterStore::default()),
-        RouterOptions::default(),
-    );
-    let mut catalog = Catalog::new();
-    bdm_app::ops::register_all(&mut catalog);
-    App::new(catalog, router, 1000)
-}
+mod common;
+use common::{call, meta};
 
-fn meta(id: &str) -> VendorMeta {
-    VendorMeta {
-        id: id.into(),
-        display_name: id.into(),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    }
+fn app(cfg: &str, regs: Vec<Registration>) -> App {
+    common::app(
+        &[],
+        &format!("[server]\ntool_profile = \"all\"\n{cfg}"),
+        regs,
+    )
 }
 
 fn global(id: &str, port: PortHandle) -> Registration {
     Registration::new(meta(id)).global_port(port)
-}
-
-async fn call(app: &App, tool: &str, input: Value) -> Result<Value, bdm_domain::DomainError> {
-    app.call(tool, input, Caller::local()).await
 }
 
 // ------------------------------------------------------------------ mocks

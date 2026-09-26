@@ -112,15 +112,15 @@ pub struct Loaded {
     /// Key paths set by env → the env var name that set it ("locked by env").
     pub locked: BTreeMap<Vec<String>, String>,
     pub warnings: Vec<Issue>,
-    pub dir: ConfigDir,
 }
 
 impl Loaded {
     /// If `path` (or a parent/child of it) is set by env, the env var responsible.
-    pub fn locked_by(&self, path: &[String]) -> Option<&str> {
+    pub fn locked_by(&self, path: &[impl AsRef<str>]) -> Option<&str> {
         self.locked
             .iter()
-            .find(|(p, _)| p.starts_with(path) || path.starts_with(p))
+            // zip stops at the shorter: true when either path is a prefix of the other.
+            .find(|(p, _)| p.iter().zip(path).all(|(a, b)| a == b.as_ref()))
             .map(|(_, var)| var.as_str())
     }
 }
@@ -187,7 +187,6 @@ impl ConfigLoader {
             registry,
             locked,
             warnings: Vec::new(),
-            dir: self.dir.clone(),
         };
         issues.extend(validate(&loaded));
         let (errors, warnings): (Vec<_>, Vec<_>) = issues

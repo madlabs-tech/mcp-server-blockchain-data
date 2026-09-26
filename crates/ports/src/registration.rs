@@ -114,12 +114,10 @@ pub struct RpcFeatures {
     pub simulate_v1: bool,
     #[serde(default)]
     pub debug_trace: bool,
-    #[serde(default)]
-    pub archive: bool,
 }
 
 /// Static facts about a vendor, shown in the dashboard and used for filtering.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct VendorMeta {
     /// Stable id, the name used in config orders (e.g. "alchemy", "public", "rpc").
     pub id: String,
@@ -175,17 +173,12 @@ impl PortHandle {
 
 /// Typed access to a [`PortHandle`]: `P::extract(&handle)` for `P = dyn PriceFeed`, etc.
 pub trait PortKind: Send + Sync + 'static {
-    /// Capabilities whose handles carry this trait object.
-    fn capabilities() -> &'static [Capability];
     fn extract(handle: &PortHandle) -> Option<Arc<Self>>;
 }
 
 macro_rules! port_kind {
     ($tr:path => $($variant:ident),+) => {
         impl PortKind for dyn $tr {
-            fn capabilities() -> &'static [Capability] {
-                &[$(Capability::$variant),+]
-            }
             fn extract(handle: &PortHandle) -> Option<Arc<Self>> {
                 match handle {
                     $(PortHandle::$variant(p) => Some(p.clone()),)+

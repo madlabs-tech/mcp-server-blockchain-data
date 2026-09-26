@@ -1,17 +1,17 @@
-//! Helpers shared by the market-trading vendor modules (`use super::market_util as util;`).
-#![allow(dead_code)] // not every helper is used when a single vendor feature builds alone
+//! Helpers shared by the vendor modules (`use super::util;`).
+#![allow(dead_code)] // not every helper is used when a single vendor feature (or none) builds
 
 use crate::http::{HttpClient, DEFAULT_TIMEOUT};
 use alloy_primitives::{Address, U256};
 use bdm_config::Loaded;
-use bdm_domain::{AssetId, AssetRef, ChainId, UnsignedTx};
-use bdm_ports::{PortResult, ProviderError, VendorMeta};
+use bdm_domain::{AssetId, AssetRef, ChainId, Price, RiskFlag, Severity, UnsignedTx};
+use bdm_ports::{PortResult, ProviderError, TokenInfo};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use serde_json::Value;
 use std::str::FromStr;
 
-pub const SOLANA_MAINNET: &str = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+pub use bdm_protocols::solana::SOLANA_MAINNET;
 /// Native-token placeholder used by most EVM aggregators.
 pub const EVM_NATIVE: &str = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 pub const ZERO_ADDRESS: &str = "0x0000000000000000000000000000000000000000";
@@ -20,19 +20,110 @@ pub fn http(loaded: &Loaded, vendor: &str) -> HttpClient {
     HttpClient::new(vendor, DEFAULT_TIMEOUT).with_secrets(loaded.secret_values())
 }
 
-pub fn meta(loaded: &Loaded, vendor: &str) -> VendorMeta {
-    let e = loaded.registry.vendors.get(vendor);
-    VendorMeta {
-        id: vendor.to_owned(),
-        display_name: e.map_or_else(|| vendor.to_owned(), |e| e.display_name.clone()),
-        requires_key: e.is_some_and(|e| e.requires_key),
-        signup_url: e.and_then(|e| e.signup_url.clone()),
-        rpc_features: Default::default(),
+pub fn is_solana_mainnet(chain: &ChainId) -> bool {
+    chain.to_string() == SOLANA_MAINNET
+}
+
+/// Case-insensitive object lookup (EVM addresses come back lowercased).
+pub fn get_ci<'a>(obj: &'a Value, key: &str) -> Option<&'a Value> {
+    obj.as_object()?
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case(key))
+        .map(|(_, v)| v)
+}
+
+pub fn risk_flag(source: &str, code: &str, severity: Severity, detail: Option<String>) -> RiskFlag {
+    RiskFlag {
+        code: code.into(),
+        severity,
+        source: source.into(),
+        detail,
     }
 }
 
-pub fn is_solana_mainnet(chain: &ChainId) -> bool {
-    chain.to_string() == SOLANA_MAINNET
+/// CoinGecko coin id of a native asset by SLIP-44 coin type (CoinGecko, DefiLlama).
+pub fn coingecko_native_id(slip44: u32) -> Option<&'static str> {
+    Some(match slip44 {
+        60 => "ethereum",
+        501 => "solana",
+        714 => "binancecoin",
+        966 => "polygon-ecosystem-token",
+        9000 => "avalanche-2",
+        _ => return None,
+    })
+}
+
+/// Chain slug used by Birdeye and DexScreener.
+pub fn dex_chain_slug(chain: &ChainId) -> Option<&'static str> {
+    if is_solana_mainnet(chain) {
+        return Some("solana");
+    }
+    Some(match chain.evm_chain_id()? {
+        1 => "ethereum",
+        8453 => "base",
+        42161 => "arbitrum",
+        10 => "optimism",
+        137 => "polygon",
+        43114 => "avalanche",
+        56 => "bsc",
+        _ => return None, // Robinhood Chain coverage unverified
+    })
+}
+
+/// GeckoTerminal network slug (also CoinGecko's on-chain endpoints).
+pub fn gecko_network(chain: &ChainId) -> Option<&'static str> {
+    if is_solana_mainnet(chain) {
+        return Some("solana");
+    }
+    Some(match chain.evm_chain_id()? {
+        1 => "eth",
+        8453 => "base",
+        42161 => "arbitrum",
+        10 => "optimism",
+        137 => "polygon_pos",
+        43114 => "avax",
+        56 => "bsc",
+        _ => return None, // Robinhood Chain coverage unverified
+    })
+}
+
+/// GeckoTerminal `token_price` answer → USD price, pool reserve as liquidity.
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
+pub fn gecko_token_price(
+    asset: &AssetId,
+    source: &str,
+    v: &Value,
+    addr: &str,
+) -> PortResult<Price> {
+    let attrs = &v["data"]["attributes"];
+    Ok(Price {
+        asset: asset.clone(),
+        currency: "USD".into(),
+        value: price(get_ci(&attrs["token_prices"], addr).unwrap_or(&Value::Null))?,
+        as_of: Utc::now(),
+        source: source.into(),
+        liquidity_usd: get_ci(&attrs["total_reserve_in_usd"], addr).and_then(dec),
+    })
+}
+
+/// GeckoTerminal `tokens/{addr}` answer → token metadata (https logos only).
+#[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
+pub fn gecko_token_info(asset: &AssetId, source: &str, v: &Value) -> PortResult<TokenInfo> {
+    let a = &v["data"]["attributes"];
+    let s = |k: &str| a.get(k).and_then(Value::as_str).map(str::to_owned);
+    Ok(TokenInfo {
+        asset: asset.clone(),
+        decimals: a
+            .get("decimals")
+            .and_then(Value::as_u64)
+            .and_then(|d| u8::try_from(d).ok())
+            .ok_or(ProviderError::NotFound)?,
+        symbol: s("symbol"),
+        name: s("name"),
+        logo_url: s("image_url").filter(|u| u.starts_with("https://")),
+        verified: None,
+        source: source.into(),
+    })
 }
 
 /// Decimal from a JSON string or number. Numbers are read from their JSON text, never through
@@ -97,6 +188,18 @@ pub fn evm_chain_id(chain: &ChainId) -> PortResult<u64> {
         .ok_or_else(|| ProviderError::Unsupported(format!("{chain} is not an EVM chain")))
 }
 
+/// EVM chain id of `chain` if `vendor` (as named in the error) covers it.
+pub fn covered_evm_chain(chain: &ChainId, covered: &[u64], vendor: &str) -> PortResult<u64> {
+    let id = evm_chain_id(chain)?;
+    if covered.contains(&id) {
+        Ok(id)
+    } else {
+        Err(ProviderError::Unsupported(format!(
+            "{vendor} does not cover {chain}"
+        )))
+    }
+}
+
 /// `buy × (10000 − slippage) / 10000`, rounded down.
 pub fn min_out(buy: U256, slippage_bps: u32) -> U256 {
     let bps = U256::from(10_000u32.saturating_sub(slippage_bps.min(10_000)));
@@ -120,7 +223,7 @@ pub fn approve_tx(
     })?;
     let data = format!(
         "0x095ea7b3{:0>64}{:064x}",
-        hex_lower(spender.as_slice()),
+        alloy_primitives::hex::encode(spender),
         amount
     );
     Ok(UnsignedTx::Evm {
@@ -133,10 +236,6 @@ pub fn approve_tx(
         max_priority_fee_per_gas: None,
         nonce: None,
     })
-}
-
-fn hex_lower(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
 }
 
 /// EVM transaction from a vendor `{to, data, value, gas|gasLimit}` object.
@@ -232,5 +331,68 @@ pub fn sell_approval(req: &bdm_ports::SwapRequest, spender: &str) -> PortResult<
 /// Percent (e.g. "-0.35" or 0.35) → basis points, rounded toward zero.
 pub fn percent_to_bps(v: &Value) -> Option<i32> {
     use rust_decimal::prelude::ToPrimitive;
-    (dec(v)? * Decimal::from(100)).trunc().to_i32()
+    dec(v)?.checked_mul(Decimal::ONE_HUNDRED)?.trunc().to_i32()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn percent_to_bps_never_panics_on_vendor_data() {
+        assert_eq!(percent_to_bps(&json!("-0.35")), Some(-35));
+        assert_eq!(percent_to_bps(&json!(0.35)), Some(35));
+        assert_eq!(percent_to_bps(&json!(Decimal::MAX.to_string())), None);
+        assert_eq!(percent_to_bps(&json!("1e27")), None);
+        assert_eq!(percent_to_bps(&json!("1e99999999999")), None);
+    }
+
+    #[test]
+    fn util_decimals_without_floats() {
+        assert_eq!(dec(&json!("1.0001")), Some(Decimal::new(10001, 4)));
+        assert_eq!(dec(&json!(0.9998)), Some(Decimal::new(9998, 4)));
+        assert_eq!(dec(&json!(1.5e-7)), Decimal::from_scientific("1.5e-7").ok());
+        assert_eq!(price(&json!(0)), Err(ProviderError::NotFound));
+        assert_eq!(price(&json!(null)), Err(ProviderError::NotFound));
+    }
+
+    #[test]
+    fn util_min_out_approve_and_tx() {
+        use alloy_primitives::U256;
+        use bdm_domain::UnsignedTx;
+        assert_eq!(
+            min_out(U256::from(1_000_000u64), 50),
+            U256::from(995_000u64)
+        );
+        assert_eq!(slippage_percent(50), "0.5");
+        assert_eq!(slippage_percent(100), "1");
+        let tx = approve_tx(
+            1,
+            "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+            "0x111111125421ca6dc452d289314280a0f8842a65",
+            U256::from(255u8),
+        )
+        .unwrap();
+        let UnsignedTx::Evm { data, .. } = tx else {
+            panic!()
+        };
+        assert_eq!(data.len(), 2 + 8 + 128);
+        assert!(data.starts_with(
+            "0x095ea7b3000000000000000000000000111111125421ca6dc452d289314280a0f8842a65"
+        ));
+        assert!(data.ends_with("ff"));
+        let t = evm_tx(
+            1,
+            &json!({"to": "0x1", "data": "0xab", "value": "0x10", "gas": 21000}),
+        )
+        .unwrap();
+        let UnsignedTx::Evm {
+            value, gas_limit, ..
+        } = t
+        else {
+            panic!()
+        };
+        assert_eq!((value.as_str(), gas_limit), ("16", Some(21000)));
+    }
 }

@@ -13,7 +13,7 @@
 //! [`App`] runs them through the decorator chain: visibility/guard → cache → metering scope →
 //! tracing/metrics → execute → envelope.
 //!
-//! ## Adding a tool (Phase 1 teammates)
+//! ## Adding a tool
 //! 1. Implement [`Operation`] in your domain module under `ops/` (e.g. `ops/payments.rs`).
 //! 2. Register it in that module's `register(catalog)` function; `ops::register_all` already
 //!    calls every domain module, so you never edit shared files.

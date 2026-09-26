@@ -6,38 +6,21 @@
 )]
 //! T0.13: the legacy `RPC_URL` now applies to Ethereum only (it used to hijack every chain).
 
-use axum::{routing::post, Json, Router};
+use bdm_testkit::FakeJsonRpc;
 use rmcp::{
     model::CallToolRequestParam,
     transport::{ConfigureCommandExt, TokioChildProcess},
     ServiceExt,
 };
-use serde_json::{json, Value};
-use std::sync::{Arc, Mutex};
+use serde_json::json;
 use tokio::process::Command;
 
 #[tokio::test]
 async fn rpc_url_is_ethereum_only() {
-    let seen: Arc<Mutex<Vec<String>>> = Arc::default();
-    let log = seen.clone();
-    let app = Router::new().route(
-        "/",
-        post(move |Json(req): Json<Value>| {
-            let log = log.clone();
-            async move {
-                let method = req["method"].as_str().unwrap_or_default().to_owned();
-                log.lock().unwrap().push(method.clone());
-                let result = match method.as_str() {
-                    "eth_chainId" => json!("0x1"),
-                    _ => json!("0x2a"),
-                };
-                Json(json!({"jsonrpc": "2.0", "id": req["id"], "result": result}))
-            }
-        }),
-    );
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let url = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move { axum::serve(listener, app).await });
+    let rpc = FakeJsonRpc::start().await;
+    rpc.on("eth_chainId", json!("0x1"))
+        .on("eth_blockNumber", json!("0x2a"))
+        .on("eth_getBalance", json!("0x2a"));
 
     // Base's only reachable endpoint is a closed local port, so nothing leaves the machine.
     let dir = tempfile::tempdir().unwrap();
@@ -49,8 +32,9 @@ async fn rpc_url_is_ethereum_only() {
     let cmd = Command::new(env!("CARGO_BIN_EXE_onchain-data-mcp")).configure(|c| {
         c.arg("--config-dir")
             .arg(dir.path())
-            .env("RPC_URL", &url)
+            .env("RPC_URL", rpc.url())
             .env("ODM__SERVER__DASHBOARD", "false")
+            .env("ODM__SERVER__DATA_DIR", dir.path())
             .env("ODM__SERVER__WARMUP", "false")
             .env("RUST_LOG", "error")
             .env_remove("ALCHEMY_API_KEY")
@@ -71,14 +55,14 @@ async fn rpc_url_is_ethereum_only() {
         .unwrap()
         .text
         .contains("\"balanceWei\": \"42\""));
-    let before = seen.lock().unwrap().len();
+    let before = rpc.calls().len();
 
     assert!(
         client.call_tool(call("base")).await.is_err(),
         "base must not use RPC_URL"
     );
     assert_eq!(
-        seen.lock().unwrap().len(),
+        rpc.calls().len(),
         before,
         "RPC_URL node received a Base request"
     );

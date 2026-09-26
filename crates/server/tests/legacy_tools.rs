@@ -8,7 +8,7 @@
 //! Black-box: spawns the real `onchain-data-mcp` binary over stdio against a fake JSON-RPC node.
 //! These tests must pass unchanged after the workspace refactor (T0.13).
 
-use axum::{routing::post, Json, Router};
+use bdm_testkit::FakeJsonRpc;
 use rmcp::{
     model::CallToolRequestParam,
     service::{RoleClient, RunningService},
@@ -48,48 +48,40 @@ fn fake_transaction() -> Value {
     })
 }
 
-fn answer(method: &str, params: &Value) -> Value {
-    match method {
-        "eth_chainId" => json!("0x1"),
-        "eth_blockNumber" => json!("0x5daf3b"),
-        "eth_getBalance" => json!("0xde0b6b3a7640000"), // 1 ETH
-        "eth_getCode" => {
+/// Keeps the fake node and the temp config/data dir alive for the test.
+type Keep = (FakeJsonRpc, tempfile::TempDir);
+
+async fn start() -> (RunningService<RoleClient, ()>, Keep) {
+    let rpc = FakeJsonRpc::start().await;
+    rpc.on("eth_chainId", json!("0x1"))
+        .on("eth_blockNumber", json!("0x5daf3b"))
+        .on("eth_getBalance", json!("0xde0b6b3a7640000")) // 1 ETH
+        .on_fn("eth_getCode", |params| {
             let addr = params[0].as_str().unwrap_or_default().to_lowercase();
-            if addr == CONTRACT {
+            Ok(if addr == CONTRACT {
                 json!("0x6080604052")
             } else {
                 json!("0x")
-            }
-        }
-        "eth_gasPrice" => json!("0x4a817c800"), // 20 gwei
-        "eth_getTransactionByHash" => fake_transaction(),
-        _ => Value::Null,
-    }
-}
+            })
+        })
+        .on("eth_gasPrice", json!("0x4a817c800")) // 20 gwei
+        .on("eth_getTransactionByHash", fake_transaction());
 
-async fn rpc(Json(req): Json<Value>) -> Json<Value> {
-    let one = |r: &Value| json!({"jsonrpc": "2.0", "id": r["id"], "result": answer(r["method"].as_str().unwrap_or(""), &r["params"])});
-    Json(match &req {
-        Value::Array(batch) => Value::Array(batch.iter().map(one).collect()),
-        single => one(single),
-    })
-}
-
-async fn start() -> RunningService<RoleClient, ()> {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let url = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move { axum::serve(listener, Router::new().route("/", post(rpc))).await });
-
+    // Temp config + data dir and no dashboard: nothing written to the repo, no fixed port bound.
+    let dir = tempfile::tempdir().unwrap();
     let cmd = Command::new(env!("CARGO_BIN_EXE_onchain-data-mcp")).configure(|c| {
-        c.env("RPC_URL", &url)
+        c.arg("--config-dir")
+            .arg(dir.path())
+            .env("RPC_URL", rpc.url())
             .env("RUST_LOG", "error")
+            .env("ODM__SERVER__DASHBOARD", "false")
+            .env("ODM__SERVER__DATA_DIR", dir.path())
             .env("ODM__SERVER__WARMUP", "false")
             .env_remove("QN_ENDPOINT_NAME")
             .env_remove("QN_TOKEN_ID");
     });
-    ().serve(TokioChildProcess::new(cmd).unwrap())
-        .await
-        .unwrap()
+    let client = ().serve(TokioChildProcess::new(cmd).unwrap()).await.unwrap();
+    (client, (rpc, dir))
 }
 
 async fn call(
@@ -110,7 +102,7 @@ async fn call(
 
 #[tokio::test]
 async fn lists_legacy_tools() {
-    let client = start().await;
+    let (client, _keep) = start().await;
     let names: Vec<String> = client
         .list_all_tools()
         .await
@@ -134,7 +126,7 @@ async fn lists_legacy_tools() {
 
 #[tokio::test]
 async fn eth_get_balance_shape() {
-    let client = start().await;
+    let (client, _keep) = start().await;
     let out = call(
         &client,
         "eth_get_balance",
@@ -151,7 +143,7 @@ async fn eth_get_balance_shape() {
 
 #[tokio::test]
 async fn eth_get_code_shape() {
-    let client = start().await;
+    let (client, _keep) = start().await;
     let contract = call(
         &client,
         "eth_get_code",
@@ -177,7 +169,7 @@ async fn eth_get_code_shape() {
 
 #[tokio::test]
 async fn eth_gas_price_shape() {
-    let client = start().await;
+    let (client, _keep) = start().await;
     let out = call(&client, "eth_gas_price", json!({"chain": "ethereum"}))
         .await
         .unwrap();
@@ -194,7 +186,7 @@ async fn eth_gas_price_shape() {
 
 #[tokio::test]
 async fn eth_get_transaction_by_hash_shape() {
-    let client = start().await;
+    let (client, _keep) = start().await;
     let out = call(
         &client,
         "eth_get_transaction_by_hash",
@@ -215,7 +207,7 @@ async fn eth_get_transaction_by_hash_shape() {
 
 #[tokio::test]
 async fn invalid_input_is_an_error() {
-    let client = start().await;
+    let (client, _keep) = start().await;
     assert!(call(
         &client,
         "eth_get_balance",

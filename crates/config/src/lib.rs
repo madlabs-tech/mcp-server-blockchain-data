@@ -23,7 +23,7 @@ mod registry;
 mod resolve;
 mod settings;
 
-pub use edit::{apply_edits, write_atomic, Edit, EditTarget};
+pub use edit::{apply_edits, validate_edits, write_atomic, Edit, EditTarget};
 pub use loader::{ConfigDir, ConfigLoader, EnvSource, Issue, Loaded, Severity};
 pub use redacted::Redacted;
 pub use registry::{

@@ -1,4 +1,4 @@
-//! Canonical stablecoin registry (`registry/stablecoins.toml`). Owner: `payments-stablecoin` (T1.P1).
+//! Canonical stablecoin registry (`registry/stablecoins.toml`).
 //! Other teams use only [`StablecoinRegistry`]'s lookup API; the owner extends the entry fields.
 //!
 //! Loading validates every row: `source_url` (https) and `verified_at` are required, EVM
@@ -285,10 +285,7 @@ fn validate(r: Row) -> Result<StablecoinEntry, String> {
     };
     if family == ChainFamily::Evm {
         for extra in [&r.oft_adapter, &r.chainlink_feed].into_iter().flatten() {
-            let ok = extra
-                .parse::<alloy_primitives::Address>()
-                .is_ok_and(|a| &a.to_checksum(None) == extra);
-            if !ok {
+            if alloy_primitives::Address::parse_checksummed(extra, None).is_err() {
                 return Err(format!("address {extra} is not EIP-55 checksummed"));
             }
         }

@@ -8,9 +8,12 @@ license.workspace = true
 
 [features]
 # One feature per vendor module (each must build alone: CI runs `cargo hack --each-feature`).
-# Default = vendors with a verified free tier; unverified ones are opt-in.
-default = ["alchemy", "quicknode", "moralis", "flashbots", "mev_blocker", "helius", "jito", "jupiter", "quicknode_sol", "trm", "coingecko", "geckoterminal", "defillama", "dexscreener", "birdeye", "pyth", "goplus", "honeypot_is", "rugcheck", "oneinch", "velora", "cow", "frankfurter", "openexchangerates"]
+# Default = every vendor. Paid/unverified ones (registry tier 4: ankr, zeroex, uniswap_api,
+# okx_dex, ...) are still off at runtime until `vendors.<id>.enabled = true` plus their keys.
+default = ["alchemy", "quicknode", "moralis", "ankr", "flashbots", "mev_blocker", "helius", "jito", "jupiter", "quicknode_sol", "trm", "coingecko", "geckoterminal", "defillama", "dexscreener", "birdeye", "pyth", "goplus", "honeypot_is", "rugcheck", "oneinch", "velora", "cow", "zeroex", "uniswap_api", "okx_dex", "frankfurter", "openexchangerates"]
 alchemy = []
+# No module: QuickNode chain RPC comes from `factory::base_registrations` (registry `rpc_urls`)
+# and its Solana fee oracle is `quicknode_sol`. Kept so existing `--features quicknode` builds work.
 quicknode = []
 moralis = []
 ankr = []
@@ -43,9 +46,9 @@ openexchangerates = []
 bdm-config = { workspace = true }
 bdm-domain = { workspace = true }
 bdm-ports = { workspace = true }
-# solana vendors (T1.S3/S4): wire checks (signature, relay tips) live in bdm-protocols
+# solana vendors: wire checks (signature, relay tips) live in bdm-protocols
 bdm-protocols = { workspace = true }
-alloy-primitives = { workspace = true }   # evm: U256 amounts + keccak tx hash (T1.E4)
+alloy-primitives = { workspace = true }   # evm: U256 amounts + keccak tx hash
 async-trait = { workspace = true }
 chrono = { workspace = true }
 reqwest = { workspace = true }
@@ -53,7 +56,7 @@ rust_decimal = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
 # optional: trm (base64), goplus (sha1 sign), okx_dex (HMAC-SHA256 + base64)
-base64 = { version = "0.22", optional = true }
+base64 = { workspace = true, optional = true }
 sha1 = { version = "0.10", optional = true }
 hmac = { version = "0.12", optional = true }
 sha2 = { workspace = true, optional = true }
@@ -61,7 +64,7 @@ sha2 = { workspace = true, optional = true }
 [dev-dependencies]
 bdm-testkit = { workspace = true }
 # solana vendor tests build signed wire transactions
-base64 = "0.22"
+base64 = { workspace = true }
 bs58 = { workspace = true }
 tokio = { workspace = true }
 

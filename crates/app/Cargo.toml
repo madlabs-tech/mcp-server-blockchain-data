@@ -14,11 +14,10 @@ bdm-routing = { workspace = true }
 bdm-protocols = { workspace = true }
 alloy-primitives = { workspace = true }
 async-trait = { workspace = true }
-base64 = "0.22"
+base64 = { workspace = true }
 bs58 = { workspace = true }
 futures = { workspace = true }
 chrono = { workspace = true }
-moka = { workspace = true }
 rand = { workspace = true }
 rust_decimal = { workspace = true }
 schemars = { workspace = true, features = ["chrono04"] }
@@ -28,7 +27,6 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["test-util"] }
 bdm-testkit = { workspace = true }
 
 [lints]

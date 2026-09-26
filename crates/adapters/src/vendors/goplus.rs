@@ -1,4 +1,4 @@
-//! `goplus` token security (30 req/min). Owner: `market-trading` (T1.M2).
+//! `goplus` token security (30 req/min).
 //!
 //! The access token is optional per GoPlus docs. With `GOPLUS_APP_KEY` + `GOPLUS_APP_SECRET`,
 //! `POST /api/v1/token` with `sign = sha1(app_key + time + app_secret)` returns a token (cached
@@ -6,7 +6,7 @@
 //! go out unauthenticated at the public limit.
 //! Port: `TokenRisk` for EVM (`/token_security/{chain_id}`) and Solana (`/solana/token_security`).
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -30,7 +30,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     }
     let creds = loaded.key(ID, "app_key").zip(loaded.key(ID, "app_secret"));
     let a = Arc::new(GoPlus::new(util::http(loaded, ID), BASE, creds));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::TokenRisk(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::TokenRisk(a)));
 }
 
 pub struct GoPlus {
@@ -41,17 +41,7 @@ pub struct GoPlus {
 }
 
 fn sign(app_key: &str, time: i64, secret: &str) -> String {
-    let digest = Sha1::digest(format!("{app_key}{time}{secret}").as_bytes());
-    digest.iter().map(|b| format!("{b:02x}")).collect()
-}
-
-fn flag(code: &str, severity: Severity, detail: Option<String>) -> RiskFlag {
-    RiskFlag {
-        code: code.into(),
-        severity,
-        source: ID.into(),
-        detail,
-    }
+    alloy_primitives::hex::encode(Sha1::digest(format!("{app_key}{time}{secret}").as_bytes()))
 }
 
 fn is_one(v: &Value) -> bool {
@@ -68,10 +58,13 @@ fn tax_flag(code: &str, v: &Value) -> Option<RiskFlag> {
     } else {
         Severity::Low
     };
-    Some(flag(
+    // A tax too large to express in percent still raises the flag, just without the detail.
+    let pct = t.checked_mul(Decimal::ONE_HUNDRED);
+    Some(util::risk_flag(
+        ID,
         code,
         sev,
-        Some(format!("{}%", (t * Decimal::from(100)).normalize())),
+        pct.map(|p| format!("{}%", p.normalize())),
     ))
 }
 
@@ -104,10 +97,15 @@ fn evm_flags(r: &Value) -> Vec<RiskFlag> {
     let mut out: Vec<RiskFlag> = BOOL_FLAGS
         .iter()
         .filter(|(k, _, _)| is_one(&r[*k]))
-        .map(|(_, code, sev)| flag(code, *sev, None))
+        .map(|(_, code, sev)| util::risk_flag(ID, code, *sev, None))
         .collect();
     if r["is_open_source"].as_str() == Some("0") {
-        out.push(flag("not_open_source", Severity::Medium, None));
+        out.push(util::risk_flag(
+            ID,
+            "not_open_source",
+            Severity::Medium,
+            None,
+        ));
     }
     out.extend(tax_flag("buy_tax", &r["buy_tax"]));
     out.extend(tax_flag("sell_tax", &r["sell_tax"]));
@@ -135,10 +133,10 @@ fn solana_flags(r: &Value) -> Vec<RiskFlag> {
     let mut out: Vec<RiskFlag> = FLAGS
         .iter()
         .filter(|(k, _, _)| is_one(&r[*k]))
-        .map(|(_, code, sev)| flag(code, *sev, None))
+        .map(|(_, code, sev)| util::risk_flag(ID, code, *sev, None))
         .collect();
     if r["transfer_hook"].as_array().is_some_and(|a| !a.is_empty()) {
-        out.push(flag("transfer_hook", Severity::Medium, None));
+        out.push(util::risk_flag(ID, "transfer_hook", Severity::Medium, None));
     }
     out
 }
@@ -180,11 +178,12 @@ impl GoPlus {
             .ok_or_else(|| ProviderError::Unsupported("goplus rejected app key/secret".into()))?
             .to_owned();
         // GoPlus expects the raw token, not `Bearer <token>` (verified live: Bearer → code 4012).
-        let bearer = token;
         let ttl = r["expires_in"].as_u64().unwrap_or(3600).saturating_sub(60);
-        *self.token.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some((bearer.clone(), Instant::now() + Duration::from_secs(ttl)));
-        Ok(Some(bearer))
+        // An absurd vendor `expires_in` would overflow `Instant + Duration` (a panic): don't cache.
+        if let Some(until) = Instant::now().checked_add(Duration::from_secs(ttl)) {
+            *self.token.lock().unwrap_or_else(|e| e.into_inner()) = Some((token.clone(), until));
+        }
+        Ok(Some(token))
     }
 }
 
@@ -227,11 +226,7 @@ impl TokenRisk for GoPlus {
                 v["message"].as_str().unwrap_or("")
             )));
         }
-        let r = v["result"]
-            .as_object()
-            .and_then(|m| m.iter().find(|(k, _)| k.eq_ignore_ascii_case(&addr)))
-            .map(|(_, r)| r)
-            .ok_or(ProviderError::NotFound)?;
+        let r = util::get_ci(&v["result"], &addr).ok_or(ProviderError::NotFound)?;
         Ok(RiskAssessment {
             source: ID.into(),
             flags: if solana {
@@ -256,6 +251,35 @@ mod tests {
     fn sign_is_sha1_hex() {
         // sha1("0") and sha1("abc"): app_key + time + secret concatenated.
         assert_eq!(sign("", 0, ""), "b6589fc6ab0dc82cf12099d1c2d40ab994e8410c");
+    }
+
+    #[test]
+    fn huge_tax_flags_without_panicking() {
+        let f = tax_flag("sell_tax", &Value::from(Decimal::MAX.to_string())).unwrap();
+        assert_eq!((f.severity, f.detail), (Severity::High, None));
+        let f = tax_flag("buy_tax", &"0.05".into()).unwrap();
+        assert_eq!(f.detail.as_deref(), Some("5%"));
+    }
+
+    #[tokio::test]
+    async fn absurd_token_expiry_is_not_cached_and_does_not_panic() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/v1/token"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(
+                json!({"code": 1, "result": {"access_token": "tok", "expires_in": u64::MAX}}),
+            ))
+            .expect(2)
+            .mount(&server)
+            .await;
+        let g = GoPlus::new(
+            HttpClient::new(ID, DEFAULT_TIMEOUT),
+            &server.uri(),
+            Some(("k", "s")),
+        );
+        for _ in 0..2 {
+            assert_eq!(g.authorization().await.unwrap().as_deref(), Some("tok"));
+        }
     }
 
     #[tokio::test]

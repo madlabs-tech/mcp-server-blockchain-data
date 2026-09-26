@@ -47,11 +47,6 @@ pub async fn scope<F: Future>(ctx: CallContext, fut: F) -> F::Output {
     CALL.scope(ctx, fut).await
 }
 
-/// Current context, if inside [`scope`].
-pub fn current() -> Option<CallContext> {
-    CALL.try_with(|c| c.clone()).ok()
-}
-
 pub fn record_request(vendor: &str, method: &str) {
     let _ = CALL.try_with(|c| c.sink.record_request(vendor, method, c));
 }

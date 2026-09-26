@@ -1,14 +1,14 @@
-//! `oneinch` Swap API (key, 1 req/s, 100k/month). Owner: `market-trading` (T1.M3).
+//! `oneinch` Swap API (key, 1 req/s, 100k/month).
 //! `quote` → `/quote`; `build` → `/swap` (needs `taker`) + ERC-20 approval to the router
 //! (the swap tx's `to`). Robinhood Chain (4663) is supported per 1inch docs.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
 use bdm_domain::SwapQuote;
-use bdm_ports::{PortHandle, PortResult, ProviderError, Registration, SwapQuoter, SwapRequest};
+use bdm_ports::{PortHandle, PortResult, Registration, SwapQuoter, SwapRequest};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -24,7 +24,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     };
     let a = Arc::new(OneInch::new(util::http(loaded, ID), BASE, key));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::SwapQuote(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::SwapQuote(a)));
 }
 
 pub struct OneInch {
@@ -43,13 +43,7 @@ impl OneInch {
     }
 
     async fn call(&self, req: &SwapRequest, endpoint: &str, extra: &str) -> PortResult<Value> {
-        let chain = util::evm_chain_id(&req.chain)?;
-        if !CHAINS.contains(&chain) {
-            return Err(ProviderError::Unsupported(format!(
-                "1inch does not cover {}",
-                req.chain
-            )));
-        }
+        let chain = util::covered_evm_chain(&req.chain, CHAINS, "1inch")?;
         let url = Redacted::new(format!(
             "{}/{chain}/{endpoint}?src={}&dst={}&amount={}&includeTokensInfo=true{extra}",
             self.base,
@@ -107,6 +101,7 @@ mod tests {
     use crate::http::DEFAULT_TIMEOUT;
     use alloy_primitives::U256;
     use bdm_domain::{AccountAddress, Amount, ChainId};
+    use bdm_ports::ProviderError;
     use bdm_testkit::wiremock::{
         matchers::{header, method, path, query_param},
         Mock, MockServer, ResponseTemplate,

@@ -1,4 +1,4 @@
-use crate::{Amount, AssetId, ChainId, UnsignedTx};
+use crate::{serde_str, Amount, AssetId, ChainId, UnsignedTx};
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
 use schemars::JsonSchema;
@@ -17,7 +17,11 @@ pub struct Price {
     /// Vendor or oracle id, e.g. "coingecko", "chainlink", "jupiter".
     pub source: String,
     /// Pool liquidity backing the price, when the source reports it.
-    #[serde(default, skip_serializing_if = "Option::is_none", with = "opt_dec")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_str::opt"
+    )]
     #[schemars(with = "Option<String>")]
     pub liquidity_usd: Option<Decimal>,
 }
@@ -40,7 +44,11 @@ pub struct PriceAggregate {
     pub asset: AssetId,
     pub currency: String,
     pub status: PriceStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none", with = "opt_dec")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_str::opt"
+    )]
     #[schemars(with = "Option<String>")]
     pub median: Option<Decimal>,
     /// (max - min) / median in basis points.
@@ -124,30 +132,11 @@ impl RiskReport {
             return RiskLevel::Unknown;
         }
         match flags.iter().map(|f| f.severity).max() {
-            None | Some(Severity::Info) => RiskLevel::Low,
-            Some(Severity::Low) => RiskLevel::Low,
+            None | Some(Severity::Info | Severity::Low) => RiskLevel::Low,
             Some(Severity::Medium) => RiskLevel::Medium,
             Some(Severity::High) => RiskLevel::High,
             Some(Severity::Critical) => RiskLevel::Critical,
         }
-    }
-}
-
-mod opt_dec {
-    use rust_decimal::Decimal;
-    use serde::{Deserialize, Deserializer, Serializer};
-
-    pub fn serialize<S: Serializer>(v: &Option<Decimal>, s: S) -> Result<S::Ok, S::Error> {
-        match v {
-            Some(v) => s.collect_str(v),
-            None => s.serialize_none(),
-        }
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Decimal>, D::Error> {
-        Option::<String>::deserialize(d)?
-            .map(|s| s.parse().map_err(serde::de::Error::custom))
-            .transpose()
     }
 }
 

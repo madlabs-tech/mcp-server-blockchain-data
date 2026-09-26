@@ -1,4 +1,4 @@
-//! Normalized EVM transactions. Owner: `evm` (T1.E1). Used by `tx_get`, `payments_verify_transfer`.
+//! Normalized EVM transactions. Used by `tx_get`, `payments_verify_transfer`.
 //!
 //! `get_tx` decodes ERC-20 `Transfer` logs (drops 4-topic ERC-721 logs, ignores `removed`), fills
 //! `balance_deltas` per recipient, fee paid, block ref with hash, and `finality` per chain policy.

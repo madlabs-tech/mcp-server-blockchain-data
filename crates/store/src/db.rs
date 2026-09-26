@@ -1,5 +1,6 @@
 //! sqlite persistence on a dedicated thread, with in-memory mirrors for hot-path reads.
 
+use alloy_primitives::hex;
 use bdm_config::ClientLimits;
 use bdm_domain::DomainError;
 use bdm_routing::{CounterStore, Dims, WindowKey};
@@ -81,7 +82,7 @@ CREATE TABLE client_usage (
 );
 "#];
 
-/// Default number of calls kept in the call-log ring.
+/// Number of calls kept in the call-log ring.
 const DEFAULT_RING: usize = 1_000;
 
 fn wkey(w: &WindowKey) -> String {
@@ -104,7 +105,8 @@ pub fn hash_key(key: &str) -> String {
     hex::encode(Sha256::digest(key.as_bytes()))
 }
 
-fn random_hex(bytes: usize) -> String {
+/// `bytes` random bytes, hex-encoded (key ids, generated passwords).
+pub fn random_hex(bytes: usize) -> String {
     let mut buf = vec![0u8; bytes];
     rand::rng().fill_bytes(&mut buf);
     hex::encode(buf)
@@ -220,7 +222,6 @@ struct Inner {
     clients: Mutex<HashMap<String, ClientRecord>>,
     client_usage: Mutex<HashMap<(String, WindowKey), ClientCounters>>,
     calls: broadcast::Sender<CallRecord>,
-    ring: usize,
 }
 
 /// Handle to the sqlite store. Cheap to clone.
@@ -273,7 +274,6 @@ impl Store {
                 clients: Mutex::new(clients),
                 client_usage: Mutex::new(client_usage),
                 calls: broadcast::channel(256).0,
-                ring: DEFAULT_RING,
             }),
         })
     }
@@ -396,7 +396,7 @@ impl Store {
     /// Append to the call-log ring and publish to live subscribers.
     pub fn log_call(&self, rec: CallRecord) {
         let _ = self.inner.calls.send(rec.clone());
-        let ring = self.inner.ring as i64;
+        let ring = DEFAULT_RING as i64;
         self.submit("call log", move |c| {
             c.execute(
                 "INSERT INTO calls (ts, op, chain, provider, fallback, cached, latency_ms, client, ok, error_code) \
@@ -429,7 +429,7 @@ impl Store {
 
     /// Most recent calls, newest first.
     pub async fn recent_calls(&self, limit: usize) -> Result<Vec<CallRecord>> {
-        let limit = limit.min(self.inner.ring) as i64;
+        let limit = limit.min(DEFAULT_RING) as i64;
         self.call(move |c| -> Result<Vec<CallRecord>> {
             let mut st = c.prepare(
                 "SELECT ts, op, chain, provider, fallback, cached, latency_ms, client, ok, error_code \
@@ -1064,5 +1064,20 @@ mod tests {
         migrate(&mut c).unwrap();
         migrate(&mut c).unwrap();
         assert!(has_table(&c, "usage").unwrap());
+    }
+
+    /// Stored client-key hashes must not change encoding (lowercase hex, no prefix).
+    #[test]
+    fn hex_encoding_is_stable() {
+        assert_eq!(
+            hash_key("abc"),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        let r = random_hex(4);
+        assert!(
+            r.len() == 8
+                && r.bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        );
     }
 }

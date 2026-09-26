@@ -54,10 +54,6 @@ impl ChainId {
         &self.namespace
     }
 
-    pub fn reference(&self) -> &str {
-        &self.reference
-    }
-
     /// Family derived from the CAIP-2 namespace; `None` for namespaces we don't support.
     pub fn family(&self) -> Option<ChainFamily> {
         match self.namespace.as_str() {
@@ -273,6 +269,12 @@ impl FromStr for AssetId {
 
 macro_rules! string_repr {
     ($ty:ty, $desc:literal, $example:literal) => {
+        string_repr!(
+            $ty,
+            json_schema!({ "type": "string", "description": $desc, "examples": [$example] })
+        );
+    };
+    ($ty:ty, $schema:expr) => {
         impl Serialize for $ty {
             fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
                 s.collect_str(self)
@@ -289,7 +291,7 @@ macro_rules! string_repr {
                 stringify!($ty).into()
             }
             fn json_schema(_: &mut SchemaGenerator) -> Schema {
-                json_schema!({ "type": "string", "description": $desc, "examples": [$example] })
+                $schema
             }
         }
     };
@@ -312,11 +314,10 @@ string_repr!(
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 );
 
-impl Serialize for AccountAddress {
-    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        s.collect_str(self)
-    }
-}
+string_repr!(
+    AccountAddress,
+    json_schema!({ "type": "string", "description": "EVM address (0x…, EIP-55) or Solana public key (base58)" })
+);
 
 /// Unambiguous without chain context: base58 has no '0', so a `0x` prefix means EVM.
 impl FromStr for AccountAddress {
@@ -328,22 +329,6 @@ impl FromStr for AccountAddress {
             ChainFamily::Solana
         };
         Self::parse(family, s)
-    }
-}
-
-impl<'de> Deserialize<'de> for AccountAddress {
-    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(d)?;
-        s.parse().map_err(serde::de::Error::custom)
-    }
-}
-
-impl JsonSchema for AccountAddress {
-    fn schema_name() -> Cow<'static, str> {
-        "AccountAddress".into()
-    }
-    fn json_schema(_: &mut SchemaGenerator) -> Schema {
-        json_schema!({ "type": "string", "description": "EVM address (0x…, EIP-55) or Solana public key (base58)" })
     }
 }
 

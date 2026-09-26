@@ -1,4 +1,4 @@
-//! EVM readers. Owner: `evm` (Phase 1). Block tags are strings: "latest" | "safe" | "finalized" | "0x…".
+//! EVM readers. Block tags are strings: "latest" | "safe" | "finalized" | "0x…".
 
 pub mod chainlink;
 pub mod erc20;
@@ -9,7 +9,7 @@ pub mod multicall3;
 pub mod rpc_vendor;
 pub mod tx;
 
-use alloy_primitives::{Address, B256, U256};
+use alloy_primitives::{hex, Address, B256, U256};
 use alloy_sol_types::SolEvent;
 use bdm_domain::TransferKind;
 use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef, BlockRef, ChainId, Transfer};
@@ -41,6 +41,14 @@ pub async fn eth_call(
         )
         .await?;
     hex_bytes(&v)
+}
+
+/// The EVM address of an owner, or `Invalid` for a Solana one.
+pub fn evm_owner(owner: &AccountAddress) -> PortResult<Address> {
+    match owner {
+        AccountAddress::Evm(a) => Ok(*a),
+        AccountAddress::Solana(_) => Err(ProviderError::Invalid("expected an EVM address".into())),
+    }
 }
 
 pub(crate) fn malformed(what: &str) -> ProviderError {

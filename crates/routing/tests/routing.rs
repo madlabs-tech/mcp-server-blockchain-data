@@ -100,9 +100,7 @@ fn meta(id: &str) -> VendorMeta {
     VendorMeta {
         id: id.into(),
         display_name: id.into(),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
+        ..Default::default()
     }
 }
 
@@ -454,6 +452,129 @@ async fn quota_reserve_skips_vendor_and_allow_overage_does_not() {
     );
 }
 
+// ---------------------------------------------------------------- local rate limiter
+// Real time on purpose: the limiter must behave the same on the wall clock the server runs on.
+
+fn rate_opts(max_rate_wait: Duration) -> RouterOptions {
+    RouterOptions {
+        max_rate_wait,
+        ..fast_opts()
+    }
+}
+
+async fn served_by(r: &Router) -> (String, Option<String>) {
+    let out = price_of(r, req()).await.unwrap();
+    let skipped = out
+        .provenance
+        .providers_tried
+        .iter()
+        .find(|a| a.vendor == "defillama")
+        .and_then(|a| a.reason.clone());
+    (out.provenance.provider.unwrap(), skipped)
+}
+
+// Paused clock: time only moves on sleep, so slow CI machines can't refill tokens mid-test.
+#[tokio::test(start_paused = true)]
+async fn rate_limit_burst_equals_limit_then_skips_without_waiting() {
+    let a = ScriptedPrice::new("defillama", Ok(d(1)));
+    let b = ScriptedPrice::new("geckoterminal", Ok(d(2)));
+    let regs = || vec![price_reg(&a), price_reg(&b)];
+    let cfg = format!("{ORDER3}[vendors.defillama.cap]\nrps = 5\n");
+    let r = router_with(&cfg, &[], regs(), rate_opts(Duration::ZERO));
+    for _ in 0..5 {
+        assert_eq!(served_by(&r).await.0, "defillama");
+    }
+    let t = tokio::time::Instant::now();
+    let (provider, reason) = served_by(&r).await;
+    assert_eq!(provider, "geckoterminal");
+    assert_eq!(reason.as_deref(), Some("local_rate_limit"));
+    assert_eq!(a.calls(), 5);
+    assert!(
+        t.elapsed() < Duration::from_millis(150),
+        "no waiting: {:?}",
+        t.elapsed()
+    );
+
+    // A changed limit starts a fresh, full bucket.
+    r.swap(RoutingTable {
+        config: load(&cfg.replace("rps = 5", "rps = 6"), &[]),
+        registry: bdm_routing::ProviderRegistry::new(regs()),
+    });
+    assert_eq!(served_by(&r).await.0, "defillama");
+}
+
+// Paused clock: time only moves on sleep, so slow CI machines can't refill tokens mid-test.
+#[tokio::test(start_paused = true)]
+async fn rate_limit_waits_within_max_rate_wait() {
+    let a = ScriptedPrice::new("defillama", Ok(d(1)));
+    let b = ScriptedPrice::new("geckoterminal", Ok(d(2)));
+    let cfg = format!("{ORDER3}[vendors.defillama.cap]\nrps = 5\n");
+    let r = router_with(
+        &cfg,
+        &[],
+        vec![price_reg(&a), price_reg(&b)],
+        rate_opts(Duration::from_secs(1)),
+    );
+    for _ in 0..5 {
+        assert_eq!(served_by(&r).await.0, "defillama");
+    }
+    let t = tokio::time::Instant::now();
+    assert_eq!(served_by(&r).await, ("defillama".into(), None));
+    // One token refills every 200ms at 5 rps.
+    assert!(
+        t.elapsed() >= Duration::from_millis(150),
+        "{:?}",
+        t.elapsed()
+    );
+    assert!(
+        t.elapsed() < Duration::from_millis(900),
+        "{:?}",
+        t.elapsed()
+    );
+}
+
+// Paused clock: time only moves on sleep, so slow CI machines can't refill tokens mid-test.
+#[tokio::test(start_paused = true)]
+async fn skipped_request_does_not_use_up_a_token() {
+    let a = ScriptedPrice::new("defillama", Ok(d(1)));
+    let b = ScriptedPrice::new("geckoterminal", Ok(d(2)));
+    let cfg = format!("{ORDER3}[vendors.defillama.cap]\nrps = 10\n");
+    let r = router_with(
+        &cfg,
+        &[],
+        vec![price_reg(&a), price_reg(&b)],
+        rate_opts(Duration::from_millis(20)),
+    );
+    for _ in 0..10 {
+        assert_eq!(served_by(&r).await.0, "defillama");
+    }
+    // Next token is ~100ms away: longer than max_rate_wait, so skip.
+    assert_eq!(served_by(&r).await.0, "geckoterminal");
+    tokio::time::sleep(Duration::from_millis(130)).await;
+    assert_eq!(served_by(&r).await.0, "defillama");
+}
+
+// Paused clock: time only moves on sleep, so slow CI machines can't refill tokens mid-test.
+#[tokio::test(start_paused = true)]
+async fn per_minute_limit_has_a_burst_of_its_count() {
+    let a = ScriptedPrice::new("defillama", Ok(d(1)));
+    let b = ScriptedPrice::new("geckoterminal", Ok(d(2)));
+    let cfg = format!("{ORDER3}[vendors.defillama.cap]\nper_minute = 3\n");
+    let r = router_with(
+        &cfg,
+        &[],
+        vec![price_reg(&a), price_reg(&b)],
+        rate_opts(Duration::from_millis(50)),
+    );
+    for _ in 0..3 {
+        assert_eq!(served_by(&r).await.0, "defillama");
+    }
+    assert_eq!(
+        served_by(&r).await,
+        ("geckoterminal".into(), Some("local_rate_limit".into()))
+    );
+}
+
 #[tokio::test]
 async fn rate_limited_marks_vendor_exhausted() {
     let a = ScriptedPrice::with_script(
@@ -565,7 +686,7 @@ async fn quorum_agree_disagree_and_short() {
         .quorum::<dyn PriceFeed, _, _, _, _>(req(), 2, key, call)
         .await
         .unwrap();
-    assert!(out.value.met());
+    assert_eq!((out.value.agreeing, out.value.required), (2, 2));
     assert_eq!(out.provenance.source, SourceKind::Aggregate);
 
     let b2 = ScriptedPrice::new("geckoterminal", Ok(d(6)));
@@ -592,7 +713,6 @@ async fn quorum_agree_disagree_and_short() {
         .quorum::<dyn PriceFeed, _, _, _, _>(req(), 2, key, call)
         .await
         .unwrap();
-    assert!(!out.value.met());
     assert_eq!((out.value.agreeing, out.value.required), (1, 2));
 }
 
@@ -644,24 +764,6 @@ async fn fan_out_reports_every_vendor() {
         .unwrap();
     assert_eq!(out.value.len(), 3);
     assert_eq!(out.value.iter().filter(|(_, r)| r.is_ok()).count(), 2);
-}
-
-#[tokio::test]
-async fn hedged_takes_the_faster_provider() {
-    let a = ScriptedPrice::slow("defillama", d(1), Duration::from_millis(400));
-    let b = ScriptedPrice::new("geckoterminal", Ok(d(2)));
-    let r = router_with(ORDER3, &[], vec![price_reg(&a), price_reg(&b)], fast_opts());
-    let asset = eth_asset();
-    let t = std::time::Instant::now();
-    let out = r
-        .hedged::<dyn PriceFeed, _, _, _>(req(), Duration::from_millis(30), |p| {
-            let asset = asset.clone();
-            async move { p.price(&asset, "USD").await }
-        })
-        .await
-        .unwrap();
-    assert_eq!(out.provenance.provider.as_deref(), Some("geckoterminal"));
-    assert!(t.elapsed() < Duration::from_millis(300));
 }
 
 // ---------------------------------------------------------------- hot swap

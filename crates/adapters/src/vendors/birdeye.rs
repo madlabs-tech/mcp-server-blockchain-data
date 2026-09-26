@@ -1,13 +1,14 @@
-//! `birdeye` (key, 30K CU/month, 1 req/s). Owner: `market-trading` (T1.M1).
+//! `birdeye` (key, 30K CU/month, 1 req/s).
 //! Ports: `PriceFeed` (USD, with liquidity), `PriceHistory` (1-minute candles). Headers:
 //! `X-API-KEY` and `x-chain`. Native SOL is priced through the wrapped-SOL mint.
 
-use super::market_util as util;
+use super::util;
+use bdm_protocols::solana::spl::WRAPPED_SOL_MINT;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
-use bdm_domain::{AssetId, AssetRef, ChainId, Price};
+use bdm_domain::{AssetId, AssetRef, Price};
 use bdm_ports::{PortHandle, PortResult, PriceFeed, PriceHistory, ProviderError, Registration};
 use chrono::{DateTime, Duration, Utc};
 use serde_json::Value;
@@ -15,8 +16,6 @@ use std::sync::Arc;
 
 pub const ID: &str = "birdeye";
 const BASE: &str = "https://public-api.birdeye.so";
-/// Wrapped SOL mint (SPL Token program's native mint).
-const WSOL: &str = "So11111111111111111111111111111111111111112";
 
 pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status(ID) != VendorStatus::Active {
@@ -27,7 +26,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     };
     let a = Arc::new(Birdeye::new(util::http(loaded, ID), BASE, key));
     out.push(
-        Registration::new(util::meta(loaded, ID))
+        Registration::new(loaded.vendor_meta(ID))
             .global_port(PortHandle::Price(a.clone()))
             .global_port(PortHandle::PriceHistory(a)),
     );
@@ -39,30 +38,14 @@ pub struct Birdeye {
     key: Redacted<String>,
 }
 
-fn chain_slug(chain: &ChainId) -> Option<&'static str> {
-    if util::is_solana_mainnet(chain) {
-        return Some("solana");
-    }
-    Some(match chain.evm_chain_id()? {
-        1 => "ethereum",
-        8453 => "base",
-        42161 => "arbitrum",
-        10 => "optimism",
-        137 => "polygon",
-        43114 => "avalanche",
-        56 => "bsc",
-        _ => return None,
-    })
-}
-
 fn target(asset: &AssetId, currency: &str) -> PortResult<(&'static str, String)> {
     let unsupported = || ProviderError::Unsupported(format!("birdeye does not cover {asset}"));
     if !currency.eq_ignore_ascii_case("usd") {
         return Err(ProviderError::Unsupported("birdeye is USD only".into()));
     }
-    let chain = chain_slug(&asset.chain).ok_or_else(unsupported)?;
+    let chain = util::dex_chain_slug(&asset.chain).ok_or_else(unsupported)?;
     let addr = match (&asset.asset, chain) {
-        (AssetRef::Native { slip44: 501 }, "solana") => WSOL.to_owned(),
+        (AssetRef::Native { slip44: 501 }, "solana") => WRAPPED_SOL_MINT.to_owned(),
         _ => util::token_address(asset).ok_or_else(unsupported)?,
     };
     Ok((chain, addr))
@@ -181,7 +164,7 @@ mod tests {
         let server = MockServer::start().await;
         Mock::given(method("GET"))
             .and(path("/defi/price"))
-            .and(query_param("address", WSOL))
+            .and(query_param("address", WRAPPED_SOL_MINT))
             .and(header("x-chain", "solana"))
             .and(header("X-API-KEY", "be-key-123456"))
             .respond_with(

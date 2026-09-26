@@ -23,13 +23,11 @@ mod hosted;
 mod quota;
 
 pub use db::{
-    hash_key, BreakdownRow, CallRecord, ClientCounters, ClientRecord, Exceeded, Store, StoreError,
+    hash_key, random_hex, BreakdownRow, CallRecord, ClientCounters, ClientRecord, Exceeded, Store,
+    StoreError,
 };
 pub use hosted::{effective_client_limits, ClientGuard, ClientKeyAuth};
 pub use quota::{
     project, Breakdown, Projection, QuotaEngine, QuotaState, SourceReading, UsageSource,
     VendorQuota, WindowQuota,
 };
-
-/// `SqliteCounterStore` is the name routing docs use for the persistent counter store.
-pub type SqliteCounterStore = Store;

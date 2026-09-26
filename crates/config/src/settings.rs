@@ -2,17 +2,15 @@
 
 use crate::{redacted::Redacted, registry::ChainEntry};
 use bdm_ports::Capability;
-use schemars::JsonSchema;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::{collections::BTreeMap, path::PathBuf};
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Settings {
     pub server: ServerSettings,
     pub vendors: BTreeMap<String, VendorSettings>,
     /// Vendor API keys (normally from env or `secrets.toml`, never `config.toml`).
-    #[schemars(skip)]
     pub keys: BTreeMap<String, VendorKeys>,
     pub routing: RoutingSettings,
     pub operations: BTreeMap<String, OperationSettings>,
@@ -23,7 +21,7 @@ pub struct Settings {
     pub extra_chains: Vec<ChainEntry>,
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
     #[default]
@@ -31,7 +29,7 @@ pub enum Mode {
     Hosted,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ServerSettings {
     pub mode: Mode,
@@ -70,7 +68,7 @@ impl Default for ServerSettings {
 }
 
 /// Budget per window, in the vendor's unit (credits or requests; see the registry entry).
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct WindowBudget {
     pub rps: Option<u64>,
@@ -81,7 +79,7 @@ pub struct WindowBudget {
     pub monthly: Option<u64>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OnExhausted {
     /// Skip the vendor (route to the next one) until the window resets.
@@ -90,7 +88,7 @@ pub enum OnExhausted {
     AllowOverage,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct VendorSettings {
     pub enabled: Option<bool>,
@@ -108,7 +106,7 @@ pub struct VendorSettings {
 
 /// Ordered vendor list: primary first, then fallbacks. Accepts a TOML/JSON array or a
 /// comma-separated string (`ODM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public`).
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(transparent)]
 pub struct Order(pub Vec<String>);
 
@@ -142,7 +140,7 @@ impl<'de> Deserialize<'de> for Order {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct RoutingSettings {
     pub defaults: BTreeMap<Capability, Order>,
@@ -150,7 +148,7 @@ pub struct RoutingSettings {
     pub chains: BTreeMap<String, BTreeMap<Capability, Order>>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Strategy {
     Failover,
@@ -160,7 +158,7 @@ pub enum Strategy {
     Hedged,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct OperationSettings {
     pub enabled: Option<bool>,
@@ -173,7 +171,7 @@ pub struct OperationSettings {
     pub order: BTreeMap<Capability, Order>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ClientLimits {
     pub requests_per_minute: Option<u32>,
@@ -183,7 +181,19 @@ pub struct ClientLimits {
     pub tool_profile: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+impl ClientLimits {
+    /// `self`, field by field, falling back to `base`.
+    pub fn or(&self, base: ClientLimits) -> ClientLimits {
+        ClientLimits {
+            requests_per_minute: self.requests_per_minute.or(base.requests_per_minute),
+            daily_requests: self.daily_requests.or(base.daily_requests),
+            monthly_credits: self.monthly_credits.or(base.monthly_credits),
+            tool_profile: self.tool_profile.clone().or(base.tool_profile),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ClientsSettings {
     pub default: ClientLimits,
@@ -205,16 +215,15 @@ impl Default for ClientsSettings {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CustomRpc {
     /// CAIP-2 id or alias.
     pub chain: String,
-    #[schemars(with = "String")]
     pub url: Redacted<String>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ChainOverride {
     pub enabled: Option<bool>,

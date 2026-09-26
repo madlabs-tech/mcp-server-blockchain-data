@@ -1,10 +1,10 @@
-//! `coingecko` (Demo plan). Owner: `market-trading` (T1.M1).
+//! `coingecko` (Demo plan).
 //!
 //! Key goes in the `x-cg-demo-api-key` header. Tokens use the on-chain endpoints (CAIP-19 →
 //! GeckoTerminal network + contract), native coins use `/simple/price` with the coin id.
 //! Ports: `PriceFeed`, `PriceHistory` (365 days on Demo), `TokenMetadata`.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -31,7 +31,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     };
     let a = Arc::new(CoinGecko::new(util::http(loaded, ID), BASE, key));
     out.push(
-        Registration::new(util::meta(loaded, ID))
+        Registration::new(loaded.vendor_meta(ID))
             .global_port(PortHandle::Price(a.clone()))
             .global_port(PortHandle::PriceHistory(a.clone()))
             .global_port(PortHandle::TokenMetadata(a)),
@@ -42,23 +42,6 @@ pub struct CoinGecko {
     http: HttpClient,
     base: String,
     key: Redacted<String>,
-}
-
-/// GeckoTerminal network slug used by the on-chain endpoints.
-fn network(chain: &ChainId) -> Option<&'static str> {
-    if util::is_solana_mainnet(chain) {
-        return Some("solana");
-    }
-    Some(match chain.evm_chain_id()? {
-        1 => "eth",
-        8453 => "base",
-        42161 => "arbitrum",
-        10 => "optimism",
-        137 => "polygon_pos",
-        43114 => "avax",
-        56 => "bsc",
-        _ => return None, // Robinhood Chain coverage unverified
-    })
 }
 
 /// Asset platform id used by `/coins/{platform}/contract/...`.
@@ -78,28 +61,8 @@ fn platform(chain: &ChainId) -> Option<&'static str> {
     })
 }
 
-/// Coin id of a native asset by SLIP-44 coin type.
-fn native_id(slip44: u32) -> Option<&'static str> {
-    Some(match slip44 {
-        60 => "ethereum",
-        501 => "solana",
-        714 => "binancecoin",
-        966 => "polygon-ecosystem-token",
-        9000 => "avalanche-2",
-        _ => return None,
-    })
-}
-
 fn unsupported(asset: &AssetId) -> ProviderError {
     ProviderError::Unsupported(format!("coingecko does not cover {asset}"))
-}
-
-/// Case-insensitive lookup (EVM addresses come back lowercased).
-fn get_ci<'a>(obj: &'a Value, key: &str) -> Option<&'a Value> {
-    obj.as_object()?
-        .iter()
-        .find(|(k, _)| k.eq_ignore_ascii_case(key))
-        .map(|(_, v)| v)
 }
 
 impl CoinGecko {
@@ -150,16 +113,7 @@ impl CoinGecko {
                 "/onchain/simple/token_price",
             )
             .await?;
-        let attrs = &v["data"]["attributes"];
-        let value = util::price(get_ci(&attrs["token_prices"], addr).unwrap_or(&Value::Null))?;
-        Ok(Price {
-            asset: asset.clone(),
-            currency: "USD".into(),
-            value,
-            as_of: Utc::now(),
-            source: ID.into(),
-            liquidity_usd: get_ci(&attrs["total_reserve_in_usd"], addr).and_then(util::dec),
-        })
+        util::gecko_token_price(asset, ID, &v, addr)
     }
 }
 
@@ -169,7 +123,7 @@ impl PriceFeed for CoinGecko {
         let cur = currency.to_lowercase();
         match &asset.asset {
             AssetRef::Native { slip44 } => {
-                let id = native_id(*slip44).ok_or_else(|| unsupported(asset))?;
+                let id = util::coingecko_native_id(*slip44).ok_or_else(|| unsupported(asset))?;
                 self.native_price(asset, id, &cur).await
             }
             _ => {
@@ -178,7 +132,7 @@ impl PriceFeed for CoinGecko {
                         "coingecko on-chain prices are USD only".into(),
                     ));
                 }
-                let net = network(&asset.chain).ok_or_else(|| unsupported(asset))?;
+                let net = util::gecko_network(&asset.chain).ok_or_else(|| unsupported(asset))?;
                 let addr = util::token_address(asset).ok_or_else(|| unsupported(asset))?;
                 self.token_price(asset, net, &addr).await
             }
@@ -200,7 +154,7 @@ impl PriceHistory for CoinGecko {
             AssetRef::Native { slip44 } => {
                 format!(
                     "/coins/{}",
-                    native_id(*slip44).ok_or_else(|| unsupported(asset))?
+                    util::coingecko_native_id(*slip44).ok_or_else(|| unsupported(asset))?
                 )
             }
             _ => format!(
@@ -250,7 +204,7 @@ fn closest_point(
 impl TokenMetadata for CoinGecko {
     #[allow(clippy::indexing_slicing)] // serde_json::Value[..] reads return Null, never panic
     async fn metadata(&self, asset: &AssetId) -> PortResult<TokenInfo> {
-        let net = network(&asset.chain).ok_or_else(|| unsupported(asset))?;
+        let net = util::gecko_network(&asset.chain).ok_or_else(|| unsupported(asset))?;
         let addr = util::token_address(asset).ok_or_else(|| unsupported(asset))?;
         let v = self
             .get(
@@ -258,21 +212,7 @@ impl TokenMetadata for CoinGecko {
                 "/onchain/tokens",
             )
             .await?;
-        let a = &v["data"]["attributes"];
-        let s = |k: &str| a.get(k).and_then(Value::as_str).map(str::to_owned);
-        Ok(TokenInfo {
-            asset: asset.clone(),
-            decimals: a
-                .get("decimals")
-                .and_then(Value::as_u64)
-                .and_then(|d| u8::try_from(d).ok())
-                .ok_or(ProviderError::NotFound)?,
-            symbol: s("symbol"),
-            name: s("name"),
-            logo_url: s("image_url").filter(|u| u.starts_with("https://")),
-            verified: None,
-            source: ID.into(),
-        })
+        util::gecko_token_info(asset, ID, &v)
     }
 }
 
@@ -404,57 +344,5 @@ mod tests {
             .await
             .unwrap_err();
         assert!(!format!("{err:?}").contains("CG-demo-key-123"), "{err:?}");
-    }
-
-    // Shared helper checks (market_util.rs is compiled into each vendor module; tested once here).
-    #[test]
-    fn util_decimals_without_floats() {
-        assert_eq!(util::dec(&json!("1.0001")), Some(Decimal::new(10001, 4)));
-        assert_eq!(util::dec(&json!(0.9998)), Some(Decimal::new(9998, 4)));
-        assert_eq!(
-            util::dec(&json!(1.5e-7)),
-            Decimal::from_scientific("1.5e-7").ok()
-        );
-        assert_eq!(util::price(&json!(0)), Err(ProviderError::NotFound));
-        assert_eq!(util::price(&json!(null)), Err(ProviderError::NotFound));
-    }
-
-    #[test]
-    fn util_min_out_approve_and_tx() {
-        use alloy_primitives::U256;
-        use bdm_domain::UnsignedTx;
-        assert_eq!(
-            util::min_out(U256::from(1_000_000u64), 50),
-            U256::from(995_000u64)
-        );
-        assert_eq!(util::slippage_percent(50), "0.5");
-        assert_eq!(util::slippage_percent(100), "1");
-        let tx = util::approve_tx(
-            1,
-            "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-            "0x111111125421ca6dc452d289314280a0f8842a65",
-            U256::from(255u8),
-        )
-        .unwrap();
-        let UnsignedTx::Evm { data, .. } = tx else {
-            panic!()
-        };
-        assert_eq!(data.len(), 2 + 8 + 128);
-        assert!(data.starts_with(
-            "0x095ea7b3000000000000000000000000111111125421ca6dc452d289314280a0f8842a65"
-        ));
-        assert!(data.ends_with("ff"));
-        let t = util::evm_tx(
-            1,
-            &json!({"to": "0x1", "data": "0xab", "value": "0x10", "gas": 21000}),
-        )
-        .unwrap();
-        let UnsignedTx::Evm {
-            value, gas_limit, ..
-        } = t
-        else {
-            panic!()
-        };
-        assert_eq!((value.as_str(), gas_limit), ("16", Some(21000)));
     }
 }

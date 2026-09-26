@@ -50,4 +50,30 @@ pub mod serde_str {
         let s = String::deserialize(d)?;
         s.parse().map_err(D::Error::custom)
     }
+
+    /// The same for `Option<T>` (`None` stays null).
+    pub mod opt {
+        use super::*;
+
+        pub fn serialize<T: Display, S: Serializer>(
+            v: &Option<T>,
+            s: S,
+        ) -> Result<S::Ok, S::Error> {
+            match v {
+                Some(v) => s.collect_str(v),
+                None => s.serialize_none(),
+            }
+        }
+
+        pub fn deserialize<'de, T, D>(d: D) -> Result<Option<T>, D::Error>
+        where
+            T: FromStr,
+            T::Err: Display,
+            D: Deserializer<'de>,
+        {
+            Option::<String>::deserialize(d)?
+                .map(|s| s.parse().map_err(D::Error::custom))
+                .transpose()
+        }
+    }
 }

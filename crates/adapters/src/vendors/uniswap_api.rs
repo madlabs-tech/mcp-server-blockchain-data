@@ -1,12 +1,12 @@
 //! `uniswap_api` Trading API (key via `x-api-key`; FAQ says free, 6 req/s per key).
-//! Owner: `market-trading` (T1.M3). Disabled by default until the `/v1/swap` request/response
+//! Disabled by default until the `/v1/swap` request/response
 //! shape is checked against the live spec. Supports Robinhood Chain (4663).
 //!
 //! `quote` → `POST /v1/quote` (CLASSIC routing); `build` → `/v1/check_approval` (approval to
 //! Permit2, returned ready-made by the API) + `POST /v1/swap`. Quotes that need a Permit2
 //! signature (`permitData`) are not buildable here yet and return `Unsupported`.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -29,7 +29,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     };
     let a = Arc::new(UniswapApi::new(util::http(loaded, ID), BASE, key));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::SwapQuote(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::SwapQuote(a)));
 }
 
 pub struct UniswapApi {
@@ -70,13 +70,7 @@ impl UniswapApi {
 
     /// `(chain id, raw quote response)`.
     async fn raw_quote(&self, req: &SwapRequest) -> PortResult<(u64, Value)> {
-        let chain = util::evm_chain_id(&req.chain)?;
-        if !CHAINS.contains(&chain) {
-            return Err(ProviderError::Unsupported(format!(
-                "uniswap api does not cover {}",
-                req.chain
-            )));
-        }
+        let chain = util::covered_evm_chain(&req.chain, CHAINS, "uniswap api")?;
         let swapper = match req.taker {
             Some(AccountAddress::Evm(a)) => a.to_checksum(None),
             _ => util::ZERO_ADDRESS.to_owned(),

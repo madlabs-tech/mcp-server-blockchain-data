@@ -1,7 +1,7 @@
 //! Dashboard password: the `DASHBOARD_PASSWORD` env var if set, else `<config-dir>/dashboard_password`
 //! (generated on first start, mode 0600). A pre-rename `admin_token` file is renamed to it once.
 
-use crate::admin::random_hex;
+use bdm_store::random_hex;
 use std::{
     io::{ErrorKind, Write},
     path::{Path, PathBuf},

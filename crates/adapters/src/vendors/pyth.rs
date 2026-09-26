@@ -1,4 +1,4 @@
-//! `pyth`: Hermes (live prices) and Benchmarks (historical). Owner: `market-trading` (T1.M1).
+//! `pyth`: Hermes (live prices) and Benchmarks (historical).
 //! Since 2026-08-26 Pyth docs require `Authorization: Bearer $PYTH_API_KEY` on Hermes requests;
 //! Benchmarks also answers 401 without a key (its header is undocumented ⚠, we send the same).
 //!
@@ -6,7 +6,7 @@
 //! ERC-20/SPL assets return `Unsupported` and routing moves on. Feed ids are looked up once via
 //! Hermes `/v2/price_feeds` and cached.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
@@ -31,7 +31,7 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     };
     let a = Arc::new(Pyth::new(util::http(loaded, ID), HERMES, BENCHMARKS, key));
     out.push(
-        Registration::new(util::meta(loaded, ID))
+        Registration::new(loaded.vendor_meta(ID))
             .global_port(PortHandle::Price(a.clone()))
             .global_port(PortHandle::PriceHistory(a)),
     );
@@ -64,7 +64,7 @@ fn symbol(asset: &AssetId) -> PortResult<&'static str> {
     }
 }
 
-/// `price × 10^expo` exactly.
+/// `price × 10^expo` exactly. Out-of-range vendor values are errors, never a panic or a wrap.
 fn scaled(price: &Value, expo: i64) -> PortResult<Decimal> {
     let raw: i64 = match price {
         Value::String(s) => s.parse().ok(),
@@ -72,11 +72,15 @@ fn scaled(price: &Value, expo: i64) -> PortResult<Decimal> {
         _ => None,
     }
     .ok_or(ProviderError::NotFound)?;
+    let e = u32::try_from(expo.unsigned_abs()).unwrap_or(u32::MAX);
     let d = if expo <= 0 {
-        Decimal::try_from_i128_with_scale(raw.into(), (-expo) as u32)
+        Decimal::try_from_i128_with_scale(raw.into(), e)
             .map_err(|e| ProviderError::Transient(e.to_string()))?
     } else {
-        Decimal::from(raw) * Decimal::from(10i64.pow(expo as u32))
+        10i64
+            .checked_pow(e)
+            .and_then(|m| Decimal::from(raw).checked_mul(Decimal::from(m)))
+            .ok_or(ProviderError::NotFound)?
     };
     if d.is_sign_positive() && !d.is_zero() {
         Ok(d)
@@ -245,5 +249,26 @@ mod tests {
         );
         assert_eq!(scaled(&"5".into(), 2).unwrap(), Decimal::from(500));
         assert_eq!(scaled(&"0".into(), -8), Err(ProviderError::NotFound));
+    }
+
+    #[test]
+    fn hostile_expo_or_price_is_an_error_not_a_panic() {
+        let max = Value::from(i64::MAX.to_string());
+        assert_eq!(scaled(&max, 18), Err(ProviderError::NotFound)); // mul overflow
+        assert_eq!(scaled(&"5".into(), 19), Err(ProviderError::NotFound)); // 10^19 > i64
+        assert_eq!(scaled(&"5".into(), i64::MAX), Err(ProviderError::NotFound));
+        assert!(matches!(
+            scaled(&"5".into(), -29),
+            Err(ProviderError::Transient(_))
+        ));
+        // Previously truncated to scale 3 by `as u32`; now rejected.
+        assert!(matches!(
+            scaled(&"5".into(), -(1i64 << 32) - 3),
+            Err(ProviderError::Transient(_))
+        ));
+        assert!(matches!(
+            scaled(&"5".into(), i64::MIN),
+            Err(ProviderError::Transient(_))
+        ));
     }
 }

@@ -193,16 +193,16 @@ fn locked_window(cfg: &Loaded, vendor: &str, which: &str, window: &str) -> Optio
     let names: &[&str] = match window {
         "daily" => &["daily", "daily_credits", "daily_requests"],
         "monthly" => &["monthly", "monthly_credits", "monthly_requests"],
-        other => return lock(cfg, &["vendors", vendor, which, other]),
+        other => {
+            return cfg
+                .locked_by(&["vendors", vendor, which, other])
+                .map(str::to_owned)
+        }
     };
     names
         .iter()
-        .find_map(|n| lock(cfg, &["vendors", vendor, which, n]))
-}
-
-fn lock(cfg: &Loaded, path: &[&str]) -> Option<String> {
-    let path: Vec<String> = path.iter().map(|s| s.to_string()).collect();
-    cfg.locked_by(&path).map(str::to_owned)
+        .find_map(|n| cfg.locked_by(&["vendors", vendor, which, n]))
+        .map(str::to_owned)
 }
 
 impl QuotaEngine {
@@ -739,8 +739,7 @@ mod tests {
                     id: "coingecko".into(),
                     display_name: "CoinGecko".into(),
                     requires_key: true,
-                    signup_url: None,
-                    rpc_features: Default::default(),
+                    ..Default::default()
                 })
                 .with_quota_reporter(Arc::new(FakeReporter(n))),
             );

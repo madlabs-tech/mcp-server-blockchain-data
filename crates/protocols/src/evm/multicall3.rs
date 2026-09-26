@@ -1,4 +1,4 @@
-//! Multicall3 `aggregate3` batching pinned to one block. Owner: `evm` (T1.E5).
+//! Multicall3 `aggregate3` batching pinned to one block.
 //!
 //! Caveat: inside a multicall `msg.sender` is the Multicall3 contract, so never batch reads that
 //! depend on the caller.
@@ -102,8 +102,10 @@ mod tests {
     fn node(results: Vec<IMulticall3::Result>) -> MockEvmRpc {
         let rpc = MockEvmRpc::default();
         let out = IMulticall3::aggregate3Call::abi_encode_returns(&results);
-        rpc.script
-            .always(Ok(json!(format!("0x{}", hex::encode(out)))));
+        rpc.script.always(Ok(json!(format!(
+            "0x{}",
+            alloy_primitives::hex::encode(out)
+        ))));
         rpc
     }
 

@@ -1,5 +1,5 @@
 //! `rpc` pseudo-vendor for Solana: balances (both token programs), transfers (wallet + every token
-//! account), fee_estimate, simulate, token_metadata. Owner: `solana` (T1.S1–S2).
+//! account), fee_estimate, simulate, token_metadata.
 //!
 //! Everything runs on [`RoutedSolanaRpc`], so it inherits the user's `solana_rpc` order,
 //! breakers and quota guard.
@@ -19,7 +19,7 @@ use bdm_domain::{
 use bdm_ports::{
     Direction, FeeOracle, Page, PortHandle, PortResult, ProviderError, Registration,
     SimulationResult, Simulator, SolanaRpc, TokenBalance, TokenBalances, TokenInfo, TokenMetadata,
-    TransferHistory, TransferQuery, VendorMeta, RPC_VENDOR,
+    TransferHistory, TransferQuery, RPC_VENDOR,
 };
 use bdm_routing::{RoutedSolanaRpc, Router};
 use serde_json::{json, Map};
@@ -33,17 +33,7 @@ const READ_COMMITMENT: &str = "confirmed";
 const MAX_PAGE: u32 = 100;
 
 pub fn registrations(loaded: &Loaded, router: &Arc<Router>) -> Vec<Registration> {
-    let meta = VendorMeta {
-        id: RPC_VENDOR.into(),
-        display_name: loaded.registry.vendors.get(RPC_VENDOR).map_or_else(
-            || "On-chain via routed RPC".into(),
-            |e| e.display_name.clone(),
-        ),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    };
-    let mut reg = Registration::new(meta);
+    let mut reg = Registration::new(loaded.vendor_meta(RPC_VENDOR));
     for chain in loaded
         .registry
         .chains

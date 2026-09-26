@@ -138,12 +138,6 @@ function card(title, ...kids) {
   return h("section", { class: "cut card" }, title ? h("h2", { class: "card-title" }, title) : null, kids);
 }
 
-function termCard(title, ...kids) {
-  return h("section", { class: "cut term" },
-    h("div", { class: "term-bar" }, h("span", { class: "dots", "aria-hidden": "true" }, h("i"), h("i"), h("i")), h("h2", {}, title)),
-    h("div", { class: "term-body" }, kids));
-}
-
 async function copyText(text) {
   try { await navigator.clipboard.writeText(text); say("Copied to clipboard", "ok"); }
   catch { say("Copy failed; select the text manually", "err"); }

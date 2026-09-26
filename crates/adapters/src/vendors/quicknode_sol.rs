@@ -1,4 +1,4 @@
-//! `quicknode_sol` vendor adapter. Owner: `solana` (T1.S4).
+//! `quicknode_sol` vendor adapter.
 //!
 //! `qn_estimatePriorityFees` → `fee_estimate`, registered under the vendor id `quicknode` (the
 //! id used in routing orders; chain RPC for QuickNode comes from `factory::base_registrations`).
@@ -10,15 +10,14 @@
 //!
 //! Source: <https://www.quicknode.com/docs/solana/qn_estimatePriorityFees>.
 
-use crate::{
-    http::{HttpClient, DEFAULT_TIMEOUT},
-    jsonrpc::JsonRpcClient,
-};
+use super::util;
+
+use crate::jsonrpc::JsonRpcClient;
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, VendorStatus};
-use bdm_domain::{FeeEstimate, FeeSpeed};
-use bdm_ports::{FeeOracle, PortHandle, PortResult, ProviderError, Registration, VendorMeta};
-use bdm_protocols::solana::{fees, SOLANA_MAINNET};
+use bdm_domain::FeeEstimate;
+use bdm_ports::{FeeOracle, PortHandle, PortResult, ProviderError, Registration};
+use bdm_protocols::solana::fees;
 use serde_json::json;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -32,27 +31,14 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
     if loaded.vendor_status(VENDOR) != VendorStatus::Active {
         return;
     }
-    let Some(chain) = loaded
-        .registry
-        .chains
-        .enabled()
-        .find(|c| c.id.to_string() == SOLANA_MAINNET)
-    else {
+    let Some(chain) = bdm_protocols::solana::enabled_mainnet(loaded) else {
         return;
     };
     let Some(url) = loaded.rpc_url(VENDOR, &chain.id) else {
         return;
     };
-    let e = loaded.registry.vendors.get(VENDOR);
-    let meta = VendorMeta {
-        id: VENDOR.into(),
-        display_name: e.map_or_else(|| "QuickNode".into(), |e| e.display_name.clone()),
-        requires_key: true,
-        signup_url: e.and_then(|e| e.signup_url.clone()),
-        rpc_features: e.map(|e| e.rpc_features.clone()).unwrap_or_default(),
-    };
-    let http = HttpClient::new(VENDOR, DEFAULT_TIMEOUT)
-        .with_secrets(loaded.secret_values().into_iter().map(str::to_owned));
+    let meta = loaded.vendor_meta(VENDOR);
+    let http = util::http(loaded, VENDOR);
     let fees = Arc::new(QuickNodeFees::new(
         JsonRpcClient::new(http, url),
         chain.clone(),
@@ -101,32 +87,14 @@ impl FeeOracle for QuickNodeFees {
             other => other?,
         };
         let pcu = &r["per_compute_unit"];
-        let tiers = [
-            (FeeSpeed::Slow, "low"),
-            (FeeSpeed::Standard, "medium"),
-            (FeeSpeed::Fast, "high"),
-        ]
-        .into_iter()
-        .map(|(s, k)| {
-            pcu[k]
-                .as_u64()
-                .map(|p| fees::tier(s, p))
-                .ok_or_else(|| ProviderError::Transient(format!("per_compute_unit.{k} missing")))
-        })
-        .collect::<PortResult<Vec<_>>>()?;
-        Ok(FeeEstimate {
-            chain: self.chain.id.clone(),
-            tiers,
-            l1_data_fee: None,
-            tip: Some(fees::suggested_tip(&self.chain)),
-            as_of: chrono::Utc::now(),
-        })
+        fees::estimate_from_levels(&self.chain, "per_compute_unit", |k| pcu[k].as_u64())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http::HttpClient;
     use bdm_config::{Redacted, Registry};
     use bdm_testkit::FakeJsonRpc;
     use std::time::Duration;

@@ -1,13 +1,13 @@
-//! `dexscreener` (keyless, 300 req/min on token/pair endpoints). Owner: `market-trading` (T1.M1).
+//! `dexscreener` (keyless, 300 req/min on token/pair endpoints).
 //! Port: `PriceFeed` (USD) from the most liquid pair where the token is the base token.
 //! Note: DexScreener "boosts" are paid ads; we never rank by them.
 
-use super::market_util as util;
+use super::util;
 
 use crate::http::HttpClient;
 use async_trait::async_trait;
 use bdm_config::{Loaded, Redacted, VendorStatus};
-use bdm_domain::{AssetId, ChainId, Price};
+use bdm_domain::{AssetId, Price};
 use bdm_ports::{PortHandle, PortResult, PriceFeed, ProviderError, Registration};
 use chrono::Utc;
 use serde_json::Value;
@@ -21,28 +21,12 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         return;
     }
     let a = Arc::new(DexScreener::new(util::http(loaded, ID), BASE));
-    out.push(Registration::new(util::meta(loaded, ID)).global_port(PortHandle::Price(a)));
+    out.push(Registration::new(loaded.vendor_meta(ID)).global_port(PortHandle::Price(a)));
 }
 
 pub struct DexScreener {
     http: HttpClient,
     base: String,
-}
-
-fn chain_slug(chain: &ChainId) -> Option<&'static str> {
-    if util::is_solana_mainnet(chain) {
-        return Some("solana");
-    }
-    Some(match chain.evm_chain_id()? {
-        1 => "ethereum",
-        8453 => "base",
-        42161 => "arbitrum",
-        10 => "optimism",
-        137 => "polygon",
-        43114 => "avalanche",
-        56 => "bsc",
-        _ => return None, // Robinhood Chain coverage unverified
-    })
 }
 
 impl DexScreener {
@@ -63,7 +47,7 @@ impl PriceFeed for DexScreener {
         if !currency.eq_ignore_ascii_case("usd") {
             return Err(ProviderError::Unsupported("dexscreener is USD only".into()));
         }
-        let chain = chain_slug(&asset.chain).ok_or_else(unsupported)?;
+        let chain = util::dex_chain_slug(&asset.chain).ok_or_else(unsupported)?;
         let addr = util::token_address(asset).ok_or_else(unsupported)?;
         let url = Redacted::new(format!("{}/tokens/v1/{chain}/{addr}", self.base));
         let v = self.http.get_json(&url, "/tokens/v1", &[]).await?;

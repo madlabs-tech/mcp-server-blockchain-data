@@ -1,4 +1,4 @@
-//! `helius` vendor adapter. Owner: `solana` (T1.S3).
+//! `helius` vendor adapter.
 //!
 //! - `helius` (key): DAS `getAssetsByOwner` → `token_balances`, DAS `getAsset` →
 //!   `token_metadata`, `getPriorityFeeEstimate` → `fee_estimate`, all on the key-bearing RPC URL.
@@ -15,18 +15,17 @@
 //! Sources: <https://www.helius.dev/docs/das-api>, <https://www.helius.dev/docs/priority-fee-api>,
 //! <https://www.helius.dev/docs/sending-transactions/sender>.
 
-use crate::{
-    http::{HttpClient, DEFAULT_TIMEOUT},
-    jsonrpc::{array_field, JsonRpcClient},
-};
+use super::util;
+
+use crate::jsonrpc::{array_field, JsonRpcClient};
 use async_trait::async_trait;
 use bdm_config::{ChainEntry, Loaded, Redacted, VendorStatus};
-use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef, FeeEstimate, FeeSpeed, SolanaPubkey};
+use bdm_domain::{AccountAddress, Amount, AssetId, AssetRef, FeeEstimate, SolanaPubkey};
 use bdm_ports::{
     BroadcastReceipt, Broadcaster, FeeOracle, PortHandle, PortResult, ProviderError, Registration,
-    TokenBalance, TokenBalances, TokenInfo, TokenMetadata, VendorMeta,
+    TokenBalance, TokenBalances, TokenInfo, TokenMetadata,
 };
-use bdm_protocols::solana::{fees, spl, tx, SOLANA_MAINNET};
+use bdm_protocols::solana::{fees, spl, tx};
 use serde_json::{json, Value};
 use std::sync::Arc;
 
@@ -50,38 +49,17 @@ const DAS_PAGE: usize = 1000;
 // ponytail: 10 pages × 1000 assets; wallets beyond that are truncated (fall back to `rpc`).
 const DAS_MAX_PAGES: u32 = 10;
 
-fn meta(loaded: &Loaded, id: &str) -> VendorMeta {
-    let e = loaded.registry.vendors.get(id);
-    VendorMeta {
-        id: id.to_owned(),
-        display_name: e.map_or_else(|| id.to_owned(), |e| e.display_name.clone()),
-        requires_key: e.is_some_and(|e| e.requires_key),
-        signup_url: e.and_then(|e| e.signup_url.clone()),
-        rpc_features: e.map(|e| e.rpc_features.clone()).unwrap_or_default(),
-    }
-}
-
 /// Push `helius` (DAS, priority fee) and `helius_sender` (relay) registrations when active.
 pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
-    let Some(chain) = loaded
-        .registry
-        .chains
-        .enabled()
-        .find(|c| c.id.to_string() == SOLANA_MAINNET)
-    else {
+    let Some(chain) = bdm_protocols::solana::enabled_mainnet(loaded) else {
         return;
     };
-    let secrets: Vec<String> = loaded
-        .secret_values()
-        .into_iter()
-        .map(str::to_owned)
-        .collect();
     if loaded.vendor_status("helius") == VendorStatus::Active {
         if let Some(url) = loaded.rpc_url("helius", &chain.id) {
-            let http = HttpClient::new("helius", DEFAULT_TIMEOUT).with_secrets(secrets.clone());
+            let http = util::http(loaded, "helius");
             let h = Arc::new(Helius::new(JsonRpcClient::new(http, url), chain.clone()));
             out.push(
-                Registration::new(meta(loaded, "helius"))
+                Registration::new(loaded.vendor_meta("helius"))
                     .chain_port(chain.id.clone(), PortHandle::TokenBalances(h.clone()))
                     .chain_port(chain.id.clone(), PortHandle::FeeEstimate(h.clone()))
                     .global_port(PortHandle::TokenMetadata(h)),
@@ -89,13 +67,13 @@ pub fn register(loaded: &Loaded, out: &mut Vec<Registration>) {
         }
     }
     if loaded.vendor_status("helius_sender") == VendorStatus::Active {
-        let http = HttpClient::new("helius_sender", DEFAULT_TIMEOUT).with_secrets(secrets);
+        let http = util::http(loaded, "helius_sender");
         let s = Arc::new(HeliusSender::new(JsonRpcClient::new(
             http,
             Redacted::new(SENDER_URL.to_owned()),
         )));
         out.push(
-            Registration::new(meta(loaded, "helius_sender"))
+            Registration::new(loaded.vendor_meta("helius_sender"))
                 .chain_port(chain.id.clone(), PortHandle::PrivateRelay(s)),
         );
     }
@@ -218,25 +196,7 @@ impl FeeOracle for Helius {
             )
             .await?;
         let levels = &r["priorityFeeLevels"];
-        let tiers = [
-            (FeeSpeed::Slow, "low"),
-            (FeeSpeed::Standard, "medium"),
-            (FeeSpeed::Fast, "high"),
-        ]
-        .into_iter()
-        .map(|(s, k)| {
-            fee_level(&levels[k])
-                .map(|p| fees::tier(s, p))
-                .ok_or_else(|| ProviderError::Transient(format!("priorityFeeLevels.{k} missing")))
-        })
-        .collect::<PortResult<Vec<_>>>()?;
-        Ok(FeeEstimate {
-            chain: self.chain.id.clone(),
-            tiers,
-            l1_data_fee: None,
-            tip: Some(fees::suggested_tip(&self.chain)),
-            as_of: chrono::Utc::now(),
-        })
+        fees::estimate_from_levels(&self.chain, "priorityFeeLevels", |k| fee_level(&levels[k]))
     }
 }
 
@@ -319,7 +279,9 @@ impl Broadcaster for HeliusSender {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::http::{HttpClient, DEFAULT_TIMEOUT};
     use bdm_config::Registry;
+    use bdm_protocols::solana::SOLANA_MAINNET;
     use bdm_testkit::FakeJsonRpc;
     use std::time::Duration;
 

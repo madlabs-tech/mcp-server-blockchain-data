@@ -7,7 +7,7 @@ use crate::{
     settings::{ClientLimits, OnExhausted, OperationSettings, WindowBudget},
 };
 use bdm_domain::ChainId;
-use bdm_ports::{Capability, RPC_VENDOR};
+use bdm_ports::{Capability, VendorMeta, RPC_VENDOR};
 use serde::Serialize;
 
 /// Which config level produced an order (shown in the dashboard's effective-order view).
@@ -62,11 +62,7 @@ pub(crate) fn overlay(base: WindowBudget, over: WindowBudget) -> WindowBudget {
 }
 
 fn min_opt(a: Option<u64>, b: Option<u64>) -> Option<u64> {
-    match (a, b) {
-        (Some(x), Some(y)) => Some(x.min(y)),
-        (x, None) => x,
-        (None, y) => y,
-    }
+    a.into_iter().chain(b).min()
 }
 
 impl Loaded {
@@ -174,6 +170,18 @@ impl Loaded {
             }
         }
         VendorStatus::Active
+    }
+
+    /// Admin-facing metadata for a vendor, from its registry entry (bare id if unknown).
+    pub fn vendor_meta(&self, vendor: &str) -> VendorMeta {
+        let e = self.registry.vendors.get(vendor);
+        VendorMeta {
+            id: vendor.to_owned(),
+            display_name: e.map_or_else(|| vendor.to_owned(), |e| e.display_name.clone()),
+            requires_key: e.is_some_and(|e| e.requires_key),
+            signup_url: e.and_then(|e| e.signup_url.clone()),
+            rpc_features: e.map(|e| e.rpc_features.clone()).unwrap_or_default(),
+        }
     }
 
     pub fn key(&self, vendor: &str, field: &str) -> Option<&str> {
@@ -299,15 +307,10 @@ impl Loaded {
 
     /// Limits for a client id: per-client overrides field-by-field over `clients.default`.
     pub fn client_limits(&self, client: &str) -> ClientLimits {
-        let d = &self.settings.clients.default;
+        let d = self.settings.clients.default.clone();
         match self.settings.clients.overrides.get(client) {
-            None => d.clone(),
-            Some(o) => ClientLimits {
-                requests_per_minute: o.requests_per_minute.or(d.requests_per_minute),
-                daily_requests: o.daily_requests.or(d.daily_requests),
-                monthly_credits: o.monthly_credits.or(d.monthly_credits),
-                tool_profile: o.tool_profile.clone().or_else(|| d.tool_profile.clone()),
-            },
+            None => d,
+            Some(o) => o.or(d),
         }
     }
 }

@@ -16,14 +16,13 @@ alloy-sol-types = { workspace = true }
 async-trait = { workspace = true }
 bs58 = { workspace = true }
 chrono = { workspace = true }
-hex = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 toml = { workspace = true }
-# solana (T1.S1): PDA off-curve check + wire decoding
-base64 = "0.22"
+# solana: PDA off-curve check + wire decoding
+base64 = { workspace = true }
 curve25519-dalek = { version = "4", default-features = false }
 
 [dev-dependencies]

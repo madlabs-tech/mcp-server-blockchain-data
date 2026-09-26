@@ -8,8 +8,7 @@
 
 use async_trait::async_trait;
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
-use bdm_app::{App, Caller, Catalog, Profile, ProfileSelection};
-use bdm_config::{ConfigDir, ConfigLoader, EnvSource};
+use bdm_app::{App, Caller, Profile, ProfileSelection};
 use bdm_domain::{
     AccountAddress, Amount, AssetId, BlockRef, ChainId, ErrorCode, FeeEstimate, FeeSpeed, FeeTier,
     Price, Transfer, TransferKind, UnsignedTx,
@@ -17,9 +16,8 @@ use bdm_domain::{
 use bdm_ports::{
     BroadcastReceipt, Broadcaster, EvmRpc, FeeOracle, FxRate, Page, PortHandle, PortResult,
     PriceHistory, ProviderError, Registration, SimulationResult, Simulator, SolanaRpc,
-    TokenBalance, TransferHistory, TransferQuery, VendorMeta,
+    TokenBalance, TransferHistory, TransferQuery,
 };
-use bdm_routing::{InMemoryCounterStore, ProviderRegistry, Router, RouterOptions, RoutingTable};
 use bdm_testkit::mocks::{MockFxRates, MockPriceFeed, MockTokenBalances};
 use chrono::{DateTime, NaiveDate, Utc};
 use rust_decimal::Decimal;
@@ -28,6 +26,9 @@ use std::{
     str::FromStr,
     sync::{Arc, Mutex},
 };
+
+mod common;
+use common::call;
 
 const SOL: &str = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
 const WALLET: &str = "0xd8da6bf26964af9d7eed9e03e53415d37aa96045";
@@ -118,13 +119,7 @@ impl TransferHistory for History {
 }
 
 fn reg(vendor: &str, ports: Vec<(Option<ChainId>, PortHandle)>) -> Registration {
-    let mut r = Registration::new(VendorMeta {
-        id: vendor.into(),
-        display_name: vendor.into(),
-        requires_key: false,
-        signup_url: None,
-        rpc_features: Default::default(),
-    });
+    let mut r = Registration::new(common::meta(vendor));
     r.ports = ports;
     r
 }
@@ -134,31 +129,7 @@ fn chain(s: &str) -> Option<ChainId> {
 }
 
 fn app(env: &[(&str, &str)], regs: Vec<Registration>) -> App {
-    let loader = ConfigLoader::new(
-        ConfigDir::new("/nonexistent"),
-        EnvSource::from_pairs(env.iter().copied()),
-    )
-    .unwrap();
-    let config = Arc::new(
-        loader
-            .load_texts("[server]\ntool_profile = \"all\"\n", "")
-            .unwrap(),
-    );
-    let router = Router::new(
-        RoutingTable {
-            config,
-            registry: ProviderRegistry::new(regs),
-        },
-        Arc::new(InMemoryCounterStore::default()),
-        RouterOptions::default(),
-    );
-    let mut catalog = Catalog::new();
-    bdm_app::ops::register_all(&mut catalog);
-    App::new(catalog, router, 100)
-}
-
-async fn call(app: &App, tool: &str, input: Value) -> Result<Value, bdm_domain::DomainError> {
-    app.call(tool, input, Caller::local()).await
+    common::app(env, "[server]\ntool_profile = \"all\"\n", regs)
 }
 
 fn block(n: u64, ts: i64) -> Option<BlockRef> {

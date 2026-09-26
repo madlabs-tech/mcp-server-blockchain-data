@@ -46,8 +46,8 @@ Production code denies `unwrap`, `expect`, indexing, `panic!` and `unreachable!`
 clippy lints): vendor data never crashes the process.
 
 **Adding a vendor:** a module in `crates/adapters/src/vendors/`, a feature in
-`crates/adapters/Cargo.toml`, an entry in `registry/vendors.toml` (with `tier`), and a row in
-`docs/VENDORS.md`.
+`crates/adapters/Cargo.toml` (also listed in `default`: runtime on/off is config), an entry in
+`registry/vendors.toml` (with `tier`), and a row in `docs/VENDORS.md`.
 
 **Adding a tool:** an `Operation` in `crates/app/src/ops/<domain>.rs` with `NAME`, `DOMAIN`,
 `DESCRIPTION` and `PROFILES`, registered in that module's `register`. Set `READ_ONLY = false`
@@ -85,6 +85,7 @@ built-in registry (registry/*.toml, compiled in)
 | `ODM__ROUTING__DEFAULTS__EVM_RPC=alchemy,quicknode,public` | `[routing.defaults] evm_rpc` |
 | `ALCHEMY_API_KEY`, `HELIUS_API_KEY`, … | vendor keys (names in [VENDORS.md](VENDORS.md)) |
 | `DASHBOARD_PASSWORD` | dashboard password (≥ 12 printable ASCII characters, no spaces; blank = unset) |
+| `RUST_LOG=info` | log level (logs go to stderr). A level (`error`, `warn`, `info`, `debug`, `trace`) and/or `target=level` pairs, comma-separated: `info,rmcp=warn`, `onchain_data_mcp=debug`. Unset or not understood = `info` (with a warning); empty = errors only. Span, field and regex filters are not supported. |
 
 **`[server]`:**
 
@@ -157,12 +158,24 @@ Disabled vendors and vendors without a key are skipped. Two pseudo-vendors alway
 `public` (keyless RPCs from `chains.toml`) and `rpc` (generic on-chain implementations over
 whatever RPC is routed).
 
-**Strategies** (`[operations.<tool>] strategy = …`): `failover` (default: first that works),
-`quorum` (with `quorum = N`, N sources must agree), `aggregate` (median + spread across
-`fan_out` vendors), `fan_out` (ask all at once, e.g. broadcast), `hedged` (start the next vendor
-after `hedge_delay_ms`). Also per tool: `cache_ttl_secs`, `enabled`.
-`config.example.toml` sets `payments_verify_transfer` to quorum 2, `market_get_price` to
-aggregate over 3, and `tx_broadcast` to fan-out.
+**How each tool asks vendors** is built into the tool:
+
+- **Failover** (most tools): the first vendor in the order that works.
+- **Aggregate**: ask up to `fan_out` vendors at once, filling in for ones that fail.
+  `market_get_price` (median + spread, default 3), `trade_get_swap_quote` (best quote +
+  spread, default 3), `token_get_metadata` and `trade_build_swap_tx` (default 2).
+- **Fan out**: ask every vendor in the order at once. `tx_broadcast`, `token_check_risk`,
+  `compliance_screen_address`, `chain_finality`.
+- **Quorum**: `payments_verify_transfer` only, when `strategy = "quorum"` is set for it (or a
+  call passes `quorum: true`). `quorum = N` providers (at least 2, default 2) must return the
+  same block hash.
+
+Per tool (`[operations.<tool>]`): `fan_out` (aggregating tools), `cache_ttl_secs`, `enabled`,
+and `strategy` / `quorum`. `strategy` accepts `failover`, `quorum`, `aggregate`, `fan_out` and
+`hedged` on every tool (the dashboard offers them all), but today only `quorum` on
+`payments_verify_transfer` changes anything. `hedged` and `hedge_delay_ms` are accepted and
+ignored. `config.example.toml` turns on quorum 2 for `payments_verify_transfer` and sets
+`market_get_price` to aggregate over 3.
 
 ## Tool profiles
 

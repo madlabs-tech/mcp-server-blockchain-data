@@ -21,7 +21,6 @@ pub enum Domain {
     Market,
     Trade,
     Rwa,
-    Defi,
     /// Pre-refactor tool names kept for one release.
     Legacy,
 }
@@ -39,7 +38,6 @@ impl Domain {
             Self::Market => "market",
             Self::Trade => "trade",
             Self::Rwa => "rwa",
-            Self::Defi => "defi",
             Self::Legacy => "legacy",
         }
     }
